@@ -1,167 +1,157 @@
 # Check & CI
 
-This repo uses a complete local validation sequence for the workspace and its
-CI gates. Run all checks before committing; a green local run must still be
-followed by the full **CI** pipeline.
+End-to-end loop for this monorepo. **Do not stop until every step succeeds.**
+If any step fails, fix it and restart from the failed gate (re-run local checks
+after code fixes).
 
-## Complete local check
+```
+Local checks → Commit & push → Watch GitHub Actions → Done
+     ↑______________ fix & loop on any failure ______________|
+```
+
+## The loop (required order)
+
+### 1. Local checks
 
 ```bash
 bun run check:ci && bun run typecheck
 ```
 
-This runs, in order:
+Runs, in order:
 
-1. `bun install --frozen-lockfile` — verifies `bun.lock` is in sync with `package.json`.
-2. `check:vault-secrets` — validates the Vault dev configuration.
-3. `check:smoke:secrets` — smoke-tests every registered secret.
-4. `bun check` — runs formatting, package typecheck, lint, test, and build.
-5. `bun run typecheck` — checks the root TypeScript project, including `packages/workstation`.
+1. `bun install --frozen-lockfile` — lockfile in sync with `package.json`
+2. `check:vault-secrets` — Vault `dev` config
+3. `check:smoke:secrets` — smoke every registered secret
+4. `bun check` — prettier + `turbo run tc lint test build`
+5. `bun run typecheck` — root `tsc` (includes `packages/workstation`)
 
-For the package-only checks without Vault:
+Package-only (no Vault): `bun check`  
+(`bun check` = `bun install --frozen-lockfile` + prettier + turbo tc/lint/test/build.)
 
-```bash
-bun check
-```
+> Turbo caches locally (`.turbo/`). CI is always fresh. If a fix seems ignored:
+> `bun run check -- --force` and `bun run typecheck`. Vault session required for
+> secret gates (`vault run --config dev -- …` / logged-in vault).
 
-`bun check` is an alias for `bun run check`, which runs `bun install
---frozen-lockfile`, `prettier --check .`, and `turbo run tc lint test build`.
-
-> Turbo caches results locally (`.turbo/`). CI always runs fresh. If a change is
-> not reflected by a check, append `-- --force` to the relevant Turbo command.
-> The complete sequence still requires a Vault session for the secret gates.
-
-## Fix-and-check loop
-
-Run the complete local check. Fix failures in the order the commands report
-them. After each fix, re-run the complete local check. Repeat until green. Do
-not stop after the first green — you must also push and watch CI.
-
-`bun check` only covers the local `check` job. It does **not** validate the CI
-`publish` job, which builds and pushes the Docker image from
-`packages/turborepo-remote-cache/Dockerfile` and can fail on Docker/build-context errors that are
-invisible locally (e.g. a `.dockerignore` rule excluding a workspace whose
-`package.json` the Dockerfile `COPY`s). A green `bun check` is **not** proof that
-CI is green — always watch the full CI run (see [Watch CI & fix failures](#watch-ci--fix-failures)).
+**On failure:** fix in the order reported, re-run `bun run check:ci && bun run typecheck`,
+repeat until green. Then go to step 2.
 
 | Failure           | Fix                                                                                                                                                                         |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lockfile mismatch | `bun install` (regenerates `bun.lock`), then re-check.                                                                                                                      |
-| Prettier warning  | `bun run format` (or `bunx prettier --write <file>`), then re-check.                                                                                                        |
-| `tc` (typecheck)  | Fix the TypeScript error in the named package. `@pkgs/turborepo-remote-cache` + `@pkgs/*` libs use strict `tsconfig.strict.json`; `@pkgs/infra` uses the loose root config. |
-| `lint`            | Run the package's eslint (`eslint . --max-warnings 0`). Shared rules live in `packages/eslint-rules`.                                                                       |
-| `test`            | Fix the failing assertion (runs under `bun test`).                                                                                                                          |
-| `build`           | `@pkgs/turborepo-remote-cache` build is `test -f Dockerfile`; others are package builds.                                                                                    |
+| Lockfile mismatch | `bun install`, then re-check                                                                                                                                                |
+| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                                                                         |
+| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config)                                                         |
+| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                                                                                |
+| `test`            | Fix assertion (`bun test`)                                                                                                                                                  |
+| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds                                                                                           |
 
-Loop rule: if a fix does not change the result, run `bun run check -- --force`
-and `bun run typecheck` to bypass the Turbo cache and re-run the root check
-before debugging further.
+A green local run is **not** done — local `check` does not cover CI `publish` /
+`vault` / `deploy` (Docker, Railway, DNS).
 
-Once the loop is green and everything is good to merge, **finish by committing
-and pushing** (see [Commit & push](#commit--push)). Do not stop at a green local
-run — the change is only done when it is committed and pushed so CI confirms it.
-Running the loop is a _fix-and-check_ cycle; ending it means the code is
-committed and pushed.
+If Vault is down locally, you may still green `bun check`; say clearly that the
+Vault gate was skipped locally and must pass via CI OIDC — then continue the loop.
 
-## Full CI reproduction
+### 2. Commit & push
 
-The CI check job also validates the Vault dev config (requires Vault OIDC / a
-Vault session). Reproduce the entire CI job and the root project check:
+Only after local checks are green and the change is good to merge:
 
-```bash
-bun run check:ci && bun run typecheck
-```
+1. Inspect: `git status`, `git diff`, `git log --oneline -10`
+2. Stage only intended files — never secrets (`VAULT_TOKEN`, `RAILWAY_TOKEN`, deploy tokens) or generated artifacts
+3. Conventional Commit (subject ≤ 50 chars, lowercase type):
+   - `fix: …` — broken checks / CI
+   - `feat: …` — new behavior
+   - `refactor: …` — non-behavior
+   - `chore: …` — housekeeping  
+   Body only when the why is unclear.
+4. `git add <files> && git commit -m "…"`
+5. `git push` (triggers CI on `main`)
 
-This runs `bun install --frozen-lockfile`, then `check:vault-secrets`, then
-`check:smoke:secrets` (smoke tests every registered secret), `bun check`, and
-the root TypeScript project check.
-If you only want the Vault gate:
+No separate merge — push to `main` **is** the merge. Immediately go to step 3.
 
-```bash
-bun run check:vault-secrets        # dev config (CI gate)
-bun run check:vault-secrets:prd    # prd config (deploy gate)
-```
+**On failure** (hooks reject commit, push rejected, etc.): fix, re-run local
+checks if code changed, commit again, push again.
 
-`check:vault-secrets` needs a Vault session (e.g. `vault run --config dev -- bun run check:vault-secrets`). See `packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts` for the required keys, `packages/turborepo-remote-cache/scripts/check-vault-secrets.ts` for what is validated, and `packages/turborepo-remote-cache/scripts/smoke-test-secrets.ts` for the per-secret smoke test.
-
-If Vault is unavailable (KV empty / service down), you can still get `bun check`
-green locally. In that case, clearly state that the Vault gate (`check:vault-secrets`)
-could not be verified locally but is validated by CI OIDC.
-
-## Individual checks
-
-| Command                       | What it does                                        |
-| ----------------------------- | --------------------------------------------------- |
-| `bun run ci:format`           | `prettier --check .`                                |
-| `bun run ci:install`          | `bun install --frozen-lockfile`                     |
-| `bun run tc`                  | `turbo run tc` (typecheck every package)            |
-| `bun run typecheck`           | Root `tsc --noEmit` (covers `packages/workstation`) |
-| `bun run check:vault-secrets` | Verify dev Vault config (CI gate)                   |
-| `bun run check:smoke:secrets` | Smoke test every registered secret (CI gate)        |
-
-## Commit & push
-
-This is the required finish to the fix-and-check loop. Once the complete local check is green and the change is good to merge,
-commit and push:
-
-1. Inspect before committing: `git status`, `git diff`, `git log --oneline -10`.
-2. Stage only intended files — never commit secrets (`VAULT_TOKEN`, `RAILWAY_TOKEN`, deploy tokens) or generated artifacts.
-3. Write a Conventional Commit message (subject ≤ 50 chars, lowercase type):
-   - `fix: ...` for fixing broken checks
-   - `feat: ...` for new functionality
-   - `refactor: ...` for non-behavior changes
-   - `chore: ...` for housekeeping
-   - Include a body only when the "why" is not obvious.
-4. Commit: `git add <files> && git commit -m "fix: ..."`
-5. Push: `git push` (CI triggers on push to `main`).
-
-There is no separate "merge" step for this repo — committing to `main` and
-pushing **is** the merge. When the loop is green and good to merge, always end
-it by committing and pushing.
-
-## Watch CI & fix failures
-
-Pushing is not the end of the loop. After pushing, watch the **CI** run
-to completion and fix any failure before you are done:
+### 3. Watch GitHub Actions (all jobs)
 
 ```bash
-bun run gh:ci:watch     # blocks until the latest CI run finishes
-bun run gh:ci:status    # quick summary of the last few runs
-bun run gh:ci:log       # failed-step logs of the latest run (if it failed)
+bun run gh:ci:watch     # block until latest CI run finishes; exit 0 only on success
+bun run gh:ci:status    # recent runs
+bun run gh:ci:log       # failed-step logs if red
+bun run gh:ci           # open Actions in browser
 ```
 
-If the run fails, read the failing step's logs and fix it locally. A `publish`
-job failure is usually a Docker/build issue — inspect `.dockerignore` and
-`packages/turborepo-remote-cache/Dockerfile` (see the note above). Then re-run the loop and push
-again. Repeat until the CI run is green.
+Watch the **full** workflow for the push you just made
+(`changes → check → vault? → publish? → deploy`), not only the `check` job.
 
-The change is only done when the **full** CI run is green, not just `bun check`.
-To browse the run in a browser: `bun run gh:ci`.
+**On failure** (`gh:ci:watch` non-zero):
 
-## CI workflow
+1. `bun run gh:ci:log` (or `gh run view <id> --log-failed`)
+2. Fix the root cause locally (CI failures count like local failures)
+3. Restart the loop from **step 1** (`check:ci` + typecheck)
+4. Commit, push, `gh:ci:watch` again
 
-Production path (one run on `main`):
+**Repeat until the watched run is green.** Never declare done after local green
+or push alone.
+
+| Job / area | Typical cause | Where to look |
+| ---------- | ------------- | ------------- |
+| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets` |
+| `publish` | Docker / context / `.dockerignore` | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore` |
+| `vault` | Image / migrate / unseal | `packages/vault-service/**` |
+| `deploy` | Reconcile / Railway / DNS / health | `packages/infra/services.yaml`, deploy logs |
+| `smoke` (dispatch) | Prod mid-redeploy | Wait for deploy; smoke `needs: [deploy]` in `ci.yml` |
+
+### 4. Done
+
+Only when:
+
+1. Local `bun run check:ci && bun run typecheck` is green, **and**
+2. Changes are committed and pushed to `main`, **and**
+3. `bun run gh:ci:watch` exited 0 for that push’s CI run.
+
+## Vault-only gates
+
+```bash
+bun run check:vault-secrets        # dev (CI gate)
+bun run check:vault-secrets:prd    # prd (deploy gate)
+```
+
+Needs a Vault session. Registry: `packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`.
+
+## Helper commands
+
+| Command                       | What it does                                      |
+| ----------------------------- | ------------------------------------------------- |
+| `bun run ci:format`           | `prettier --check .`                              |
+| `bun run ci:install`          | `bun install --frozen-lockfile`                   |
+| `bun run tc`                  | `turbo run tc`                                    |
+| `bun run typecheck`           | Root `tsc --noEmit`                               |
+| `bun run check:vault-secrets` | Vault `dev`                                       |
+| `bun run check:smoke:secrets` | Secret smoke                                      |
+| `bun run gh:ci:watch`         | Block until latest CI succeeds or fails           |
+| `bun run gh:ci:status`        | List recent CI runs                               |
+| `bun run gh:ci:log`           | Failed-step logs                                  |
+
+## CI workflow shape
 
 ```
 changes → check → vault? → publish? → deploy
 ```
 
-- `.github/workflows/ci.yml` — monorepo entry. PRs run `check`; pushes to `main` chain optional vault / turborepo publish / fleet deploy via `needs:`.
-- `.github/workflows/deploy.yml` — sole deploy entry (`workflow_call` from CI, `repository_dispatch` from sibling publish-image, or manual).
-- `.github/workflows/publish-image.yml` — reusable GHCR publish; siblings set `notify_deploy: true` (default); monorepo CI sets `false` and chains deploy.
-- The `check` job runs `bun install --frozen-lockfile`, imports Vault dev secrets via OIDC, runs `bun run check:vault-secrets`, then `bun run check`.
-- The `deploy` job runs `bun run reconcile --apply --fleet-only`, then optional Railway redeploy + health checks.
+- `.github/workflows/ci.yml` — monorepo entry; PRs run `check`; `main` chains vault / publish / deploy as needed
+- `.github/workflows/deploy.yml` — deploy entry (`workflow_call` / `repository_dispatch` / manual)
+- `.github/workflows/publish-image.yml` — GHCR publish; monorepo sets `notify_deploy: false` and chains deploy
 
 ## Hard rules
 
 - Never commit `VAULT_TOKEN`, `RAILWAY_TOKEN`, or deploy tokens.
 - Never disable structural size limits or patch dependencies — refactor instead.
 - Keep `bun.lock` in sync (`bun install` after changing `package.json`).
-- Don't force-push or amend a pushed commit; create a new commit.
+- Don’t force-push or amend a pushed commit; create a new commit.
+- **Always:** local checks → commit & push → watch GitHub Actions until green.
 
 ## Infra reconcile
 
-Desired state is [`packages/infra/services.yaml`](../../packages/infra/services.yaml). Prefer:
+Desired state: [`packages/infra/services.yaml`](../../packages/infra/services.yaml).
 
 ```bash
 bun run reconcile                 # dry-run
@@ -169,4 +159,5 @@ bun run reconcile --apply --fleet-only
 bun run reconcile destroy railway --id <id> --i-understand-stateful
 ```
 
-`--apply` prunes **stateless** drift only. Stateful deletes require the explicit destroy subcommand (never in CI).
+`--apply` prunes **stateless** drift only. Stateful deletes need the explicit
+destroy flag (never in CI).
