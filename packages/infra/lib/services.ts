@@ -5,89 +5,40 @@ import { assert, hotAssert, type Assert } from "@pkgs/assert";
 const ha: Assert = hotAssert();
 import { parse as parseYaml } from "yaml";
 
-export type SecretSource =
-  | { readonly source: "vault" }
-  /** Bootstrap / CI only — resolved from process.env, not Vault KV. */
-  | { readonly source: "env" }
-  | { readonly source: "github" }
-  | { readonly source: "literal"; readonly value: string };
+export type {
+  AliasSpec,
+  CloudflareConfig,
+  CloudflareRedirectSpec,
+  GithubConfig,
+  InfraConfig,
+  LegacyConfig,
+  NeonConfig,
+  ObjectStoreSpec,
+  RailwayPlatformConfig,
+  RailwayServiceConfig,
+  RailwayVolumeConfig,
+  ResourceDurability,
+  ResourceKind,
+  SecretSource,
+  SecretSpec,
+  ServiceKind,
+  ServiceSpec,
+  ServicesConfig,
+  TunnelSpec,
+  VaultConfig,
+  VaultKvKeySpec,
+} from "./schema.js";
 
-export type SecretSpec = {
-  readonly name: string;
-} & SecretSource;
+export { durabilityOf, RESOURCE_DURABILITY } from "./schema.js";
 
-export type AliasSpec = {
-  readonly zone: string;
-  readonly hosts: readonly string[];
-  readonly target: string;
-};
-
-export type RailwayVolumeConfig = {
-  readonly name: string;
-  readonly mount_path: string;
-  readonly size_gb?: number;
-};
-
-export type RailwayServiceConfig = {
-  /** Enable Railway serverless sleep when idle (default true). */
-  readonly sleep?: boolean;
-  /** Expose HTTP publicly (default true for public services). */
-  readonly public?: boolean;
-  /** Override deploy healthcheck path when `health_path` is not Railway-compatible. */
-  readonly health_path?: string;
-  /** When false, disable Railway deploy healthcheck (e.g. OpenBao is sealed until CI unseals). */
-  readonly health_check?: boolean;
-  /** Optional Railway start command override (replaces image CMD). */
-  readonly start_command?: string;
-  readonly volume?: RailwayVolumeConfig;
-};
-
-export type RailwayPlatformConfig = {
-  readonly project: string;
-  readonly environment: string;
-  readonly region: string;
-  readonly service_prefix?: string;
-};
-
-export type ServiceSpec = {
-  readonly id: string;
-  /** Public hostname; required unless `internal: true`. */
-  readonly hostname?: string;
-  /** No DNS or public URL — queue consumers, etc. */
-  readonly internal?: boolean;
-  /** Excluded from fleet deploy, DNS sync, and destroy-fly — managed by deploy-vault. */
-  readonly standalone?: boolean;
-  readonly railway?: RailwayServiceConfig;
-  readonly github_repo: string;
-  readonly source_code_url: string;
-  readonly dockerfile: string;
-  readonly build_context: string;
-  /**
-   * Full image ref override (e.g. `ghcr.io/example/app:latest`).
-   * When set, skips GHCR naming and is used verbatim (ignores `--image-tag`).
-   */
-  readonly image?: string;
-  /** Container listen port; required for public HTTP services. */
-  readonly port?: number;
-  readonly health_check: boolean;
-  /** Health-check path (default `/`). */
-  readonly health_path?: string;
-  readonly env?: Readonly<Record<string, string>>;
-  readonly secrets?: readonly SecretSpec[];
-  readonly depends_on?: readonly string[];
-};
-
-export type ServicesConfig = {
-  readonly zone: string;
-  readonly image_owner: string;
-  readonly default_image_tag: string;
-  readonly infra_github_repo?: string;
-  readonly image_prefix?: string;
-  readonly skip_rollout_repos?: readonly string[];
-  readonly railway: RailwayPlatformConfig;
-  readonly aliases?: readonly AliasSpec[];
-  readonly services: readonly ServiceSpec[];
-};
+import type {
+  CloudflareConfig,
+  GithubConfig,
+  InfraConfig,
+  ServiceSpec,
+  ServicesConfig,
+  VaultConfig,
+} from "./schema.js";
 
 export function zoneSlug(zone: string): string {
   assert.nonEmptyString(zone, "zone must be non-empty");
@@ -104,21 +55,63 @@ export function imagePrefix(config: ServicesConfig): string {
   return prefix;
 }
 
+export function vaultHostname(config: ServicesConfig): string {
+  assert.record(config, "services config must be a record");
+  const explicit = config.vault?.hostname?.trim();
+  if (explicit) {
+    assert.nonEmptyString(explicit, "vault hostname must be non-empty");
+    return explicit;
+  }
+  assert.nonEmptyString(config.zone, "zone must be non-empty");
+  return `vault.${config.zone}`;
+}
+
 export function vaultAddr(config: ServicesConfig): string {
   assert.record(config, "services config must be a record");
-  assert.nonEmptyString(config.zone, "zone must be non-empty");
-  const addr = `https://vault.${config.zone}`;
+  const addr = `https://${vaultHostname(config)}`;
   assert.ok(addr.startsWith("https://"), "vault addr must be https", { addr });
   return addr;
 }
 
 /** Hostname for vault; infra must not manage or prune its DNS during partial syncs. */
 export function standaloneVaultHostname(config: ServicesConfig): string {
+  return vaultHostname(config);
+}
+
+export function vaultConfigOrDefault(config: ServicesConfig): VaultConfig {
   assert.record(config, "services config must be a record");
-  assert.nonEmptyString(config.zone, "zone must be non-empty");
-  const hostname = `vault.${config.zone}`;
-  assert.ok(hostname.endsWith(config.zone), "vault hostname must end with zone", { hostname });
-  return hostname;
+  if (config.vault) return config.vault;
+  return {
+    kv: { mount: "secret", project: "personal", configs: ["dev", "prd"] },
+  };
+}
+
+export function cloudflareConfigOrDefault(
+  config: ServicesConfig,
+): CloudflareConfig {
+  assert.record(config, "services config must be a record");
+  return (
+    config.cloudflare ?? {
+      ssl_mode: "strict",
+      placeholder_ipv4: "192.0.2.1",
+      dns: { proxied: false, prune_orphans: true },
+    }
+  );
+}
+
+export function githubConfigOrDefault(config: ServicesConfig): GithubConfig {
+  assert.record(config, "services config must be a record");
+  if (config.github) return config.github;
+  const infra =
+    config.infra_github_repo?.trim() ||
+    (() => {
+      throw new Error("services.yaml: github.infra_repo or infra_github_repo is required");
+    })();
+  return {
+    org: infra.split("/")[0] ?? "crvouga",
+    infra_repo: infra,
+    skip_rollout_repos: config.skip_rollout_repos,
+  };
 }
 
 export function railwayProjectName(config: ServicesConfig): string {
@@ -150,6 +143,26 @@ export function railwayServicePrefix(config: ServicesConfig): string {
   return prefix;
 }
 
+export function railwayDefaultReplicas(config: ServicesConfig): number {
+  assert.record(config, "services config must be a record");
+  const n = config.railway?.replicas ?? 1;
+  assert.integer(n, "railway.replicas must be an integer");
+  assert.ok(n >= 1, "railway.replicas must be >= 1", { n });
+  return n;
+}
+
+export function railwayServiceReplicas(
+  config: ServicesConfig,
+  service: ServiceSpec,
+): number {
+  assert.record(config, "services config must be a record");
+  assert.record(service, "service must be a record");
+  const n = service.railway?.replicas ?? railwayDefaultReplicas(config);
+  assert.integer(n, "service replicas must be an integer");
+  assert.ok(n >= 1, "service replicas must be >= 1", { n });
+  return n;
+}
+
 export function railwayServiceName(config: ServicesConfig, id: string): string {
   assert.record(config, "services config must be a record");
   assert.nonEmptyString(id, "service id must be non-empty");
@@ -163,7 +176,9 @@ export function railwayServiceName(config: ServicesConfig, id: string): string {
 export function legacyFlyAppName(_config: ServicesConfig, id: string): string {
   assert.nonEmptyString(id, "service id must be non-empty");
   const name = `crvouga-${id}`;
-  assert.ok(name.startsWith("crvouga-"), "legacy fly app name must keep crvouga- prefix", { name });
+  assert.ok(name.startsWith("crvouga-"), "legacy fly app name must keep crvouga- prefix", {
+    name,
+  });
   return name;
 }
 
@@ -180,7 +195,7 @@ export function railwayIsPublic(service: ServiceSpec): boolean {
   return service.railway?.public !== false;
 }
 
-export function railwayVolume(service: ServiceSpec): RailwayVolumeConfig | undefined {
+export function railwayVolume(service: ServiceSpec) {
   assert.record(service, "service spec must be a record");
   assert.nonEmptyString(service.id, "service id must be non-empty");
   return service.railway?.volume;
@@ -191,23 +206,22 @@ export function railwayStartCommand(service: ServiceSpec): string | undefined {
   assert.nonEmptyString(service.id, "service id must be non-empty");
   const cmd = service.railway?.start_command?.trim();
   const result = cmd || undefined;
-  assert.ok(result === undefined || result.length > 0, "start command must be undefined or non-empty");
+  assert.ok(
+    result === undefined || result.length > 0,
+    "start command must be undefined or non-empty",
+  );
   return result;
 }
 
 export function serviceHealthPath(service: ServiceSpec): string | undefined {
   assert.record(service, "service spec must be a record");
   assert.nonEmptyString(service.id, "service id must be non-empty");
-  if (!service.health_check) return undefined;
+  if (service.health_check === false) return undefined;
   const path = service.health_path ?? "/";
   assert.nonEmptyString(path, "service health path must be non-empty");
   return path;
 }
 
-/**
- * Railway deploy healthcheck path, or `null` to clear an existing healthcheck.
- * Returns `undefined` when the path is incompatible and no explicit override exists.
- */
 export function railwayHealthcheckSetting(
   service: ServiceSpec,
 ): string | null | undefined {
@@ -228,7 +242,7 @@ export function railwayHealthcheckSetting(
 export function railwayHealthcheckPath(service: ServiceSpec): string | undefined {
   assert.record(service, "service spec must be a record");
   assert.nonEmptyString(service.id, "service id must be non-empty");
-  if (!service.health_check) return undefined;
+  if (service.health_check === false) return undefined;
 
   const raw = service.railway?.health_path ?? service.health_path ?? "/";
   const pathOnly = raw.split("?")[0]?.trim();
@@ -241,8 +255,13 @@ export function railwayHealthcheckPath(service: ServiceSpec): string | undefined
 
 export function infraGithubRepo(config: ServicesConfig): string {
   assert.record(config, "services config must be a record");
+  const fromGithub = config.github?.infra_repo?.trim();
+  if (fromGithub) {
+    assert.nonEmptyString(fromGithub, "github.infra_repo must be non-empty");
+    return fromGithub;
+  }
   const repo = config.infra_github_repo?.trim();
-  if (!repo) throw new Error("services.yaml: infra_github_repo is required");
+  if (!repo) throw new Error("services.yaml: github.infra_repo (or infra_github_repo) is required");
   assert.nonEmptyString(repo, "services.yaml infra_github_repo must be non-empty");
   return repo;
 }
@@ -259,6 +278,16 @@ export function isPublicService(service: ServiceSpec): boolean {
   assert.record(service, "service spec must be a record");
   assert.nonEmptyString(service.id, "service id must be non-empty");
   return service.internal !== true;
+}
+
+export function isRailwayService(service: ServiceSpec): boolean {
+  assert.record(service, "service spec must be a record");
+  return (service.kind ?? "railway") === "railway";
+}
+
+export function isTunnelService(service: ServiceSpec): boolean {
+  assert.record(service, "service spec must be a record");
+  return service.kind === "tunnel";
 }
 
 export function imageRepo(config: ServicesConfig, id: string): string {
@@ -297,47 +326,86 @@ export function isAlwaysOn(service: ServiceSpec): boolean {
   return !railwaySleep(service);
 }
 
+export function resolveRedirectTarget(
+  config: ServicesConfig,
+  redirect: { to_service?: string; to?: string },
+): string {
+  assert.record(config, "services config must be a record");
+  if (redirect.to?.trim()) {
+    assert.nonEmptyString(redirect.to.trim(), "redirect.to must be non-empty");
+    return redirect.to.trim();
+  }
+  if (redirect.to_service?.trim()) {
+    const svc = findService(config, redirect.to_service.trim());
+    if (!svc?.hostname) {
+      throw new Error(
+        `cloudflare.redirects: to_service "${redirect.to_service}" has no hostname`,
+      );
+    }
+    return svc.hostname;
+  }
+  throw new Error("cloudflare.redirects entry needs to_service or to");
+}
+
+function validateService(service: ServiceSpec): void {
+  ha.record(service, "service spec must be a record");
+  ha.nonEmptyString(service.id, "service id must be non-empty");
+  const kind = service.kind ?? "railway";
+
+  if (kind === "tunnel") {
+    if (!service.hostname) {
+      throw new Error(`Tunnel service "${service.id}" missing hostname`);
+    }
+    return;
+  }
+
+  if (!service.github_repo || !service.source_code_url) {
+    throw new Error(`Service "${service.id}" missing github_repo or source_code_url`);
+  }
+  if (!service.dockerfile || service.build_context === undefined) {
+    throw new Error(`Service "${service.id}" missing dockerfile or build_context`);
+  }
+  if (service.internal) {
+    if (service.hostname) {
+      throw new Error(`Service "${service.id}" is internal but has hostname`);
+    }
+  } else if (railwayIsPublic(service)) {
+    if (!service.hostname) {
+      throw new Error(`Service "${service.id}" missing hostname`);
+    }
+    if (service.port == null) {
+      throw new Error(`Service "${service.id}" missing port`);
+    }
+  }
+}
+
 export function loadServicesConfig(
   path = join(import.meta.dirname, "..", "services.yaml"),
-): ServicesConfig {
+): InfraConfig {
   assert.nonEmptyString(path, "services config path must be non-empty");
-  const raw = parseYaml(readFileSync(path, "utf8")) as ServicesConfig;
+  const raw = parseYaml(readFileSync(path, "utf8")) as InfraConfig;
   assert.record(raw, "services config must be a record");
   if (!raw?.zone?.trim()) {
     throw new Error(`Invalid services config at ${path}: zone is required`);
   }
   assert.nonEmptyString(raw.zone.trim(), "services config zone must be non-empty");
   if (!raw?.railway?.project?.trim() || !raw?.railway?.region?.trim()) {
-    throw new Error(`Invalid services config at ${path}: railway.project and railway.region are required`);
+    throw new Error(
+      `Invalid services config at ${path}: railway.project and railway.region are required`,
+    );
   }
   if (!raw?.services?.length) {
     throw new Error(`Invalid services config at ${path}`);
   }
   assert.nonEmptyArray(raw.services, "services config services must be non-empty");
   for (const service of raw.services) {
-    ha.record(service, "service spec must be a record");
-    ha.nonEmptyString(service.id, "service id must be non-empty");
-    if (!service.github_repo || !service.source_code_url) {
-      throw new Error(`Service "${service.id}" missing github_repo or source_code_url`);
-    }
-    if (!service.dockerfile || service.build_context === undefined) {
-      throw new Error(`Service "${service.id}" missing dockerfile or build_context`);
-    }
-    if (service.internal) {
-      if (service.hostname) {
-        throw new Error(`Service "${service.id}" is internal but has hostname`);
-      }
-    } else if (railwayIsPublic(service)) {
-      if (!service.hostname) {
-        throw new Error(`Service "${service.id}" missing hostname`);
-      }
-      if (service.port == null) {
-        throw new Error(`Service "${service.id}" missing port`);
-      }
-    }
+    validateService(service);
   }
   return raw;
 }
+
+/** Alias for loadServicesConfig — preferred name going forward. */
+export const loadInfraConfig = loadServicesConfig;
 
 export function findService(
   config: ServicesConfig,
@@ -359,6 +427,7 @@ export function allDnsTargets(config: ServicesConfig): readonly DnsTarget[] {
   for (const service of config.services) {
     ha.nonEmptyString(service.id, "service id must be non-empty");
     if (service.standalone) continue;
+    if (!isRailwayService(service)) continue;
     if (!isPublicService(service) || !railwayIsPublic(service) || !service.hostname) {
       continue;
     }
@@ -400,6 +469,10 @@ export function allVaultSecretNames(config: ServicesConfig): readonly string[] {
       if (secret.source === "vault") names.add(secret.name);
     }
   }
+  for (const key of config.vault?.kv_keys ?? []) {
+    ha.nonEmptyString(key.name, "kv key name must be non-empty");
+    names.add(key.name);
+  }
   const sorted = [...names].sort();
   assert.array(sorted, "vault secret names must be an array");
   return sorted;
@@ -411,9 +484,12 @@ export function groupByGithubRepo(
 ): Map<string, ServiceSpec[]> {
   assert.record(config, "services config must be a record");
   assert.array(config.services, "services must be an array");
-  const skip = new Set(config.skip_rollout_repos ?? []);
+  const gh = githubConfigOrDefault(config);
+  const skip = new Set(gh.skip_rollout_repos ?? config.skip_rollout_repos ?? []);
   const map = new Map<string, ServiceSpec[]>();
   for (const service of config.services) {
+    if (!isRailwayService(service)) continue;
+    if (!service.github_repo) continue;
     ha.nonEmptyString(service.github_repo, "service github_repo must be non-empty");
     if (skip.has(service.github_repo)) continue;
     const list = map.get(service.github_repo) ?? [];
@@ -427,7 +503,9 @@ export function groupByGithubRepo(
 export function deployableServices(config: ServicesConfig): readonly ServiceSpec[] {
   assert.record(config, "services config must be a record");
   assert.array(config.services, "services must be an array");
-  const services = config.services.filter((service) => !service.standalone);
+  const services = config.services.filter(
+    (service) => isRailwayService(service) && !service.standalone,
+  );
   assert.array(services, "deployable services must be an array");
   return services;
 }
@@ -437,6 +515,11 @@ export function fleetServices(config: ServicesConfig): readonly ServiceSpec[] {
   const services = deployableServices(config);
   assert.array(services, "fleet services must be an array");
   return services;
+}
+
+export function railwayServices(config: ServicesConfig): readonly ServiceSpec[] {
+  assert.record(config, "services config must be a record");
+  return config.services.filter(isRailwayService);
 }
 
 /** @deprecated Use legacyFlyAppName for Fly teardown; railwayServiceName for Railway. */

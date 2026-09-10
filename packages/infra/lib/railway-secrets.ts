@@ -12,6 +12,8 @@ import {
   railwayEnvironmentName,
   railwayProjectName,
   railwayServiceName,
+  vaultAddr,
+  vaultConfigOrDefault,
   type SecretSpec,
   type ServiceSpec,
 } from "./services.js";
@@ -22,6 +24,18 @@ const VAULT_ENV_ALIASES: Readonly<Record<string, readonly string[]>> = {};
 const RAILWAY_VAULT_CONFIG: VaultKvConfig = "prd";
 
 let cachedVaultSecrets: Record<string, string> | null | undefined;
+
+function expandEnvPlaceholders(
+  value: string,
+  config: ReturnType<typeof loadServicesConfig>,
+): string {
+  assert.string(value, "env value must be a string");
+  if (value === "from_vault_addr") return vaultAddr(config);
+  if (value === "from_vault.kv.project") {
+    return vaultConfigOrDefault(config).kv.project;
+  }
+  return value;
+}
 
 export async function loadVaultSecretEnv(force = false): Promise<Record<string, string>> {
   assert.ok(typeof force === "boolean", "force must be a boolean");
@@ -59,6 +73,7 @@ function resolveSecret(
   }
 
   if (spec.source === "env") return null;
+  if (spec.source === "neon" || spec.source === "github") return null;
 
   if (spec.source === "vault") {
     const fromVault = vaultData[spec.name]?.trim();
@@ -79,7 +94,11 @@ export function collectServiceVariables(
   assert.record(service, "service spec must be a record");
   assert.nonEmptyString(service.id, "service id must be non-empty");
   assert.record(vaultData, "vault data must be a record");
-  const variables: Record<string, string> = { ...(service.env ?? {}) };
+  const config = loadServicesConfig();
+  const variables: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(service.env ?? {})) {
+    variables[key] = expandEnvPlaceholders(raw, config);
+  }
   // Railway injects PORT when unset; custom domains use services.yaml `port` as targetPort.
   if (service.port != null) {
     variables.PORT = String(service.port);

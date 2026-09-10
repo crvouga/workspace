@@ -1,24 +1,65 @@
 import { Assert, assert, hotAssert } from '@pkgs/assert';
 import { SecretStoreEntry, type SecretUsedBy } from '@pkgs/secret-store';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 const ha: Assert = hotAssert();
 const validationAssert: Assert = Assert.validation();
 
+type InfraYaml = {
+  zone?: string;
+  image_owner?: string;
+  image_prefix?: string;
+  vault?: { hostname?: string };
+  services?: readonly {
+    id: string;
+    hostname?: string;
+  }[];
+};
+
+function readInfraYaml(): InfraYaml | null {
+  try {
+    const path = join(
+      import.meta.dirname,
+      '..',
+      '..',
+      'infra',
+      'services.yaml'
+    );
+    return parseYaml(readFileSync(path, 'utf8')) as InfraYaml;
+  } catch {
+    return null;
+  }
+}
+
+const infraYaml = readInfraYaml();
+const turboService = infraYaml?.services?.find((s) => s.id === 'turborepo');
+
 /** Public hostname for the self-hosted Turborepo remote cache server. */
-export const CACHE_PUBLIC_HOSTNAME = 'turborepo.chrisvouga.dev';
+export const CACHE_PUBLIC_HOSTNAME =
+  turboService?.hostname ?? 'turborepo.chrisvouga.dev';
 
 /** Cloudflare DNS zone for {@link CACHE_PUBLIC_HOSTNAME}. */
-export const CACHE_DNS_ZONE = 'chrisvouga.dev';
+export const CACHE_DNS_ZONE = infraYaml?.zone ?? 'chrisvouga.dev';
 
 /** Public origin for the self-hosted Turborepo remote cache server. */
 export const CACHE_PUBLIC_ORIGIN = `https://${CACHE_PUBLIC_HOSTNAME}`;
 
 /** GHCR repository for the cache server image (CI publishes via infra ci-turborepo workflow). */
-export const GHCR_IMAGE_REPOSITORY = 'ghcr.io/crvouga/chrisvouga-turborepo';
+export const GHCR_IMAGE_REPOSITORY = (() => {
+  const owner = infraYaml?.image_owner ?? 'crvouga';
+  const prefix = infraYaml?.image_prefix ?? 'chrisvouga';
+  return `ghcr.io/${owner}/${prefix}-turborepo`;
+})();
 
 /** Base Vault UI link for the cache-secret KV path (project/config appended). */
-export const VAULT_UI_BASE =
-  'https://vault.chrisvouga.dev/ui/vault/secrets/secret/show';
+export const VAULT_UI_BASE = (() => {
+  const host =
+    infraYaml?.vault?.hostname ??
+    (infraYaml?.zone ? `vault.${infraYaml.zone}` : 'vault.chrisvouga.dev');
+  return `https://${host}/ui/vault/secrets/secret/show`;
+})();
 
 /** Stable Vault secret key literals — single source of truth. */
 export const VaultSecretKey = {

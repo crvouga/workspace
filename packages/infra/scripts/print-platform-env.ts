@@ -16,6 +16,7 @@ import {
   railwayRegion,
   railwayServicePrefix,
   vaultAddr,
+  vaultConfigOrDefault,
   zoneSlug,
 } from "../lib/services.js";
 
@@ -40,10 +41,14 @@ function main(): void {
   const config = loadServicesConfig();
   const slug = zoneSlug(config.zone);
   assert.nonEmptyString(slug, "zone slug must be non-empty");
+  const vault = vaultConfigOrDefault(config);
   const vars: Record<string, string> = {
     ZONE: config.zone,
     ZONE_SLUG: slug,
     VAULT_ADDR: vaultAddr(config),
+    VAULT_HOSTNAME: vault.hostname ?? `vault.${config.zone}`,
+    VAULT_PROJECT: vault.kv.project,
+    VAULT_KV_MOUNT: vault.kv.mount,
     IMAGE_PREFIX: imagePrefix(config),
     INFRA_GITHUB_REPO: infraGithubRepo(config),
     RAILWAY_PROJECT: railwayProjectName(config),

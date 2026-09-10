@@ -1,22 +1,231 @@
-# Single source of truth for Railway deployments.
-# Images are built and pushed by each project repo — this repo only consumes them.
+# Sole desired-state document for all infrastructure.
+# Reconcile with: bun run reconcile [--apply]
+# Stateful destroy: bun run reconcile destroy <kind> --id … --i-understand-stateful
 
 zone: chrisvouga.dev
 image_owner: crvouga
 image_prefix: chrisvouga
 default_image_tag: latest
-infra_github_repo: crvouga/workspace
-skip_rollout_repos:
-  - crvouga/portfolio
-  - crvouga/workspace
+
+cloudflare:
+  ssl_mode: strict
+  placeholder_ipv4: 192.0.2.1
+  dns:
+    proxied: false
+    prune_orphans: true
+  redirects:
+    - from: chrisvouga.dev
+      to_service: portfolio
+      status: 301
 
 railway:
   project: infra
   environment: production
   region: us-east4
+  replicas: 1
+  cleanup_statuses: [FAILED, CRASHED]
+  ghcr_credentials: true
+
+github:
+  org: crvouga
+  infra_repo: crvouga/workspace
+  skip_rollout_repos:
+    - crvouga/portfolio
+    - crvouga/workspace
+  org_secrets:
+    - name: DEPLOY_DISPATCH_TOKEN
+      source: env
+  repo_secrets:
+    - name: RAILWAY_TOKEN
+      source: env
+    - name: CF_API_TOKEN
+      source: env
+    - name: DB_CONNECTION_URI
+      source: neon
+      neon_project: openbao
+
+vault:
+  hostname: vault.chrisvouga.dev
+  kv:
+    mount: secret
+    project: personal
+    configs: [dev, prd]
+  init:
+    key_shares: 5
+    key_threshold: 3
+    keys_store: crvouga.kv
+  unseal:
+    on_deploy: true
+  mounts:
+    - type: kv-v2
+      path: secret
+  policies:
+    - name: admin
+      file: packages/vault-service/config/policies/admin.hcl
+    - name: ci-read
+      file: packages/vault-service/config/policies/ci-read.hcl
+    - name: personal-read
+      file: packages/vault-service/config/policies/personal-read.hcl
+    - name: ci-write
+      file: packages/vault-service/config/policies/ci-write.hcl
+    - name: dev-read
+      file: packages/vault-service/config/policies/dev-read.hcl
+  auth:
+    jwt:
+      path: jwt
+      roles:
+        - name: github-actions
+          policy: ci-read
+          bound_ref: refs/heads/main
+          ttl: 10m
+          audience: from_vault_addr
+    userpass:
+      users:
+        - username: crvouga
+          policy: admin
+  tokens:
+    - name: personal-runtime
+      policy: personal-read
+      period: 768h
+      sink: vault_kv.VAULT_TOKEN
+  readiness:
+    wait_unsealed: true
+  kv_keys:
+    - name: TURBO_TOKEN
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: TURBO_API
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: TURBO_TEAM
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: TURBO_CACHE
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+    - name: TURBO_LOG_ORDER
+      configs: [dev, prd]
+      used_by: [turborepo]
+    - name: TURBO_TELEMETRY_DISABLED
+      configs: [dev, prd]
+      used_by: [turborepo]
+    - name: B2_S3_ENDPOINT
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: B2_S3_REGION
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: B2_S3_ACCESS_KEY_ID
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: B2_S3_SECRET_ACCESS_KEY
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: B2_BUCKET
+      configs: [dev, prd]
+      used_by: [turborepo, ci]
+      required: true
+    - name: VAULT_TOKEN
+      configs: [dev, prd]
+      used_by: [turborepo, railway]
+      required: true
+    - name: DATABASE_URL
+      configs: [dev, prd]
+      used_by: [moviefinder, llm-proxy, ci]
+    - name: TMDB_API_READ_ACCESS_TOKEN
+      configs: [dev, prd]
+      used_by: [moviefinder]
+    - name: TWILIO_ACCOUNT_SID
+      configs: [dev, prd]
+      used_by: [moviefinder]
+    - name: TWILIO_AUTH_TOKEN
+      configs: [dev, prd]
+      used_by: [moviefinder]
+    - name: TWILIO_SERVICE_SID
+      configs: [dev, prd]
+      used_by: [moviefinder]
+    - name: CLOUDFLARE_API_TOKEN
+      configs: [dev, prd]
+      used_by: [ci, infra]
+    - name: CLOUDFLARE_ACCOUNT_ID
+      configs: [dev, prd]
+      used_by: [ci, infra]
+    - name: RAILWAY_TOKEN
+      configs: [dev, prd]
+      used_by: [ci, infra]
+    - name: OPENAI_API_KEY
+      configs: [dev, prd]
+      used_by: [ci, opencode]
+    - name: 9ROUTER_PASSWORD
+      configs: [prd]
+      used_by: [9router]
+    - name: 9ROUTER_JWT_SECRET
+      configs: [prd]
+      used_by: [9router]
+    - name: 9ROUTER_API_KEY_SECRET
+      configs: [prd]
+      used_by: [9router]
+    - name: 9ROUTER_MACHINE_ID_SALT
+      configs: [prd]
+      used_by: [9router]
+
+neon:
+  projects:
+    - id: openbao
+      purpose: openbao-storage
+      secret_name: DB_CONNECTION_URI
+      migrations: packages/vault-service/migrations
+
+object_stores:
+  - id: turbo-cache
+    provider: b2
+    bucket_secret: B2_BUCKET
+    endpoint_secret: B2_S3_ENDPOINT
+    region_secret: B2_S3_REGION
+    access_key_secret: B2_S3_ACCESS_KEY_ID
+    secret_key_secret: B2_S3_SECRET_ACCESS_KEY
+    key_prefix: turbo-cache
+    namespaces: [dev, prd]
+
+tunnels:
+  - id: 9router
+    provider: cloudflare
+    name: 9router
+    hostname: 9router.chrisvouga.dev
+    local:
+      host: 127.0.0.1
+      port: 20128
+    secrets:
+      - 9ROUTER_PASSWORD
+      - 9ROUTER_JWT_SECRET
+      - 9ROUTER_API_KEY_SECRET
+      - 9ROUTER_MACHINE_ID_SALT
+
+legacy:
+  fly_destroy:
+    - crvouga-filestash
+    - crvouga-pgweb
+    - crvouga-vault
+  digitalocean_destroy:
+    - droplet: origin
+      project: projects
+      purge_vault_keys:
+        - NODE_SSH_HOST
+        - NODE_SSH_USER
+        - NODE_SSH_PRIVATE_KEY
+
+aliases: []
 
 services:
   - id: portfolio
+    kind: railway
     hostname: www.chrisvouga.dev
     github_repo: crvouga/portfolio
     source_code_url: https://github.com/crvouga/portfolio
@@ -24,8 +233,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: moviefinder-app-rust
+    kind: railway
     hostname: moviefinder-app-rust.chrisvouga.dev
     github_repo: crvouga/moviefinder.app-rust
     source_code_url: https://github.com/crvouga/moviefinder.app-rust
@@ -33,6 +245,8 @@ services:
     build_context: .
     port: 3000
     health_check: true
+    ghcr:
+      visibility: public
     env:
       PORT: '3000'
     secrets: &moviefinder_secrets
@@ -48,6 +262,7 @@ services:
         source: vault
 
   - id: moviefinder-app-react
+    kind: railway
     hostname: moviefinder-app-react.chrisvouga.dev
     github_repo: crvouga/moviefinder.app-react
     source_code_url: https://github.com/crvouga/moviefinder.app-react
@@ -55,11 +270,14 @@ services:
     build_context: .
     port: 3000
     health_check: true
+    ghcr:
+      visibility: public
     env:
       PORT: '3000'
     secrets: *moviefinder_secrets
 
   - id: moviefinder-app-clojurescript
+    kind: railway
     hostname: moviefinder-app-clojurescript.chrisvouga.dev
     github_repo: crvouga/moviefinder.app-clojurescript
     source_code_url: https://github.com/crvouga/moviefinder.app-clojurescript
@@ -67,11 +285,14 @@ services:
     build_context: .
     port: 9630
     health_check: true
+    ghcr:
+      visibility: public
     env:
       PORT: '9630'
     secrets: *moviefinder_secrets
 
   - id: headless-combobox-svelte-example
+    kind: railway
     hostname: svelte-headlesscombobox.chrisvouga.dev
     github_repo: crvouga/headless-combobox
     source_code_url: https://github.com/crvouga/headless-combobox
@@ -79,8 +300,11 @@ services:
     build_context: example/svelte
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: headless-combobox-docs
+    kind: railway
     hostname: headlesscombobox.chrisvouga.dev
     github_repo: crvouga/headless-combobox
     source_code_url: https://github.com/crvouga/headless-combobox
@@ -88,8 +312,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: todo-app
+    kind: railway
     hostname: todo.chrisvouga.dev
     github_repo: crvouga/todo-v1
     source_code_url: https://github.com/crvouga/todo-v1
@@ -97,10 +324,13 @@ services:
     build_context: .
     port: 8080
     health_check: true
+    ghcr:
+      visibility: public
     env:
       PORT: '8080'
 
   - id: image-service
+    kind: railway
     hostname: imageservice.chrisvouga.dev
     github_repo: crvouga/image-service
     source_code_url: https://github.com/crvouga/image-service
@@ -108,11 +338,12 @@ services:
     build_context: .
     port: 80
     health_check: true
-    # "/" redirects to /login/send-link; health checks do not follow redirects.
-    # Railway rejects hyphens in healthcheckPath — deploy healthcheck skipped; external checks use this path.
     health_path: /login/send-link
+    ghcr:
+      visibility: public
 
   - id: connect-four
+    kind: railway
     hostname: connectfour.chrisvouga.dev
     github_repo: crvouga/connect-four
     source_code_url: https://github.com/crvouga/connect-four
@@ -120,10 +351,13 @@ services:
     build_context: .
     port: 8080
     health_check: true
+    ghcr:
+      visibility: public
     env:
       PORT: '8080'
 
   - id: anime-blog
+    kind: railway
     hostname: anime.chrisvouga.dev
     github_repo: crvouga/anime
     source_code_url: https://github.com/crvouga/anime
@@ -131,8 +365,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: snake-game
+    kind: railway
     hostname: snake.chrisvouga.dev
     github_repo: crvouga/snake
     source_code_url: https://github.com/crvouga/snake
@@ -140,8 +377,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: match-three
+    kind: railway
     hostname: matchthree.chrisvouga.dev
     github_repo: crvouga/match-three
     source_code_url: https://github.com/crvouga/match-three
@@ -149,8 +389,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: simon-says
+    kind: railway
     hostname: simonsays.chrisvouga.dev
     github_repo: crvouga/simon-says
     source_code_url: https://github.com/crvouga/simon-says
@@ -158,8 +401,11 @@ services:
     build_context: .
     port: 80
     health_check: true
+    ghcr:
+      visibility: public
 
   - id: turborepo
+    kind: railway
     hostname: turborepo.chrisvouga.dev
     github_repo: crvouga/workspace
     source_code_url: https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache
@@ -168,16 +414,19 @@ services:
     port: 8080
     health_check: true
     health_path: /health
+    ghcr:
+      visibility: public
     env:
       PORT: '8080'
-      VAULT_ADDR: 'https://vault.chrisvouga.dev'
-      VAULT_PROJECT: 'personal'
-      VAULT_CONFIG: 'prd'
+      VAULT_ADDR: from_vault_addr
+      VAULT_PROJECT: from_vault.kv.project
+      VAULT_CONFIG: prd
     secrets:
       - name: VAULT_TOKEN
         source: vault
 
   - id: llm-proxy
+    kind: railway
     hostname: llm-proxy.chrisvouga.dev
     github_repo: crvouga/llm-server
     source_code_url: https://github.com/crvouga/llm-server
@@ -185,8 +434,9 @@ services:
     build_context: proxy
     port: 8080
     health_check: true
-    # "/" 302-redirects non-bot User-Agents to /ui — health checks must hit a 200 path.
     health_path: /ui
+    ghcr:
+      visibility: public
     env:
       PORT: '8080'
     secrets:
@@ -194,6 +444,7 @@ services:
         source: vault
 
   - id: vault
+    kind: railway
     hostname: vault.chrisvouga.dev
     standalone: true
     github_repo: crvouga/workspace
@@ -202,14 +453,18 @@ services:
     build_context: packages/vault-service
     port: 8200
     health_check: true
-    # External checks use OpenBao's sealedcode/uninitcode query params.
-    # Railway health checks hit the in-container proxy, which returns 200 before unseal.
     health_path: /v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200
     railway:
       sleep: false
       health_path: /railwayhealth
+    ghcr:
+      visibility: public
     env:
-      BAO_API_ADDR: 'https://vault.chrisvouga.dev'
+      BAO_API_ADDR: from_vault_addr
     secrets:
       - name: DB_CONNECTION_URI
         source: env
+
+  - id: 9router
+    kind: tunnel
+    hostname: 9router.chrisvouga.dev

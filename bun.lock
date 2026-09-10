@@ -133,6 +133,7 @@
         "@pkgs/object-store": "workspace:*",
         "@pkgs/secret-store": "workspace:*",
         "hono": "catalog:",
+        "yaml": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",

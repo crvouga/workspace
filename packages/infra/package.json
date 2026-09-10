@@ -16,6 +16,8 @@
     "rename-railway": "bun run scripts/rename-railway.ts",
     "rollout-publish": "bun run scripts/rollout-publish-workflows.ts",
     "seed-vault-github-secret": "bun run scripts/seed-vault-github-secret.ts",
+    "reconcile": "bun run scripts/reconcile.ts",
+    "print-vault-kv-keys": "bun run scripts/print-vault-kv-keys.ts",
     "sync-aliases": "bun run scripts/sync-aliases.ts",
     "sync-dns": "bun run scripts/sync-dns.ts",
     "sync-railway-secrets": "bun run scripts/sync-railway-secrets.ts",

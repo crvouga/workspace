@@ -17,13 +17,6 @@ import {
 } from "../lib/services.js";
 import { requireFlyApiToken } from "../lib/fly-token.js";
 
-const ALWAYS_DESTROY_FLY_APPS = [
-  // Removed/standalone services that may still exist as old Fly apps.
-  "crvouga-filestash",
-  "crvouga-pgweb",
-  "crvouga-vault",
-] as const;
-
 type Args = {
   readonly apply: boolean;
 };
@@ -77,8 +70,10 @@ async function main(): Promise<void> {
   const config = loadServicesConfig();
   const apps = [
     ...new Set([
-      ...deployableServices(config).map((service) => legacyFlyAppName(config, service.id)),
-      ...ALWAYS_DESTROY_FLY_APPS,
+      ...deployableServices(config).map((service) =>
+        legacyFlyAppName(config, service.id),
+      ),
+      ...(config.legacy?.fly_destroy ?? []),
     ]),
   ];
 

@@ -31,6 +31,8 @@
     "make-ghcr-public": "bun run --filter @pkgs/infra make-ghcr-public",
     "print-platform-env": "bun run --filter @pkgs/infra print-platform-env",
     "provision-railway": "bun run --filter @pkgs/infra provision-railway",
+    "reconcile": "bun run --filter @pkgs/infra reconcile",
+    "infra": "bun run --filter @pkgs/infra reconcile",
     "rename-railway": "bun run --filter @pkgs/infra rename-railway",
     "rollout-publish": "bun run --filter @pkgs/infra rollout-publish",
     "seed": "bun run --filter @pkgs/turborepo-remote-cache seed",

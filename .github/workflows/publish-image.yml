@@ -45,10 +45,10 @@ on:
         type: string
         default: crvouga
       image_prefix:
-        description: "GHCR package prefix (zone slug, e.g. chrisvouga-dev)."
+        description: "GHCR package prefix (from services.yaml image_prefix, e.g. chrisvouga)."
         required: false
         type: string
-        default: chrisvouga-dev
+        default: chrisvouga
       infra_github_repo:
         description: "Infra repo owner/name for deploy dispatch."
         required: false

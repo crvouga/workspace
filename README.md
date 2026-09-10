@@ -139,14 +139,16 @@ bun install
 bun run typecheck
 bun check                             # CI-equivalent check (format + tc + lint + test + build)
 bun run check:ci                      # full CI reproduction (also runs the Vault dev-secret gate)
+bun run reconcile                     # dry-run desired-state plan from services.yaml
+bun run reconcile --apply --fleet-only  # converge Railway/DNS/secrets/GHCR (stateless prune)
 bun run provision-railway --check --fleet-only   # CI drift check (excludes standalone vault)
-bun run provision-railway --apply   # create/update Railway resources
 bun run deploy-railway --id portfolio
-bun run sync-railway-secrets --id portfolio
 bun run sync-dns --apply
 ```
 
 See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) for the full check/CI reference.
+
+Desired state lives in [`packages/infra/services.yaml`](packages/infra/services.yaml). Stateful destroy requires `bun run reconcile destroy <kind> --id … --i-understand-stateful`.
 
 ## Parallel validation (pre-cutover)
 

@@ -5,7 +5,7 @@
 Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
 
 - `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-b2-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
-- `packages/infra` — infra/fleet management (`@pkgs/infra`): `services.yaml`, `lib/` (Railway/Cloudflare/GHCR/Fly helpers), and the ops scripts (`provision-railway`, `deploy-railway`, `sync-dns`, `sync-redirects`, `sync-aliases`, `sync-railway-secrets`, `rename-railway`, `destroy-*`, `list-deploy-service-ids`, `make-ghcr-public`, `print-platform-env`, `rollout-publish`, `seed-vault-github-secret`, `health-check`, `cleanup-railway-deployments`)
+- `packages/infra` — infra control plane (`@pkgs/infra`): sole desired-state doc [`services.yaml`](packages/infra/services.yaml), `lib/reconcile/`, and ops scripts. Prefer `bun run reconcile` / `bun run infra` over one-off scripts.
 - `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
 - `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
 - `packages/9router` — local-only 9router CLI (`@pkgs/9router`)
@@ -17,6 +17,21 @@ Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.
 `bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages, mirroring the CI check job; `bun run check:ci` additionally runs the Vault dev-secret gate; see [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
 **A green `bun check` is not a green CI.** After pushing, watch the **CI turborepo** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate the `publish` job (Docker image build from `packages/turborepo-remote-cache/Dockerfile`), which can fail on `.dockerignore`/build-context errors that are invisible locally. See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
+
+## Declarative infra (`packages/infra/services.yaml`)
+
+**Single source of truth** for Railway, Cloudflare, Vault inventory, Neon/B2 refs, GitHub secrets, tunnels, and legacy destroy targets. No parallel hardcoded inventories.
+
+```bash
+bun run reconcile                 # dry-run plan (all phases)
+bun run reconcile --apply --fleet-only   # converge fleet (CI-safe)
+bun run infra --phase dns --apply
+bun run reconcile destroy railway --id foo --i-understand-stateful
+```
+
+**Delete policy:** `--apply` freely removes **stateless** drift (DNS, redirects, Railway var bindings, GHCR visibility). **Stateful** resources (Railway services, Neon, B2 buckets, Vault KV data, tunnels) are never auto-deleted — reconcile only warns and prints a manual `destroy … --i-understand-stateful` command. CI must never pass that flag.
+
+Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin controllers invoked by reconcile phases.
 
 ## Global resource naming
 

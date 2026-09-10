@@ -3,20 +3,57 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
 import { assert } from "@pkgs/assert";
-import { loadServicesConfig, vaultAddr as vaultAddrFromConfig } from "./services.js";
+import {
+  loadServicesConfig,
+  vaultAddr as vaultAddrFromConfig,
+  vaultConfigOrDefault,
+} from "./services.js";
 
-const VAULT_KV_PATH = "secret/data/personal/prd";
-/** KV v2 CLI path (no `/data/` segment). */
-export const VAULT_KV_CLI_PATH = "secret/personal/prd";
+export type VaultKvConfig = string;
 
+export function vaultKvConfigs(): readonly string[] {
+  const configs = vaultConfigOrDefault(loadServicesConfig()).kv.configs;
+  assert.nonEmptyArray(configs, "vault.kv.configs must be non-empty");
+  return configs;
+}
+
+/** @deprecated Prefer vaultKvConfigs() from YAML */
 export const VAULT_KV_CONFIGS = ["dev", "prd"] as const;
-export type VaultKvConfig = (typeof VAULT_KV_CONFIGS)[number];
 
 export function vaultKvDataPath(config: VaultKvConfig): string {
-  assert.enum(config, [...VAULT_KV_CONFIGS], "vault kv config must be dev or prd");
-  const path = `secret/data/personal/${config}`;
-  assert.ok(path.startsWith("secret/data/"), "vault kv data path must be under secret/data/", { path });
+  assert.nonEmptyString(config, "vault kv config must be non-empty");
+  const vault = vaultConfigOrDefault(loadServicesConfig());
+  const mount = vault.kv.mount;
+  const project = vault.kv.project;
+  assert.nonEmptyString(mount, "vault.kv.mount must be non-empty");
+  assert.nonEmptyString(project, "vault.kv.project must be non-empty");
+  const path = `${mount}/data/${project}/${config}`;
+  assert.ok(
+    path.includes("/data/"),
+    "vault kv data path must include /data/",
+    { path },
+  );
   return path;
+}
+
+/** KV v2 CLI path (no `/data/` segment). */
+export function vaultKvCliPath(config: VaultKvConfig = "prd"): string {
+  assert.nonEmptyString(config, "vault kv config must be non-empty");
+  const vault = vaultConfigOrDefault(loadServicesConfig());
+  return `${vault.kv.mount}/${vault.kv.project}/${config}`;
+}
+
+/** @deprecated Prefer vaultKvCliPath("prd") */
+export const VAULT_KV_CLI_PATH = "secret/personal/prd";
+
+function assertKnownKvConfig(config: VaultKvConfig): void {
+  assert.nonEmptyString(config, "vault kv config must be non-empty");
+  const known = vaultKvConfigs();
+  if (!known.includes(config)) {
+    throw new Error(
+      `vault kv config "${config}" is not in vault.kv.configs (${known.join(", ")})`,
+    );
+  }
 }
 
 export function defaultVaultAddr(): string {
@@ -96,7 +133,7 @@ export async function vaultKvGetConfig(
   config: VaultKvConfig,
   token?: string,
 ): Promise<Record<string, string>> {
-  assert.enum(config, [...VAULT_KV_CONFIGS], "vault kv config must be dev or prd");
+  assertKnownKvConfig(config);
   if (token !== undefined) assert.nonEmptyString(token, "vault token must be non-empty");
   const addr = resolveVaultAddr();
   assert.ok(addr.startsWith("https://"), "vault addr must be https", { addr });
@@ -123,7 +160,7 @@ export async function vaultKvConfigReadable(
   config: VaultKvConfig,
   token: string,
 ): Promise<boolean> {
-  assert.enum(config, [...VAULT_KV_CONFIGS], "vault kv config must be dev or prd");
+  assertKnownKvConfig(config);
   assert.nonEmptyString(token, "vault token must be non-empty");
   const addr = resolveVaultAddr();
   assert.ok(addr.startsWith("https://"), "vault addr must be https", { addr });
@@ -138,7 +175,8 @@ export async function vaultKvPatch(fields: Record<string, string>): Promise<void
   assert.record(fields, "vault patch fields must be a record");
   const addr = resolveVaultAddr();
   assert.ok(addr.startsWith("https://"), "vault addr must be https", { addr });
-  const res = await fetch(`${addr}/v1/${VAULT_KV_PATH}`, {
+  const path = vaultKvDataPath("prd");
+  const res = await fetch(`${addr}/v1/${path}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${vaultToken()}`,
@@ -148,7 +186,7 @@ export async function vaultKvPatch(fields: Record<string, string>): Promise<void
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Vault PATCH ${VAULT_KV_PATH} failed (${res.status}): ${text}`);
+    throw new Error(`Vault PATCH ${path} failed (${res.status}): ${text}`);
   }
 }
 
@@ -171,7 +209,7 @@ export async function requireVaultCliAuth(vaultAddr?: string): Promise<void> {
 /** Patch KV secrets via the Vault CLI (`vault kv patch`). */
 export async function vaultKvPatchCli(
   fields: Record<string, string>,
-  cliPath = VAULT_KV_CLI_PATH,
+  cliPath = vaultKvCliPath("prd"),
   vaultAddr?: string,
 ): Promise<void> {
   assert.record(fields, "vault patch fields must be a record");
@@ -200,13 +238,14 @@ export async function vaultKvGetCli(vaultAddr?: string): Promise<Record<string, 
   if (vaultAddr !== undefined) assert.nonEmptyString(vaultAddr, "vault addr must be non-empty");
   await requireVaultCliAuth(vaultAddr);
   const addr = resolveVaultAddr(vaultAddr);
-  const result = await $`vault kv get -format=json ${VAULT_KV_CLI_PATH}`
+  const cliPath = vaultKvCliPath("prd");
+  const result = await $`vault kv get -format=json ${cliPath}`
     .env({ ...process.env, VAULT_ADDR: addr })
     .quiet()
     .nothrow();
   if (result.exitCode !== 0) {
     const detail = result.stderr.toString().trim() || result.stdout.toString().trim();
-    throw new Error(`vault kv get ${VAULT_KV_CLI_PATH} failed: ${detail}`);
+    throw new Error(`vault kv get ${cliPath} failed: ${detail}`);
   }
   const body = JSON.parse(result.stdout.toString()) as {
     data?: { data?: Record<string, string> };
@@ -219,7 +258,7 @@ export async function vaultKvGetCli(vaultAddr?: string): Promise<Record<string, 
 
 export async function vaultKvDeleteKeysApi(
   keys: readonly string[],
-  kvPath = VAULT_KV_PATH,
+  kvPath = vaultKvDataPath("prd"),
 ): Promise<void> {
   assert.array(keys, "vault delete keys must be an array");
   assert.nonEmptyString(kvPath, "vault kv path must be non-empty");
@@ -242,7 +281,7 @@ export async function vaultKvDeleteKeysApi(
 /** Delete specific keys from KV via CLI (merge-patch null values). */
 export async function vaultKvDeleteKeysCli(
   keys: readonly string[],
-  cliPath = VAULT_KV_CLI_PATH,
+  cliPath = vaultKvCliPath("prd"),
   vaultAddr?: string,
 ): Promise<void> {
   assert.array(keys, "vault delete keys must be an array");

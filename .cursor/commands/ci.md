@@ -149,3 +149,15 @@ To browse the run in a browser: `bun run gh:ci`.
 - Never disable structural size limits or patch dependencies — refactor instead.
 - Keep `bun.lock` in sync (`bun install` after changing `package.json`).
 - Don't force-push or amend a pushed commit; create a new commit.
+
+## Infra reconcile
+
+Desired state is [`packages/infra/services.yaml`](../../packages/infra/services.yaml). Prefer:
+
+```bash
+bun run reconcile                 # dry-run
+bun run reconcile --apply --fleet-only
+bun run reconcile destroy railway --id <id> --i-understand-stateful
+```
+
+`--apply` prunes **stateless** drift only. Stateful deletes require the explicit destroy subcommand (never in CI).

@@ -12,7 +12,12 @@ import {
   type CloudflareRulesetRule,
 } from "../lib/cloudflare-api.js";
 import { assert, hotAssert, type Assert } from "@pkgs/assert";
-import { loadServicesConfig, zoneSlug } from "../lib/services.js";
+import {
+  cloudflareConfigOrDefault,
+  loadServicesConfig,
+  resolveRedirectTarget,
+  zoneSlug,
+} from "../lib/services.js";
 
 const ha: Assert = hotAssert();
 
@@ -72,21 +77,23 @@ async function ensureApexARecord(
   apex: string,
   apply: boolean,
   managedComment: string,
+  placeholderIpv4: string,
 ): Promise<void> {
   assert.ok(cf instanceof CloudflareApi, "sync-redirects cf client must be a CloudflareApi");
   assert.nonEmptyString(zoneId, "sync-redirects zone id must be non-empty");
   assert.nonEmptyString(apex, "sync-redirects apex must be non-empty");
   assert.ok(typeof apply === "boolean", "sync-redirects apply must be a boolean");
   assert.nonEmptyString(managedComment, "sync-redirects managed comment must be non-empty");
+  assert.nonEmptyString(placeholderIpv4, "placeholder ipv4 must be non-empty");
   const records = await cf.listDnsRecords(zoneId);
   const existing = records.filter((r) => r.name === apex && r.type === "A");
   if (existing.length === 0) {
-    console.log(`[plan] CREATE ${apex} A → ${APEX_PLACEHOLDER_IPV4} (proxied)`);
+    console.log(`[plan] CREATE ${apex} A → ${placeholderIpv4} (proxied)`);
     if (apply) {
       await cf.createDnsRecord(zoneId, {
         name: apex,
         type: "A",
-        content: APEX_PLACEHOLDER_IPV4,
+        content: placeholderIpv4,
         proxied: true,
         ttl: 1,
         comment: managedComment,
@@ -97,13 +104,13 @@ async function ensureApexARecord(
   const primary = existing[0]!;
   assert.defined(primary, "sync-redirects primary A record must be defined");
   assert.nonEmptyString(primary.id, "sync-redirects primary record id must be non-empty");
-  if (primary.content !== APEX_PLACEHOLDER_IPV4 || !primary.proxied) {
+  if (primary.content !== placeholderIpv4 || !primary.proxied) {
     console.log(`[plan] UPDATE ${apex} A`);
     if (apply) {
       await cf.updateDnsRecord(zoneId, primary.id, {
         name: apex,
         type: "A",
-        content: APEX_PLACEHOLDER_IPV4,
+        content: placeholderIpv4,
         proxied: true,
         ttl: 1,
         comment: managedComment,
@@ -193,22 +200,24 @@ async function main(): Promise<void> {
   assert.nonEmptyString(config.zone, "sync-redirects zone must be non-empty");
   const slug = zoneSlug(config.zone);
   assert.nonEmptyString(slug, "sync-redirects zone slug must be non-empty");
+  const cfConfig = cloudflareConfigOrDefault(config);
+  const redirect =
+    cfConfig.redirects?.[0] ??
+    ({
+      from: config.zone,
+      to_service: "portfolio",
+      status: 301,
+    } as const);
+  const apex = redirect.from;
+  assert.nonEmptyString(apex, "sync-redirects apex must be non-empty");
+  const www = resolveRedirectTarget(config, redirect);
+  assert.nonEmptyString(www, "sync-redirects www host must be non-empty");
   const ruleRef = `${slug}_apex_to_www`;
   assert.nonEmptyString(ruleRef, "sync-redirects rule ref must be non-empty");
-  const managedComment = `managed by infra/scripts/sync-redirects.ts (${config.zone})`;
+  const managedComment = `managed by infra reconcile (${config.zone})`;
   assert.nonEmptyString(managedComment, "sync-redirects managed comment must be non-empty");
-  const apex = config.zone;
-  assert.nonEmptyString(apex, "sync-redirects apex must be non-empty");
-  const portfolio = config.services.find((s) => {
-    ha.nonEmptyString(s.id, "sync-redirects service id must be non-empty");
-    return s.id === "portfolio";
-  });
-  assert.ok(
-    portfolio === undefined || typeof portfolio === "object",
-    "sync-redirects portfolio lookup must be an object when found",
-  );
-  const www = portfolio?.hostname ?? `www.${config.zone}`;
-  assert.nonEmptyString(www, "sync-redirects www host must be non-empty");
+  const placeholder =
+    cfConfig.placeholder_ipv4?.trim() || APEX_PLACEHOLDER_IPV4;
 
   const cf = new CloudflareApi();
   const zone = await cf.findZoneByName(config.zone);
@@ -220,7 +229,7 @@ async function main(): Promise<void> {
   assert.nonEmptyString(zone.id, "sync-redirects zone id must be non-empty");
 
   console.log(`Sync apex redirect (${apply ? "APPLY" : "DRY-RUN"}): ${apex} → ${www}`);
-  await ensureApexARecord(cf, zone.id, apex, apply, managedComment);
+  await ensureApexARecord(cf, zone.id, apex, apply, managedComment, placeholder);
   await ensureRedirectRule(cf, zone.id, apex, www, apply, ruleRef, managedComment);
 }
 

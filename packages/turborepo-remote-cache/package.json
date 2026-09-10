@@ -27,7 +27,8 @@
     "@pkgs/logger": "workspace:*",
     "@pkgs/object-store": "workspace:*",
     "@pkgs/secret-store": "workspace:*",
-    "hono": "catalog:"
+    "hono": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
