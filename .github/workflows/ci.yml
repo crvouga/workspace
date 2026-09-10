@@ -182,7 +182,16 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    needs: [changes, deploy]
+    # Manual prod smoke only. When publish/deploy also run, wait until deploy
+    # finishes so we don't probe mid-redeploy (503 race).
+    if: |
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      (
+        (needs.changes.outputs.deploy != 'true' && needs.deploy.result == 'skipped') ||
+        needs.deploy.result == 'success'
+      )
     timeout-minutes: 10
     steps:
       - name: Checkout
