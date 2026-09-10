@@ -112,26 +112,32 @@ vault:
     - name: TURBO_TELEMETRY_DISABLED
       configs: [dev, prd]
       used_by: [turborepo]
-    - name: B2_S3_ENDPOINT
+    - name: S3_ENDPOINT
       configs: [dev, prd]
       used_by: [turborepo, ci]
       required: true
-    - name: B2_S3_REGION
+    - name: S3_REGION
       configs: [dev, prd]
       used_by: [turborepo, ci]
       required: true
-    - name: B2_S3_ACCESS_KEY_ID
+    - name: S3_ACCESS_KEY_ID
       configs: [dev, prd]
       used_by: [turborepo, ci]
       required: true
-    - name: B2_S3_SECRET_ACCESS_KEY
+    - name: S3_SECRET_ACCESS_KEY
       configs: [dev, prd]
       used_by: [turborepo, ci]
       required: true
-    - name: B2_BUCKET
+    - name: S3_BUCKET
       configs: [dev, prd]
       used_by: [turborepo, ci]
       required: true
+    - name: S3_ACCESS_KEY
+      configs: [dev, prd]
+      used_by: [ci]
+    - name: S3_SECRET_KEY
+      configs: [dev, prd]
+      used_by: [ci]
     - name: VAULT_TOKEN
       configs: [dev, prd]
       used_by: [turborepo, railway]
@@ -185,12 +191,13 @@ neon:
 
 object_stores:
   - id: turbo-cache
-    provider: b2
-    bucket_secret: B2_BUCKET
-    endpoint_secret: B2_S3_ENDPOINT
-    region_secret: B2_S3_REGION
-    access_key_secret: B2_S3_ACCESS_KEY_ID
-    secret_key_secret: B2_S3_SECRET_ACCESS_KEY
+    provider: r2
+    bucket: crvouga-turbo-cache
+    bucket_secret: S3_BUCKET
+    endpoint_secret: S3_ENDPOINT
+    region_secret: S3_REGION
+    access_key_secret: S3_ACCESS_KEY_ID
+    secret_key_secret: S3_SECRET_ACCESS_KEY
     key_prefix: turbo-cache
     namespaces: [dev, prd]
 

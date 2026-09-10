@@ -193,46 +193,34 @@ The KV mount is `secret/`. Desired inventory is only `personal/{dev,prd}`. If a 
 
 ## Resource migration
 
-Operator scripts for moving B2 object storage and Postgres between Vault `dev` and `prd` configs. Default project is `personal`.
+Operator scripts for object storage (Cloudflare R2 via S3 API) and Postgres between Vault `dev` and `prd` configs. Default project is `personal`.
 
-**Prerequisites:** [Vault CLI](https://openbao.org/docs/install/), `jq`, `curl`, [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (B2 S3-compatible API), `psql`, `pg_dump`, `pg_restore`. For Neon/Postgres 18 hosts, install matching clients (`brew install postgresql@18`) — the clone script auto-selects `/opt/homebrew/opt/postgresql@18/bin` or falls back to Docker when local `pg_dump` is too old.
+**Prerequisites:** [Vault CLI](https://openbao.org/docs/install/), `jq`, `curl`, [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (R2 S3-compatible API), `psql`, `pg_dump`, `pg_restore`. For Neon/Postgres 18 hosts, install matching clients (`brew install postgresql@18`) — the clone script auto-selects `/opt/homebrew/opt/postgresql@18/bin` or falls back to Docker when local `pg_dump` is too old.
 
 Suggested order:
 
-1. Seed B2 secrets in Vault (manual or `--seed-vault-secrets` on the clone script)
-2. Alias B2 → S3 keys in the same KV path
-3. Verify object-storage credentials
-4. Copy legacy bucket objects into dev/prd buckets
-5. Verify Postgres `DATABASE_URL` health
-6. Refresh dev database from prod (one-way)
+1. Provision R2 + seed `S3_*` secrets: `vault run -- bun run provision-r2` (from repo root; requires R2 API token env)
+2. Verify object-storage credentials
+3. Verify Postgres `DATABASE_URL` health
+4. Refresh dev database from prod (one-way)
 
 | Script | Purpose |
 |--------|---------|
-| [`create-s3-secrets-from-b2.sh`](scripts/create-s3-secrets-from-b2.sh) | Copy `B2_*` fields to `S3_*` aliases (including `S3_ACCESS_KEY` / `S3_SECRET_KEY`) |
-| [`check-object-storage-creds.sh`](scripts/check-object-storage-creds.sh) | Probe B2 and S3 bucket credentials for dev/prd |
-| [`clone-b2-bucket-from-legacy.sh`](scripts/clone-b2-bucket-from-legacy.sh) | Full sync from `legacy-b2.json` source bucket into Vault dev/prd buckets |
+| [`check-object-storage-creds.sh`](scripts/check-object-storage-creds.sh) | Probe R2/S3 bucket credentials for dev/prd |
 | [`check-database-url-health.sh`](scripts/check-database-url-health.sh) | `SELECT 1` health check for `DATABASE_URL` in dev/prd |
 | [`clone-prod-database-to-dev.sh`](scripts/clone-prod-database-to-dev.sh) | One-way `pg_dump` / `pg_restore` from prd → dev |
 
 ```bash
-# Alias B2 secrets to S3 names (dry-run first)
-make alias-s3-from-b2
-./scripts/vault-run.sh -- ./scripts/create-s3-secrets-from-b2.sh
-
-# Verify credentials and Postgres
+# Verify R2/S3 credentials and Postgres
 make check-object-storage
 make check-database-url
-
-# Copy legacy B2 bucket objects (dry-run by default; --confirm to write)
-make clone-b2-from-legacy
-./scripts/vault-run.sh -- ./scripts/clone-b2-bucket-from-legacy.sh --confirm
 
 # Clone prod database into dev (dry-run by default; --confirm to write)
 make clone-prod-db-to-dev
 ./scripts/vault-run.sh -- ./scripts/clone-prod-database-to-dev.sh --schema gamezilla --confirm
 ```
 
-Source credentials for the B2 bucket clone live in repo-root `legacy-b2.json` (gitignored). Target credentials are read from `secret/personal/dev` and `secret/personal/prd` using the same `B2_*` field names.
+Canonical object-store secrets are polymorphic `S3_*` keys in `secret/personal/{dev,prd}` (see monorepo `bun run provision-r2`).
 
 ## Using secrets locally
 

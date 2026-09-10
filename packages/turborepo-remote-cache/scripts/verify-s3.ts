@@ -11,16 +11,16 @@ function readRequiredEnv(key: string): string | null {
   return value.length > 0 ? value : null;
 }
 
-export function readB2S3ConfigFromEnv(): ObjectStoreS3ConnectionConfig | null {
+export function readS3ConfigFromEnv(): ObjectStoreS3ConnectionConfig | null {
   assert.nonEmptyString(
     CACHE_OBJECT_STORE_NAMESPACE,
     'object store namespace must be non-empty'
   );
-  const endpoint = readRequiredEnv(VaultSecretKey.b2S3Endpoint);
-  const region = readRequiredEnv(VaultSecretKey.b2S3Region);
-  const accessKeyId = readRequiredEnv(VaultSecretKey.b2S3AccessKeyId);
-  const secretAccessKey = readRequiredEnv(VaultSecretKey.b2S3SecretAccessKey);
-  const bucket = readRequiredEnv(VaultSecretKey.b2Bucket);
+  const endpoint = readRequiredEnv(VaultSecretKey.s3Endpoint);
+  const region = readRequiredEnv(VaultSecretKey.s3Region);
+  const accessKeyId = readRequiredEnv(VaultSecretKey.s3AccessKeyId);
+  const secretAccessKey = readRequiredEnv(VaultSecretKey.s3SecretAccessKey);
+  const bucket = readRequiredEnv(VaultSecretKey.s3Bucket);
 
   if (
     endpoint === null ||
@@ -35,39 +35,39 @@ export function readB2S3ConfigFromEnv(): ObjectStoreS3ConnectionConfig | null {
   return { endpoint, region, accessKeyId, secretAccessKey, bucket };
 }
 
-const B2_CREDENTIAL_HINT =
-  'Create a new Backblaze B2 application key with read/write access to the cache bucket, then set B2_S3_ACCESS_KEY_ID (key ID) and B2_S3_SECRET_ACCESS_KEY (application key) in Vault dev and prd.';
+const S3_CREDENTIAL_HINT =
+  'Create a Cloudflare R2 API token with Object Read & Write on the cache bucket, then set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in Vault dev and prd (bun run provision-r2).';
 
-function formatB2ProbeError(message: string, bucket: string): string {
-  assert.nonEmptyString(message, 'formatB2ProbeError requires message');
-  assert.nonEmptyString(bucket, 'formatB2ProbeError requires bucket');
+function formatS3ProbeError(message: string, bucket: string): string {
+  assert.nonEmptyString(message, 'formatS3ProbeError requires message');
+  assert.nonEmptyString(bucket, 'formatS3ProbeError requires bucket');
   if (
     message.includes('403') ||
     message.includes('401') ||
     message.includes('Signature')
   ) {
     return (
-      `B2 S3 credentials rejected for bucket "${bucket}" (${message}).\n` +
-      B2_CREDENTIAL_HINT
+      `S3 credentials rejected for bucket "${bucket}" (${message}).\n` +
+      S3_CREDENTIAL_HINT
     );
   }
-  return `B2 S3 probe failed for bucket "${bucket}": ${message}`;
+  return `S3 probe failed for bucket "${bucket}": ${message}`;
 }
 
 /**
- * Writes and reads a tiny probe object via the S3-compatible API.
+ * Writes and reads a tiny probe object via the S3-compatible API (Cloudflare R2).
  * Returns an error message when credentials or bucket access are invalid.
  */
-export async function verifyB2S3Credentials(): Promise<string | null> {
-  const config = readB2S3ConfigFromEnv();
+export async function verifyS3Credentials(): Promise<string | null> {
+  const config = readS3ConfigFromEnv();
   if (config === null) {
-    return 'B2 S3 env vars are missing (B2_S3_ENDPOINT, B2_S3_REGION, B2_S3_ACCESS_KEY_ID, B2_S3_SECRET_ACCESS_KEY, B2_BUCKET).';
+    return 'S3 env vars are missing (S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET).';
   }
-  assert.nonEmptyString(config.bucket, 'B2 bucket must be non-empty');
-  assert.nonEmptyString(config.endpoint, 'B2 endpoint must be non-empty');
+  assert.nonEmptyString(config.bucket, 'S3 bucket must be non-empty');
+  assert.nonEmptyString(config.endpoint, 'S3 endpoint must be non-empty');
 
   const store = createS3ObjectStore(config, CACHE_OBJECT_STORE_NAMESPACE);
-  assert.defined(store, 'verifyB2S3Credentials requires object store');
+  assert.defined(store, 'verifyS3Credentials requires object store');
   const probeKey = `credential-probe-${String(Date.now())}`;
   const probeBytes = new Uint8Array([0x53, 0x4d, 0x4b]); // "SMK"
   assert.nonEmptyString(probeKey, 'probe key must be non-empty');
@@ -77,33 +77,33 @@ export async function verifyB2S3Credentials(): Promise<string | null> {
     await store.put(probeKey, probeBytes, 'application/octet-stream');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return formatB2ProbeError(message, config.bucket);
+    return formatS3ProbeError(message, config.bucket);
   }
 
   try {
     const exists = await store.head(probeKey);
     if (!exists) {
-      return `B2 S3 put succeeded but HEAD ${probeKey} returned false (bucket "${config.bucket}").`;
+      return `S3 put succeeded but HEAD ${probeKey} returned false (bucket "${config.bucket}").`;
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return formatB2ProbeError(message, config.bucket);
+    return formatS3ProbeError(message, config.bucket);
   }
 
   try {
     const stored = await store.get(probeKey);
     if (stored === null) {
-      return `B2 S3 HEAD succeeded but GET ${probeKey} returned null (bucket "${config.bucket}").`;
+      return `S3 HEAD succeeded but GET ${probeKey} returned null (bucket "${config.bucket}").`;
     }
     const reader = stored.body.getReader();
     const chunk = await reader.read();
     await reader.cancel();
     if (chunk.done || chunk.value === undefined) {
-      return `B2 S3 GET ${probeKey} returned empty body (bucket "${config.bucket}").`;
+      return `S3 GET ${probeKey} returned empty body (bucket "${config.bucket}").`;
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return formatB2ProbeError(message, config.bucket);
+    return formatS3ProbeError(message, config.bucket);
   }
 
   return null;

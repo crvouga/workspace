@@ -14,7 +14,6 @@ PROJECT="${VAULT_KV_DEFAULT_PROJECT}"
 JSON_OUTPUT=false
 declare -a CONFIGS=("dev" "prd")
 
-B2_PROBE_KEYS=(B2_BUCKET B2_S3_ACCESS_KEY_ID B2_S3_SECRET_ACCESS_KEY B2_S3_ENDPOINT B2_S3_REGION)
 S3_PROBE_KEYS=(S3_BUCKET S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY S3_ENDPOINT S3_REGION)
 
 CHECKS_TOTAL=0
@@ -28,10 +27,12 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Verify B2 and S3 object-storage credentials in Vault dev and prd configs.
+Verify S3-compatible (Cloudflare R2) object-storage credentials in Vault
+dev and prd configs.
 
 For each credential set present, probes bucket access via AWS CLI against the
-S3-compatible endpoint. Also checks S3 alias key consistency when alias keys exist.
+S3-compatible endpoint. Also checks polymorphic alias key consistency
+(S3_ACCESS_KEY / S3_SECRET_KEY).
 
 Options:
   --mount PATH     KV v2 mount path (default: secret)
@@ -84,37 +85,15 @@ fields_have_all_keys() {
   return 0
 }
 
-extract_cred_set() {
+extract_s3_creds() {
   local fields="$1"
-  local prefix="$2"
-  local bucket_key access_key secret_key endpoint_key region_key
-
-  case "$prefix" in
-    B2)
-      bucket_key="B2_BUCKET"
-      access_key="B2_S3_ACCESS_KEY_ID"
-      secret_key="B2_S3_SECRET_ACCESS_KEY"
-      endpoint_key="B2_S3_ENDPOINT"
-      region_key="B2_S3_REGION"
-      ;;
-    S3)
-      bucket_key="S3_BUCKET"
-      access_key="S3_ACCESS_KEY_ID"
-      secret_key="S3_SECRET_ACCESS_KEY"
-      endpoint_key="S3_ENDPOINT"
-      region_key="S3_REGION"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
 
   printf '%s\n%s\n%s\n%s\n%s' \
-    "$(echo "$fields" | jq -r --arg k "$bucket_key" '.[$k] // empty')" \
-    "$(echo "$fields" | jq -r --arg k "$access_key" '.[$k] // empty')" \
-    "$(echo "$fields" | jq -r --arg k "$secret_key" '.[$k] // empty')" \
-    "$(echo "$fields" | jq -r --arg k "$endpoint_key" '.[$k] // empty')" \
-    "$(echo "$fields" | jq -r --arg k "$region_key" '.[$k] // empty')"
+    "$(echo "$fields" | jq -r '.S3_BUCKET // empty')" \
+    "$(echo "$fields" | jq -r '.S3_ACCESS_KEY_ID // empty')" \
+    "$(echo "$fields" | jq -r '.S3_SECRET_ACCESS_KEY // empty')" \
+    "$(echo "$fields" | jq -r '.S3_ENDPOINT // empty')" \
+    "$(echo "$fields" | jq -r '.S3_REGION // empty')"
 }
 
 probe_bucket() {
@@ -167,31 +146,26 @@ check_alias_consistency() {
   return 0
 }
 
-check_cred_set() {
+check_s3_creds() {
   local config="$1"
-  local set_name="$2"
-  local fields="$3"
-  shift 3
-  local -a required_keys=("$@")
+  local fields="$2"
 
-  if ! fields_have_all_keys "$fields" "${required_keys[@]}"; then
-    record_result "$config" "$set_name" "skip" "incomplete credential set"
-    echo "  SKIP  ${config}/${set_name}: incomplete credential set"
+  if ! fields_have_all_keys "$fields" "${S3_PROBE_KEYS[@]}"; then
+    record_result "$config" "s3" "skip" "incomplete credential set"
+    echo "  SKIP  ${config}/s3: incomplete credential set"
     return 0
   fi
 
-  local prefix
-  prefix="$(printf '%s' "$set_name" | tr '[:lower:]' '[:upper:]')"
-  mapfile -t creds < <(extract_cred_set "$fields" "$prefix")
+  mapfile -t creds < <(extract_s3_creds "$fields")
   local bucket="${creds[0]}"
   local endpoint="${creds[3]}"
 
   if probe_bucket "${creds[@]}"; then
-    record_result "$config" "$set_name" "pass" "bucket ${bucket} reachable at ${endpoint}"
-    echo "  OK    ${config}/${set_name}: bucket ${bucket} reachable"
+    record_result "$config" "s3" "pass" "bucket ${bucket} reachable at ${endpoint}"
+    echo "  OK    ${config}/s3: bucket ${bucket} reachable"
   else
-    record_result "$config" "$set_name" "fail" "bucket ${bucket} probe failed at ${endpoint}"
-    echo "  FAIL  ${config}/${set_name}: bucket ${bucket} probe failed"
+    record_result "$config" "s3" "fail" "bucket ${bucket} probe failed at ${endpoint}"
+    echo "  FAIL  ${config}/s3: bucket ${bucket} probe failed"
     return 1
   fi
 }
@@ -240,7 +214,7 @@ if ! assert_vault_ready; then
 fi
 
 if [ "$JSON_OUTPUT" = false ]; then
-  echo "==> Checking object storage credentials for ${PROJECT} (${CONFIGS[*]})"
+  echo "==> Checking R2/S3 object storage credentials for ${PROJECT} (${CONFIGS[*]})"
   echo ""
 fi
 
@@ -261,8 +235,7 @@ for config in "${CONFIGS[@]}"; do
     echo "-- ${config} --"
   fi
 
-  check_cred_set "$config" "b2" "$fields" "${B2_PROBE_KEYS[@]}" || true
-  check_cred_set "$config" "s3" "$fields" "${S3_PROBE_KEYS[@]}" || true
+  check_s3_creds "$config" "$fields" || true
   check_alias_consistency "$fields" "$config" || true
 
   if [ "$JSON_OUTPUT" = false ]; then

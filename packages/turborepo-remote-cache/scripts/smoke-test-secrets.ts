@@ -3,7 +3,7 @@
  *
  * For each `SecretStoreEntry` this validates the presence + format of the
  * secret value, then runs functional smoke checks for secrets backed by live
- * services (B2 object store, cache server).
+ * services (R2 object store, cache server).
  *
  * Requires secrets in env (via `vault run --config <config>`).
  * Part of the main checks (`bun run check:ci`).
@@ -16,7 +16,7 @@ import {
   VAULT_SECRET_REGISTRY,
   VaultSecretKey,
 } from './vault-secrets-registry';
-import { verifyB2S3Credentials } from './verify-b2-s3';
+import { verifyS3Credentials } from './verify-s3';
 
 type SmokeResult =
   { readonly ok: true } | { readonly ok: false; readonly error: string };
@@ -113,12 +113,12 @@ async function main(): Promise<void> {
     logResult(entry.key, { ok: true });
   }
 
-  const b2Error = await verifyB2S3Credentials();
-  if (b2Error !== null) {
-    failures.push(`B2 S3 credentials: ${b2Error}`);
-    logResult('B2 S3 credentials', { ok: false, error: b2Error });
+  const s3Error = await verifyS3Credentials();
+  if (s3Error !== null) {
+    failures.push(`S3 credentials: ${s3Error}`);
+    logResult('S3 credentials', { ok: false, error: s3Error });
   } else {
-    logResult('B2 S3 credentials', { ok: true });
+    logResult('S3 credentials', { ok: true });
   }
 
   const apiUrl = readEnvSecret(VaultSecretKey.turboApi);

@@ -44,8 +44,8 @@ function contentMd5Base64(bytes: Uint8Array): string {
 }
 
 /**
- * Headers required by some S3-compatible stores (e.g. Backblaze B2 with Object
- * Lock) for PutObject. Uses Content-MD5 only — B2 rejects x-amz-sdk-checksum-*.
+ * Headers for S3-compatible PutObject. Uses Content-MD5 only — some providers
+ * reject x-amz-sdk-checksum-* headers.
  */
 export function s3PutObjectHeaders(
   bytes: Uint8Array,

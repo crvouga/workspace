@@ -1,7 +1,7 @@
 /**
  * Runtime environment for the Turborepo remote cache server.
  *
- * Only `VAULT_TOKEN` is a deploy-time secret. B2 creds, cache bearer token,
+ * Only `VAULT_TOKEN` is a deploy-time secret. S3/R2 creds, cache bearer token,
  * and all other config load from Vault at boot.
  */
 import { assert } from '@pkgs/assert';

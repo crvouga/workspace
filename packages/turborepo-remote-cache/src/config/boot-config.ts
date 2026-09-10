@@ -18,11 +18,11 @@ export async function loadCacheBootConfig(
   const [turboToken, endpoint, region, accessKeyId, secretAccessKey, bucket] =
     await Promise.all([
       secretStore.getRequired(CacheSecretName.turboToken),
-      secretStore.getRequired(CacheSecretName.b2S3Endpoint),
-      secretStore.getRequired(CacheSecretName.b2S3Region),
-      secretStore.getRequired(CacheSecretName.b2S3AccessKeyId),
-      secretStore.getRequired(CacheSecretName.b2S3SecretAccessKey),
-      secretStore.getRequired(CacheSecretName.b2Bucket),
+      secretStore.getRequired(CacheSecretName.s3Endpoint),
+      secretStore.getRequired(CacheSecretName.s3Region),
+      secretStore.getRequired(CacheSecretName.s3AccessKeyId),
+      secretStore.getRequired(CacheSecretName.s3SecretAccessKey),
+      secretStore.getRequired(CacheSecretName.s3Bucket),
     ]);
 
   const objectStore = createS3ObjectStore(

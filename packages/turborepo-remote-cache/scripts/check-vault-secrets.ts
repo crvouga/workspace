@@ -12,7 +12,7 @@ import {
   VAULT_SECRET_REGISTRY,
   VaultSecretKey,
 } from './vault-secrets-registry';
-import { verifyB2S3Credentials } from './verify-b2-s3';
+import { verifyS3Credentials } from './verify-s3';
 
 function isCi(): boolean {
   return (
@@ -115,11 +115,11 @@ async function main(): Promise<void> {
     console.log(`warn:${line}`);
   }
 
-  const b2Err = await verifyB2S3Credentials();
-  if (b2Err !== null) {
-    fail(`B2 S3 credentials check failed:\n  • ${b2Err}`);
+  const s3Err = await verifyS3Credentials();
+  if (s3Err !== null) {
+    fail(`S3 credentials check failed:\n  • ${s3Err}`);
   }
-  console.log('B2 S3 credentials OK');
+  console.log('S3 credentials OK');
 
   const turboApi = readEnvSecret(VaultSecretKey.turboApi);
   const turboToken = readEnvSecret(VaultSecretKey.turboToken);

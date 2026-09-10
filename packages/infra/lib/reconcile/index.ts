@@ -172,7 +172,7 @@ async function planNeonAndObjectStores(
 				kind: "object_store_bucket",
 				op: "noop",
 				id: store.id,
-				summary: `Object store "${store.id}" (${store.provider}, prefix ${store.key_prefix}) — never auto-delete bucket`,
+				summary: `Object store "${store.id}" (${store.provider}${store.bucket ? `, bucket ${store.bucket}` : ""}, prefix ${store.key_prefix}) — never auto-delete bucket`,
 				apply: async () => {},
 			}),
 		);

@@ -31,6 +31,7 @@
     "make-ghcr-public": "bun run --filter @pkgs/infra make-ghcr-public",
     "print-platform-env": "bun run --filter @pkgs/infra print-platform-env",
     "provision-railway": "bun run --filter @pkgs/infra provision-railway",
+    "provision-r2": "bun run --filter @pkgs/infra provision-r2",
     "reconcile": "bun run --filter @pkgs/infra reconcile",
     "infra": "bun run --filter @pkgs/infra reconcile",
     "rename-railway": "bun run --filter @pkgs/infra rename-railway",

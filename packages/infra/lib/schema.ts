@@ -202,7 +202,8 @@ export type NeonConfig = {
 
 export type ObjectStoreSpec = {
   readonly id: string;
-  readonly provider: "b2";
+  readonly provider: "r2";
+  readonly bucket?: string;
   readonly bucket_secret: string;
   readonly endpoint_secret: string;
   readonly region_secret: string;

@@ -33,9 +33,9 @@ function encodeS3Key(key: string): string {
 }
 
 /**
- * S3-compatible {@link ObjectStore} (Backblaze B2, AWS S3, Cloudflare R2 via
- * HTTP API). Uses {@link AwsClient} from `aws4fetch` for SigV4 signing in
- * Workers and Node.
+ * S3-compatible {@link ObjectStore} (Cloudflare R2, AWS S3, and other
+ * S3-compatible HTTP APIs). Uses {@link AwsClient} from `aws4fetch` for SigV4
+ * signing in Workers and Node.
  */
 export class ObjectStoreImplS3 implements ObjectStore {
   private readonly client: AwsClient;

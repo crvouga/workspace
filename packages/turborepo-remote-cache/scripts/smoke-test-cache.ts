@@ -7,7 +7,7 @@
 import { assert, hotAssert, type Assert } from '@pkgs/assert';
 
 import { VaultSecretKey } from './vault-secrets-registry';
-import { verifyB2S3Credentials } from './verify-b2-s3';
+import { verifyS3Credentials } from './verify-s3';
 
 const ha: Assert = hotAssert();
 
@@ -437,11 +437,11 @@ async function main(): Promise<void> {
 
   console.log(`Remote cache smoke test (${baseUrl(apiUrl)})`);
 
-  const b2Err = await verifyB2S3Credentials();
-  if (b2Err !== null) {
-    fail(b2Err);
+  const s3Err = await verifyS3Credentials();
+  if (s3Err !== null) {
+    fail(s3Err);
   }
-  console.log('B2 S3 credentials OK');
+  console.log('S3 credentials OK');
 
   await waitForReady(apiUrl, token);
   await runSuite(apiUrl, token);

@@ -4,7 +4,7 @@
 
 Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
 
-- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-b2-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
+- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
 - `packages/infra` — infra control plane (`@pkgs/infra`): sole desired-state doc [`services.yaml`](packages/infra/services.yaml), `lib/reconcile/`, and ops scripts. Prefer `bun run reconcile` / `bun run infra` over one-off scripts.
 - `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
 - `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
@@ -20,7 +20,7 @@ Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.
 
 ## Declarative infra (`packages/infra/services.yaml`)
 
-**Single source of truth** for Railway, Cloudflare, Vault inventory, Neon/B2 refs, GitHub secrets, tunnels, and legacy destroy targets. No parallel hardcoded inventories.
+**Single source of truth** for Railway, Cloudflare, Vault inventory, Neon/R2 refs, GitHub secrets, tunnels, and legacy destroy targets. No parallel hardcoded inventories.
 
 ```bash
 bun run reconcile                 # dry-run plan (all phases)
@@ -29,19 +29,19 @@ bun run infra --phase dns --apply
 bun run reconcile destroy railway --id foo --i-understand-stateful
 ```
 
-**Delete policy:** `--apply` freely removes **stateless** drift (DNS, redirects, Railway var bindings, GHCR visibility). **Stateful** resources (Railway services, Neon, B2 buckets, Vault KV data, tunnels) are never auto-deleted — reconcile only warns and prints a manual `destroy … --i-understand-stateful` command. CI must never pass that flag.
+**Delete policy:** `--apply` freely removes **stateless** drift (DNS, redirects, Railway var bindings, GHCR visibility). **Stateful** resources (Railway services, Neon, R2 buckets, Vault KV data, tunnels) are never auto-deleted — reconcile only warns and prints a manual `destroy … --i-understand-stateful` command. CI must never pass that flag.
 
 Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin controllers invoked by reconcile phases.
 
 ## Global resource naming
 
-| Resource                             | Pattern                                                     | Example                                |
-| ------------------------------------ | ----------------------------------------------------------- | -------------------------------------- |
-| Railway project                      | from `services.yaml` → `railway.project`                    | `infra`                                |
-| Railway service                      | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
-| GHCR image                           | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
-| External image                       | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
-| S3 bucket (when owned by this stack) | `crvouga-<purpose>` or existing shared bucket keys in Vault | —                                      |
+| Resource                                  | Pattern                                                     | Example                                |
+| ----------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| Railway project                           | from `services.yaml` → `railway.project`                    | `infra`                                |
+| Railway service                           | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
+| GHCR image                                | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
+| External image                            | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
+| S3 / R2 bucket (when owned by this stack) | `crvouga-<purpose>`                                         | `crvouga-turbo-cache`                  |
 
 Railway names come from [`packages/infra/services.yaml`](packages/infra/services.yaml) via `railwayServiceName()` in [`packages/infra/lib/services.ts`](packages/infra/lib/services.ts) — defaults to the service `id`. Legacy Fly.io apps used the `crvouga-` prefix; see `legacyFlyAppName()`.
 
@@ -53,12 +53,12 @@ Public DNS hostnames stay on the zone (`portfolio.chrisvouga.dev`, etc.); Railwa
 
 Vault is **`standalone: true`** in [`packages/infra/services.yaml`](packages/infra/services.yaml) — excluded from fleet Railway redeploy / fleet DNS sync / `destroy-fly`. It bootstraps from **GitHub repo secrets** (or exported env), not Vault KV / OIDC. The monorepo **CI** workflow runs the vault job when `packages/vault-service/**` changes, then chains fleet **Deploy**.
 
-| Resource        | Value                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------- |
-| Railway service | `vault`                                                                                |
-| Public hostname | `vault.chrisvouga.dev`                                                                 |
-| GHCR image      | `ghcr.io/crvouga/chrisvouga-vault`                                                     |
-| CI              | **CI** (`.github/workflows/ci.yml`) vault job on `packages/vault-service/**`           |
+| Resource        | Value                                                                        |
+| --------------- | ---------------------------------------------------------------------------- |
+| Railway service | `vault`                                                                      |
+| Public hostname | `vault.chrisvouga.dev`                                                       |
+| GHCR image      | `ghcr.io/crvouga/chrisvouga-vault`                                           |
+| CI              | **CI** (`.github/workflows/ci.yml`) vault job on `packages/vault-service/**` |
 
 **Bootstrap order (first deploy or rebuild):**
 
@@ -86,7 +86,7 @@ If `vault run` fails with `No value found at secret/personal/prd`, KV is empty �
 
 ## Turborepo remote cache (`packages/turborepo-remote-cache` + `@pkgs/*`)
 
-The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-b2-s3.ts`, `vault-yaml-defaults.ts`).
+The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-s3.ts`, `vault-yaml-defaults.ts`).
 
 - CI: **CI** (`.github/workflows/ci.yml`) — `check` → optional `vault` / `publish` → `deploy` on one run.
 - Deploy: monorepo publish chains **Deploy** via `workflow_call`; sibling repos use `publish-image` → `repository_dispatch`.
@@ -98,7 +98,7 @@ The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-c
 
 ### Architecture
 
-Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Backblaze B2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`). Physical object keys are always `turbo-cache/prd/<artifact-hash>` in the shared bucket. Runtime secrets load from Vault at boot.
+Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Cloudflare R2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`). Physical object keys are always `turbo-cache/prd/<artifact-hash>` in the shared bucket (`crvouga-turbo-cache`). Runtime secrets load from Vault at boot.
 
 CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turborepo:<sha>`); **Deploy** pulls and runs it. If the package is new, set GHCR visibility to public once in GitHub package settings.
 
@@ -113,13 +113,14 @@ Canonical registry: [`packages/turborepo-remote-cache/scripts/vault-secrets-regi
 
 Both configs must carry the same required keys. `bun run setup` runs `ensure-vault-secrets.ts` to write derived defaults (`TURBO_API`, `TURBO_TEAM`, `TURBO_CACHE`) into **dev** and **prd** when missing.
 
-Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, B2 `B2_*`.
+Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (provision with `bun run provision-r2`).
 
 ### Scripts
 
 | Script                            | Purpose                                                                   |
 | --------------------------------- | ------------------------------------------------------------------------- |
 | `bun run setup`                   | `packages/turborepo-remote-cache/.env` + ensure Vault defaults in dev/prd |
+| `bun run provision-r2`            | Create R2 bucket + seed `S3_*` Vault secrets (dev/prd); purge legacy keys |
 | `bun run check:vault-secrets`     | Verify dev config (CI gate)                                               |
 | `bun run check:vault-secrets:prd` | Verify prd config (deploy gate)                                           |
 | `bun run deploy`                  | Points to infra ci.yml production path                                    |

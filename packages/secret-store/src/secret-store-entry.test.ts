@@ -25,19 +25,19 @@ test('defaults: seed/transform/validate are identity/no-op and docs are empty', 
 
 test('transform is applied and validate appends invalidHint on failure only', () => {
   const entry = new SecretStoreEntry({
-    key: 'B2_S3_REGION',
+    key: 'S3_REGION',
     required: true,
     usedBy: ['server'],
-    hint: 'B2 region',
+    hint: 'R2 region',
     transform: (v) => v.trim(),
     validate: (v) => (v.length === 0 ? 'must not be blank' : null),
-    invalidHint: 'Set B2_S3_REGION in Vault prd.',
+    invalidHint: 'Set S3_REGION in Vault prd.',
   });
 
-  expect(entry.transform('  us-west-004  ')).toBe('us-west-004');
-  expect(entry.validate('us-west-004')).toBeNull();
+  expect(entry.transform('  auto  ')).toBe('auto');
+  expect(entry.validate('auto')).toBeNull();
   expect(entry.validate('')).toBe(
-    'must not be blank\nSet B2_S3_REGION in Vault prd.'
+    'must not be blank\nSet S3_REGION in Vault prd.'
   );
 });
 

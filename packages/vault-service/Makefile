@@ -1,6 +1,6 @@
 .PHONY: gh sync-dns sync-dev-keys-to-prd seed-vault-token \
 	cleanup-legacy-secret-path \
-	clone-b2-from-legacy alias-s3-from-b2 check-object-storage \
+	check-object-storage \
 	check-database-url clone-prod-db-to-dev \
 	provision deploy destroy railway-sync-dns
 
@@ -35,12 +35,6 @@ cleanup-legacy-secret-path:
 seed-vault-token:
 	./scripts/seed-vault-token.sh
 
-clone-b2-from-legacy:
-	./scripts/vault-run.sh -- ./scripts/clone-b2-bucket-from-legacy.sh
-
-alias-s3-from-b2:
-	./scripts/vault-run.sh -- ./scripts/create-s3-secrets-from-b2.sh --dry-run
-
 check-object-storage:
 	./scripts/vault-run.sh -- ./scripts/check-object-storage-creds.sh
 
@@ -49,6 +43,3 @@ check-database-url:
 
 clone-prod-db-to-dev:
 	./scripts/vault-run.sh -- ./scripts/clone-prod-database-to-dev.sh
-
-clear-legacy-b2-bucket:
-	./scripts/vault-run.sh -- ./scripts/clear-legacy-b2-bucket.sh

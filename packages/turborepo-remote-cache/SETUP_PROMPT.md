@@ -20,19 +20,19 @@ TURBO_TEAM=your-team
 
 Set these everywhere `turbo` runs (local shell / Vault / CI secrets). Values must match across machines and CI.
 
-| Variable | Required | Value |
-| --- | --- | --- |
-| `TURBO_API` | yes | `https://turborepo.chrisvouga.dev` (no trailing slash) |
-| `TURBO_TOKEN` | yes | Shared Bearer token — **obtain from the human / Vault; never invent or commit** |
-| `TURBO_TEAM` | yes | Any non-empty team slug Turbo requires (use `local` unless this repo already uses another) |
-| `TURBO_CACHE` | yes (recommended) | `remote:rw` |
+| Variable      | Required          | Value                                                                                      |
+| ------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| `TURBO_API`   | yes               | `https://turborepo.chrisvouga.dev` (no trailing slash)                                     |
+| `TURBO_TOKEN` | yes               | Shared Bearer token — **obtain from the human / Vault; never invent or commit**            |
+| `TURBO_TEAM`  | yes               | Any non-empty team slug Turbo requires (use `local` unless this repo already uses another) |
+| `TURBO_CACHE` | yes (recommended) | `remote:rw`                                                                                |
 
 Optional:
 
-| Variable | Suggested |
-| --- | --- |
-| `TURBO_LOG_ORDER` | `stream` (CI log readability) |
-| `TURBO_TELEMETRY_DISABLED` | `1` |
+| Variable                   | Suggested                     |
+| -------------------------- | ----------------------------- |
+| `TURBO_LOG_ORDER`          | `stream` (CI log readability) |
+| `TURBO_TELEMETRY_DISABLED` | `1`                           |
 
 ### Obtaining `TURBO_TOKEN`
 
