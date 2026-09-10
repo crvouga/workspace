@@ -77,6 +77,24 @@ export const VaultSecretKey = {
   vaultToken: 'VAULT_TOKEN',
 } as const;
 
+/** Shared R2 buckets — one per Vault config. Apps own key prefixes inside the bucket. */
+export const SHARED_R2_BUCKET_BY_CONFIG = {
+  dev: 'crvouga-development',
+  prd: 'crvouga-production',
+} as const;
+
+export type VaultConfigName = keyof typeof SHARED_R2_BUCKET_BY_CONFIG;
+
+export function sharedR2BucketForConfig(config: string): string {
+  assert.nonEmptyString(config, 'vault config must be non-empty');
+  if (config === 'dev' || config === 'prd') {
+    return SHARED_R2_BUCKET_BY_CONFIG[config];
+  }
+  throw new Error(
+    `Unknown vault config "${config}" (expected ${Object.keys(SHARED_R2_BUCKET_BY_CONFIG).join(' | ')})`
+  );
+}
+
 const TURBO_CACHE_RE = /^(local|remote):(r|rw|w)?(,(local|remote):(r|rw|w)?)?$/;
 
 function validateHttpsUrl(value: string): string | null {
@@ -169,7 +187,7 @@ export const VAULT_SECRET_REGISTRY: readonly SecretStoreEntry[] = [
     docsUrl: 'https://developers.cloudflare.com/r2/api/tokens/',
     obtainUrl: 'https://dash.cloudflare.com/?to=/:account/r2/api-tokens',
     invalidHint:
-      'Create an R2 API token with Object Read & Write on crvouga-turbo-cache.',
+      'Create an R2 API token with Object Read & Write on crvouga-development and crvouga-production.',
   }),
   new SecretStoreEntry({
     key: VaultSecretKey.s3SecretAccessKey,
@@ -185,11 +203,10 @@ export const VAULT_SECRET_REGISTRY: readonly SecretStoreEntry[] = [
     key: VaultSecretKey.s3Bucket,
     required: true,
     usedBy: ['server'],
-    hint: 'R2 bucket name for cache artifacts (crvouga-turbo-cache)',
+    hint: 'Shared R2 bucket (dev→crvouga-development, prd→crvouga-production)',
     docsUrl: 'https://developers.cloudflare.com/r2/',
     obtainUrl: 'https://dash.cloudflare.com/?to=/:account/r2/overview',
-    validExample: 'crvouga-turbo-cache',
-    seed: () => 'crvouga-turbo-cache',
+    validExample: 'crvouga-development | crvouga-production',
   }),
   new SecretStoreEntry({
     key: VaultSecretKey.vaultToken,

@@ -199,7 +199,7 @@ Operator scripts for object storage (Cloudflare R2 via S3 API) and Postgres betw
 
 Suggested order:
 
-1. Provision R2 + seed `S3_*` secrets: `vault run -- bun run provision-r2` (from repo root; requires R2 API token env)
+1. Provision shared R2 buckets + seed `S3_*` secrets: `bun run provision-r2` (from repo root; admin Vault session + R2 API token env — do not wrap in `vault run`)
 2. Verify object-storage credentials
 3. Verify Postgres `DATABASE_URL` health
 4. Refresh dev database from prod (one-way)
@@ -220,7 +220,7 @@ make clone-prod-db-to-dev
 ./scripts/vault-run.sh -- ./scripts/clone-prod-database-to-dev.sh --schema gamezilla --confirm
 ```
 
-Canonical object-store secrets are polymorphic `S3_*` keys in `secret/personal/{dev,prd}` (see monorepo `bun run provision-r2`).
+Canonical object-store secrets are polymorphic `S3_*` keys in `secret/personal/{dev,prd}` with shared buckets `crvouga-development` / `crvouga-production` (see monorepo `bun run provision-r2`).
 
 ## Using secrets locally
 

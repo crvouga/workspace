@@ -190,16 +190,24 @@ neon:
       migrations: packages/vault-service/migrations
 
 object_stores:
-  - id: turbo-cache
+  - id: development
     provider: r2
-    bucket: crvouga-turbo-cache
+    bucket: crvouga-development
     bucket_secret: S3_BUCKET
     endpoint_secret: S3_ENDPOINT
     region_secret: S3_REGION
     access_key_secret: S3_ACCESS_KEY_ID
     secret_key_secret: S3_SECRET_ACCESS_KEY
-    key_prefix: turbo-cache
-    namespaces: [dev, prd]
+    namespaces: [dev]
+  - id: production
+    provider: r2
+    bucket: crvouga-production
+    bucket_secret: S3_BUCKET
+    endpoint_secret: S3_ENDPOINT
+    region_secret: S3_REGION
+    access_key_secret: S3_ACCESS_KEY_ID
+    secret_key_secret: S3_SECRET_ACCESS_KEY
+    namespaces: [prd]
 
 tunnels:
   - id: 9router

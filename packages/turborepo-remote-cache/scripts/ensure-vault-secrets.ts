@@ -7,7 +7,12 @@ import { assert, hotAssert, type Assert } from '@pkgs/assert';
 const ha: Assert = hotAssert();
 import { VaultCli } from '@pkgs/vault';
 
-import { VAULT_CONFIGS, VAULT_SECRET_REGISTRY } from './vault-secrets-registry';
+import {
+  VAULT_CONFIGS,
+  VAULT_SECRET_REGISTRY,
+  VaultSecretKey,
+  sharedR2BucketForConfig,
+} from './vault-secrets-registry';
 import { readVaultYamlDefaults } from './vault-yaml-defaults';
 
 function main(): void {
@@ -39,12 +44,23 @@ function main(): void {
 
     for (const def of VAULT_SECRET_REGISTRY) {
       ha.nonEmptyString(def.key, 'registry entry key must be non-empty');
-      const seed = def.seed();
+      let seed = def.seed();
+      if (def.key === VaultSecretKey.s3Bucket) {
+        seed = sharedR2BucketForConfig(config);
+      }
       if (seed !== undefined) {
         const current = cli.kvGetField(project, config, def.key);
-        if (current === null || current.trim().length === 0) {
+        const missing = current === null || current.trim().length === 0;
+        const legacyTurbo =
+          def.key === VaultSecretKey.s3Bucket &&
+          current?.trim() === 'crvouga-turbo-cache';
+        if (missing || legacyTurbo) {
           cli.kvUpsertField(project, config, def.key, seed);
-          console.log(`  set default ${def.key}=${seed}`);
+          console.log(
+            legacyTurbo
+              ? `  replace legacy ${def.key}=${seed}`
+              : `  set default ${def.key}=${seed}`
+          );
         }
       }
     }

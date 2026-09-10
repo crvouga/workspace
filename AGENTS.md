@@ -35,13 +35,13 @@ Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin con
 
 ## Global resource naming
 
-| Resource                                  | Pattern                                                     | Example                                |
-| ----------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
-| Railway project                           | from `services.yaml` → `railway.project`                    | `infra`                                |
-| Railway service                           | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
-| GHCR image                                | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
-| External image                            | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
-| S3 / R2 bucket (when owned by this stack) | `crvouga-<purpose>`                                         | `crvouga-turbo-cache`                  |
+| Resource                                       | Pattern                                                     | Example                                |
+| ---------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| Railway project                                | from `services.yaml` → `railway.project`                    | `infra`                                |
+| Railway service                                | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
+| GHCR image                                     | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
+| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
+| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                | Vault `dev` / `prd` `S3_BUCKET`        |
 
 Railway names come from [`packages/infra/services.yaml`](packages/infra/services.yaml) via `railwayServiceName()` in [`packages/infra/lib/services.ts`](packages/infra/lib/services.ts) — defaults to the service `id`. Legacy Fly.io apps used the `crvouga-` prefix; see `legacyFlyAppName()`.
 
@@ -98,7 +98,7 @@ The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-c
 
 ### Architecture
 
-Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Cloudflare R2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`). Physical object keys are always `turbo-cache/prd/<artifact-hash>` in the shared bucket (`crvouga-turbo-cache`). Runtime secrets load from Vault at boot.
+Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Cloudflare R2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`) in the shared env buckets (`crvouga-development` / `crvouga-production`). Physical object keys are always `turbo-cache/prd/<artifact-hash>`. Runtime secrets load from Vault at boot.
 
 CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turborepo:<sha>`); **Deploy** pulls and runs it. If the package is new, set GHCR visibility to public once in GitHub package settings.
 
@@ -113,7 +113,7 @@ Canonical registry: [`packages/turborepo-remote-cache/scripts/vault-secrets-regi
 
 Both configs must carry the same required keys. `bun run setup` runs `ensure-vault-secrets.ts` to write derived defaults (`TURBO_API`, `TURBO_TEAM`, `TURBO_CACHE`) into **dev** and **prd** when missing.
 
-Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (provision with `bun run provision-r2`).
+Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (shared buckets via `bun run provision-r2`).
 
 ### Scripts
 

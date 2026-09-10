@@ -209,7 +209,8 @@ export type ObjectStoreSpec = {
   readonly region_secret: string;
   readonly access_key_secret: string;
   readonly secret_key_secret: string;
-  readonly key_prefix: string;
+  /** App-owned key prefixes inside the shared bucket; omit or "" when multi-tenant. */
+  readonly key_prefix?: string;
   readonly namespaces?: readonly string[];
 };
 

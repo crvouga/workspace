@@ -1,22 +1,23 @@
 #!/usr/bin/env bun
 /**
- * Provision Cloudflare R2 for turborepo remote cache and seed Vault S3_* secrets.
+ * Provision shared Cloudflare R2 buckets and seed Vault S3_* secrets.
  *
  * Steps:
- *   1. Create R2 bucket `crvouga-turbo-cache` (idempotent) via Cloudflare API
- *   2. Patch Vault secret/personal/{dev,prd} with S3_* (+ polymorphic aliases)
- *   3. Delete legacy object-store keys (pre-R2) from both configs
+ *   1. Create R2 buckets `crvouga-development` + `crvouga-production` (idempotent)
+ *   2. Patch Vault secret/personal/{dev,prd} with S3_* (+ polymorphic aliases);
+ *      S3_BUCKET is config-specific (development vs production)
+ *   3. Delete legacy object-store keys if still present
  *
  * Prerequisites:
  *   - vault CLI authenticated with **write** access (admin userpass login —
  *     do not wrap this script in `vault run`, which injects a read-only VAULT_TOKEN)
  *   - CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN (Account R2: Edit) in env
- *   - S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY in env (R2 API token from dashboard)
+ *   - S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY in env (R2 API token)
  *
  * Usage:
- *   vault run -- bun run provision-r2
- *   vault run -- bun run provision-r2 -- --dry-run
- *   vault run -- bun run provision-r2 -- --skip-bucket
+ *   bun run provision-r2
+ *   bun run provision-r2 -- --dry-run
+ *   bun run provision-r2 -- --skip-bucket
  */
 import { assert } from "@pkgs/assert";
 import {
@@ -30,10 +31,15 @@ import {
 	vaultKvPatchCli,
 } from "../lib/vault-kv.js";
 
-const DEFAULT_BUCKET = "crvouga-turbo-cache";
+/** Shared R2 buckets — one per Vault config. Apps namespace keys inside the bucket. */
+export const SHARED_R2_BUCKETS = {
+	dev: "crvouga-development",
+	prd: "crvouga-production",
+} as const;
+
 const CONFIGS = ["dev", "prd"] as const;
 
-/** Pre-R2 Vault key names to remove after cutover. */
+/** Pre-R2 / bespoke-bucket Vault key names to remove after cutover. */
 const LEGACY_OBJECT_STORE_KEYS_TO_DELETE = [
 	"B2_S3_ENDPOINT",
 	"B2_S3_REGION",
@@ -51,7 +57,6 @@ const LEGACY_OBJECT_STORE_KEYS_TO_DELETE = [
 type Args = {
 	dryRun: boolean;
 	skipBucket: boolean;
-	bucket: string;
 	vaultAddr: string;
 };
 
@@ -74,24 +79,23 @@ function parseArgs(argv: readonly string[]): Args {
 	assert.ok(Array.isArray(argv), "argv must be an array");
 	let dryRun = false;
 	let skipBucket = false;
-	let bucket = DEFAULT_BUCKET;
 	let vaultAddrArg = resolveVaultAddr(vaultAddrFromConfig(loadServicesConfig()));
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--dry-run") dryRun = true;
 		else if (arg === "--skip-bucket") skipBucket = true;
-		else if (arg === "--bucket") {
-			const next = argv[++i];
-			assert.nonEmptyString(next, "--bucket requires a value");
-			bucket = next;
-		} else if (arg === "--vault-addr") {
+		else if (arg === "--vault-addr") {
 			const next = argv[++i];
 			assert.nonEmptyString(next, "--vault-addr requires a value");
 			vaultAddrArg = resolveVaultAddr(next);
 		} else if (arg === "--help" || arg === "-h") {
-			console.log(`Usage: bun run provision-r2 [--dry-run] [--skip-bucket] [--bucket NAME]
+			console.log(`Usage: bun run provision-r2 [--dry-run] [--skip-bucket]
 
-Creates the R2 bucket and seeds S3_* Vault secrets (dev + prd).
+Creates shared R2 buckets and seeds S3_* Vault secrets (dev + prd).
+
+Buckets:
+  dev → ${SHARED_R2_BUCKETS.dev}
+  prd → ${SHARED_R2_BUCKETS.prd}
 
 Required env:
   CLOUDFLARE_ACCOUNT_ID
@@ -102,7 +106,6 @@ Required env:
 Optional env:
   S3_ENDPOINT            (default: https://<ACCOUNT_ID>.r2.cloudflarestorage.com)
   S3_REGION              (default: auto)
-  S3_BUCKET              (default: ${DEFAULT_BUCKET} or --bucket)
 `);
 			process.exit(0);
 		} else {
@@ -110,7 +113,7 @@ Optional env:
 			process.exit(2);
 		}
 	}
-	return { dryRun, skipBucket, bucket, vaultAddr: vaultAddrArg };
+	return { dryRun, skipBucket, vaultAddr: vaultAddrArg };
 }
 
 async function ensureR2Bucket(
@@ -191,7 +194,7 @@ async function seedConfig(
 	dryRun: boolean,
 ): Promise<void> {
 	const cliPath = vaultKvCliPath(config);
-	console.log(`==> Vault ${cliPath}`);
+	console.log(`==> Vault ${cliPath} (S3_BUCKET=${fields.S3_BUCKET})`);
 
 	if (dryRun) {
 		console.log(`[dry-run] would patch keys: ${Object.keys(fields).join(", ")}`);
@@ -201,7 +204,6 @@ async function seedConfig(
 
 	await vaultKvPatchCli(fields, cliPath, vaultAddr);
 
-	// Delete only keys that still exist (avoid noisy failures on empty patch).
 	const existing = await vaultKvGetCliForConfig(config, vaultAddr);
 	const toDelete = LEGACY_OBJECT_STORE_KEYS_TO_DELETE.filter((k) => k in existing);
 	if (toDelete.length > 0) {
@@ -213,7 +215,6 @@ async function seedConfig(
 	console.log(`  seeded S3_* (+ aliases)`);
 }
 
-/** vaultKvGetCli is hardcoded to prd — use CLI path for any config. */
 async function vaultKvGetCliForConfig(
 	config: string,
 	vaultAddr: string,
@@ -241,26 +242,28 @@ async function main(): Promise<void> {
 	const apiToken = readRequiredEnv("CLOUDFLARE_API_TOKEN");
 	const accessKeyId = readRequiredEnv("S3_ACCESS_KEY_ID");
 	const secretAccessKey = readRequiredEnv("S3_SECRET_ACCESS_KEY");
-	const bucket = readOptionalEnv("S3_BUCKET") ?? args.bucket;
 
+	const buckets = Object.values(SHARED_R2_BUCKETS);
 	console.log(
-		`Provision R2 object store (bucket=${bucket}, dryRun=${String(args.dryRun)})`,
+		`Provision shared R2 buckets (${buckets.join(", ")}, dryRun=${String(args.dryRun)})`,
 	);
 
 	if (!args.skipBucket) {
-		await ensureR2Bucket(accountId, apiToken, bucket, args.dryRun);
+		for (const bucket of buckets) {
+			await ensureR2Bucket(accountId, apiToken, bucket, args.dryRun);
+		}
 	} else {
 		console.log("Skipping R2 bucket create (--skip-bucket)");
 	}
 
-	const fields = buildS3Fields({
-		accountId,
-		bucket,
-		accessKeyId,
-		secretAccessKey,
-	});
-
 	for (const config of CONFIGS) {
+		const bucket = SHARED_R2_BUCKETS[config];
+		const fields = buildS3Fields({
+			accountId,
+			bucket,
+			accessKeyId,
+			secretAccessKey,
+		});
 		await seedConfig(config, fields, args.vaultAddr, args.dryRun);
 	}
 
