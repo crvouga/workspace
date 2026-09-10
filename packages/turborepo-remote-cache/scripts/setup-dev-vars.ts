@@ -11,9 +11,9 @@ import {
   resolveVaultScope,
 } from './vault-yaml-defaults';
 
-const apiRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-assert.nonEmptyString(apiRoot, 'api root must be non-empty');
-const outPath = join(apiRoot, '.env');
+const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+assert.nonEmptyString(packageRoot, 'package root must be non-empty');
+const outPath = join(packageRoot, '.env');
 assert.nonEmptyString(outPath, 'env out path must be non-empty');
 const tmpPath = `${outPath}.${process.pid}.tmp`;
 assert.nonEmptyString(tmpPath, 'env tmp path must be non-empty');

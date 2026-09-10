@@ -162,8 +162,8 @@ services:
   - id: turborepo
     hostname: turborepo.chrisvouga.dev
     github_repo: crvouga/workspace
-    source_code_url: https://github.com/crvouga/workspace/tree/main/packages/api
-    dockerfile: packages/api/Dockerfile
+    source_code_url: https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache
+    dockerfile: packages/turborepo-remote-cache/Dockerfile
     build_context: .
     port: 8080
     health_check: true

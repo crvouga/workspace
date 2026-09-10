@@ -4,7 +4,7 @@
 
 Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
 
-- `packages/api` — Turborepo remote cache server (`@pkgs/api`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-b2-s3`) are colocated in `packages/api/scripts/`
+- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-b2-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
 - `packages/infra` — infra/fleet management (`@pkgs/infra`): `services.yaml`, `lib/` (Railway/Cloudflare/GHCR/Fly helpers), and the ops scripts (`provision-railway`, `deploy-railway`, `sync-dns`, `sync-redirects`, `sync-aliases`, `sync-railway-secrets`, `rename-railway`, `destroy-*`, `list-deploy-service-ids`, `make-ghcr-public`, `print-platform-env`, `rollout-publish`, `seed-vault-github-secret`, `health-check`, `cleanup-railway-deployments`)
 - `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
 - `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
@@ -14,9 +14,9 @@ Single flat Turborepo + Bun workspace at the repo root. Every package is scoped 
 
 Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`.
 
-`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages, mirroring the CI check job; `bun run check:ci` additionally runs the Vault dev-secret gate; see [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/api` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
+`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages, mirroring the CI check job; `bun run check:ci` additionally runs the Vault dev-secret gate; see [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
-**A green `bun check` is not a green CI.** After pushing, watch the **CI turborepo** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate the `publish` job (Docker image build from `packages/api/Dockerfile`), which can fail on `.dockerignore`/build-context errors that are invisible locally. See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
+**A green `bun check` is not a green CI.** After pushing, watch the **CI turborepo** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate the `publish` job (Docker image build from `packages/turborepo-remote-cache/Dockerfile`), which can fail on `.dockerignore`/build-context errors that are invisible locally. See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
 
 ## Global resource naming
 
@@ -69,11 +69,11 @@ vault run -- bun run sync-dns --apply
 
 If `vault run` fails with `No value found at secret/personal/prd`, KV is empty — use direct env exports or `vault login` + CLI until prd is re-seeded. For day-to-day local work, `.vault.yaml` may use `config: dev` when prd is empty during a rebuild.
 
-## Turborepo remote cache (`packages/api` + `@pkgs/*`)
+## Turborepo remote cache (`packages/turborepo-remote-cache` + `@pkgs/*`)
 
-The cache server is `packages/api` (`@pkgs/api`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/api/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-b2-s3.ts`, `vault-yaml-defaults.ts`).
+The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-b2-s3.ts`, `vault-yaml-defaults.ts`).
 
-- CI: **CI turborepo** (`.github/workflows/ci-turborepo.yml`) on `packages/**` and root build config — check + publish on API changes.
+- CI: **CI turborepo** (`.github/workflows/ci-turborepo.yml`) on `packages/**` and root build config — check + publish on turborepo-remote-cache changes.
 - Deploy: publish dispatches infra **Deploy fleet** for the `turborepo` service.
 
 ### Hard rules
@@ -89,7 +89,7 @@ CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turbore
 
 ### Vault secrets (source of truth)
 
-Canonical registry: [`packages/api/scripts/vault-secrets-registry.ts`](packages/api/scripts/vault-secrets-registry.ts)
+Canonical registry: [`packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`](packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts)
 
 | Config | Purpose                                       |
 | ------ | --------------------------------------------- |
@@ -102,16 +102,16 @@ Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, B2 `B2_*`.
 
 ### Scripts
 
-| Script                            | Purpose                                                |
-| --------------------------------- | ------------------------------------------------------ |
-| `bun run setup`                   | `packages/api/.env` + ensure Vault defaults in dev/prd |
-| `bun run check:vault-secrets`     | Verify dev config (CI gate)                            |
-| `bun run check:vault-secrets:prd` | Verify prd config (deploy gate)                        |
-| `bun run deploy`                  | Points to infra ci-turborepo workflow                  |
+| Script                            | Purpose                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `bun run setup`                   | `packages/turborepo-remote-cache/.env` + ensure Vault defaults in dev/prd |
+| `bun run check:vault-secrets`     | Verify dev config (CI gate)                                               |
+| `bun run check:vault-secrets:prd` | Verify prd config (deploy gate)                                           |
+| `bun run deploy`                  | Points to infra ci-turborepo workflow                                     |
 
 ### CI/CD
 
-- **ci-turborepo.yml** (infra repo) — Vault dev secrets (OIDC) + `bun run check` on `packages/**`; publishes GHCR image on API changes and dispatches **Deploy fleet**
+- **ci-turborepo.yml** (infra repo) — Vault dev secrets (OIDC) + `bun run check` on `packages/**`; publishes GHCR image on turborepo-remote-cache changes and dispatches **Deploy fleet**
 
 ### Client usage
 

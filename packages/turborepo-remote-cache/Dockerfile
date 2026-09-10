@@ -4,7 +4,7 @@ FROM oven/bun:1.3.11 AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
-COPY packages/api/package.json ./packages/api/
+COPY packages/turborepo-remote-cache/package.json ./packages/turborepo-remote-cache/
 COPY packages/assert/package.json ./packages/assert/
 COPY packages/infra/package.json ./packages/infra/
 COPY packages/logger/package.json ./packages/logger/
@@ -19,7 +19,7 @@ COPY packages/openrouter/package.json ./packages/openrouter/
 RUN bun install --frozen-lockfile
 
 COPY tsconfig.json turbo.json ./
-COPY packages/api ./packages/api
+COPY packages/turborepo-remote-cache ./packages/turborepo-remote-cache
 COPY packages/assert ./packages/assert
 COPY packages/logger ./packages/logger
 COPY packages/object-store ./packages/object-store
@@ -41,4 +41,4 @@ EXPOSE 8080
 
 USER bun
 
-CMD ["bun", "packages/api/src/api.ts"]
+CMD ["bun", "packages/turborepo-remote-cache/src/server.ts"]

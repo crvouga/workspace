@@ -1,5 +1,5 @@
 {
-  "name": "@pkgs/api",
+  "name": "@pkgs/turborepo-remote-cache",
   "version": "1.0.0",
   "private": true,
   "exports": {
@@ -12,7 +12,7 @@
   "scripts": {
     "build": "test -f Dockerfile",
     "check:vault-secrets": "bun run scripts/check-vault-secrets.ts",
-    "dev": "bun --env-file=.env run src/api.ts",
+    "dev": "bun --env-file=.env run src/server.ts",
     "lint": "eslint src --max-warnings 0",
     "seed": "bun run scripts/ensure-vault-secrets.ts",
     "seed:turbo-client": "bun run scripts/seed-turbo-client-secrets.ts",

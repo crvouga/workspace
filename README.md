@@ -160,7 +160,7 @@ Single flat Turborepo + Bun workspace. Every package is `@pkgs/*` and lives unde
 
 ```
 packages/
-  api/                     # Turborepo remote cache server (@pkgs/api) + cache-support scripts
+  turborepo-remote-cache/  # Turborepo remote cache server (@pkgs/turborepo-remote-cache) + support scripts
   infra/                   # services.yaml + lib/ + infra/fleet ops scripts (@pkgs/infra)
   {assert,logger,object-store,secret-store,secret-string,vault}/  # @pkgs/* libs
   9router/                 # local 9router CLI (@pkgs/9router)

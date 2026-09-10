@@ -60,7 +60,7 @@ export function readCacheServerEnv(): CacheServerEnv {
   const vaultToken = readOptionalEnv('VAULT_TOKEN');
   if (vaultToken === null) {
     throw new ConfigurationError(
-      'VAULT_TOKEN is required (non-empty string). Set it in the environment or add it to packages/api/.env; remaining config is loaded from Vault.'
+      'VAULT_TOKEN is required (non-empty string). Set it in the environment or add it to packages/turborepo-remote-cache/.env; remaining config is loaded from Vault.'
     );
   }
   assert.nonEmptyString(vaultToken, 'VAULT_TOKEN must be non-empty');

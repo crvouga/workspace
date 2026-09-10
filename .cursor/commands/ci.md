@@ -39,19 +39,19 @@ not stop after the first green — you must also push and watch CI.
 
 `bun check` only covers the local `check` job. It does **not** validate the CI
 `publish` job, which builds and pushes the Docker image from
-`packages/api/Dockerfile` and can fail on Docker/build-context errors that are
+`packages/turborepo-remote-cache/Dockerfile` and can fail on Docker/build-context errors that are
 invisible locally (e.g. a `.dockerignore` rule excluding a workspace whose
 `package.json` the Dockerfile `COPY`s). A green `bun check` is **not** proof that
 CI is green — always watch the full CI run (see [Watch CI & fix failures](#watch-ci--fix-failures)).
 
-| Failure           | Fix                                                                                                                                                      |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lockfile mismatch | `bun install` (regenerates `bun.lock`), then re-check.                                                                                                   |
-| Prettier warning  | `bun run format` (or `bunx prettier --write <file>`), then re-check.                                                                                     |
-| `tc` (typecheck)  | Fix the TypeScript error in the named package. `@pkgs/api` + `@pkgs/*` libs use strict `tsconfig.strict.json`; `@pkgs/infra` uses the loose root config. |
-| `lint`            | Run the package's eslint (`eslint . --max-warnings 0`). Shared rules live in `packages/eslint-rules`.                                                    |
-| `test`            | Fix the failing assertion (runs under `bun test`).                                                                                                       |
-| `build`           | `@pkgs/api` build is `test -f Dockerfile`; others are package builds.                                                                                    |
+| Failure           | Fix                                                                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lockfile mismatch | `bun install` (regenerates `bun.lock`), then re-check.                                                                                                                      |
+| Prettier warning  | `bun run format` (or `bunx prettier --write <file>`), then re-check.                                                                                                        |
+| `tc` (typecheck)  | Fix the TypeScript error in the named package. `@pkgs/turborepo-remote-cache` + `@pkgs/*` libs use strict `tsconfig.strict.json`; `@pkgs/infra` uses the loose root config. |
+| `lint`            | Run the package's eslint (`eslint . --max-warnings 0`). Shared rules live in `packages/eslint-rules`.                                                                       |
+| `test`            | Fix the failing assertion (runs under `bun test`).                                                                                                                          |
+| `build`           | `@pkgs/turborepo-remote-cache` build is `test -f Dockerfile`; others are package builds.                                                                                    |
 
 Loop rule: if a fix does not change the result, run `bun run check -- --force`
 and `bun run typecheck` to bypass the Turbo cache and re-run the root check
@@ -82,7 +82,7 @@ bun run check:vault-secrets        # dev config (CI gate)
 bun run check:vault-secrets:prd    # prd config (deploy gate)
 ```
 
-`check:vault-secrets` needs a Vault session (e.g. `vault run --config dev -- bun run check:vault-secrets`). See `packages/api/scripts/vault-secrets-registry.ts` for the required keys, `packages/api/scripts/check-vault-secrets.ts` for what is validated, and `packages/api/scripts/smoke-test-secrets.ts` for the per-secret smoke test.
+`check:vault-secrets` needs a Vault session (e.g. `vault run --config dev -- bun run check:vault-secrets`). See `packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts` for the required keys, `packages/turborepo-remote-cache/scripts/check-vault-secrets.ts` for what is validated, and `packages/turborepo-remote-cache/scripts/smoke-test-secrets.ts` for the per-secret smoke test.
 
 If Vault is unavailable (KV empty / service down), you can still get `bun check`
 green locally. In that case, clearly state that the Vault gate (`check:vault-secrets`)
@@ -132,7 +132,7 @@ bun run gh:ci:log       # failed-step logs of the latest run (if it failed)
 
 If the run fails, read the failing step's logs and fix it locally. A `publish`
 job failure is usually a Docker/build issue — inspect `.dockerignore` and
-`packages/api/Dockerfile` (see the note above). Then re-run the loop and push
+`packages/turborepo-remote-cache/Dockerfile` (see the note above). Then re-run the loop and push
 again. Repeat until the CI run is green.
 
 The change is only done when the **full** CI run is green, not just `bun check`.

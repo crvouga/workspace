@@ -16,4 +16,4 @@ node.env
 .vault-token
 init-output.json
 .cursor/debug-*.log
-packages/api/.env
+packages/turborepo-remote-cache/.env

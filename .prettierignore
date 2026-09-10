@@ -9,4 +9,4 @@ packages/infra/lib
 packages/infra/scripts
 packages/9router/**
 packages/vault-service/**
-packages/api/.env
+packages/turborepo-remote-cache/.env

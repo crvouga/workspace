@@ -21,7 +21,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
-      "@pkgs/api/*": ["./packages/api/src/*"],
+      "@pkgs/turborepo-remote-cache/*": [
+        "./packages/turborepo-remote-cache/src/*"
+      ],
       "@pkgs/assert": ["./packages/assert/src/index.ts"],
       "@pkgs/assert/*": ["./packages/assert/src/*"],
       "@pkgs/logger": ["./packages/logger/src/index.ts"],
