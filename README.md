@@ -146,7 +146,7 @@ bun run sync-railway-secrets --id portfolio
 bun run sync-dns --apply
 ```
 
-See [`ci.md`](ci.md) for the full check/CI reference.
+See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) for the full check/CI reference.
 
 ## Parallel validation (pre-cutover)
 
