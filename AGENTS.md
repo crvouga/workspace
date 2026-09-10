@@ -16,7 +16,7 @@ Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.
 
 `bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages, mirroring the CI check job; `bun run check:ci` additionally runs the Vault dev-secret gate; see [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
-**A green `bun check` is not a green CI.** After pushing, watch the **CI turborepo** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate the `publish` job (Docker image build from `packages/turborepo-remote-cache/Dockerfile`), which can fail on `.dockerignore`/build-context errors that are invisible locally. See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
+**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
 
 ## Declarative infra (`packages/infra/services.yaml`)
 
@@ -51,22 +51,22 @@ Public DNS hostnames stay on the zone (`portfolio.chrisvouga.dev`, etc.); Railwa
 
 ## Standalone vault (`packages/vault-service/`)
 
-Vault is **`standalone: true`** in [`packages/infra/services.yaml`](packages/infra/services.yaml) — excluded from the fleet **Deploy fleet** workflow, fleet DNS sync, and `destroy-fly`. It bootstraps from **GitHub repo secrets** (or exported env), not Vault KV / OIDC.
+Vault is **`standalone: true`** in [`packages/infra/services.yaml`](packages/infra/services.yaml) — excluded from fleet Railway redeploy / fleet DNS sync / `destroy-fly`. It bootstraps from **GitHub repo secrets** (or exported env), not Vault KV / OIDC. The monorepo **CI** workflow runs the vault job when `packages/vault-service/**` changes, then chains fleet **Deploy**.
 
 | Resource        | Value                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
 | Railway service | `vault`                                                                                |
 | Public hostname | `vault.chrisvouga.dev`                                                                 |
 | GHCR image      | `ghcr.io/crvouga/chrisvouga-vault`                                                     |
-| CI              | **Deploy vault** (`.github/workflows/deploy-vault.yml`) on `packages/vault-service/**` |
+| CI              | **CI** (`.github/workflows/ci.yml`) vault job on `packages/vault-service/**`           |
 
 **Bootstrap order (first deploy or rebuild):**
 
 1. Seed GitHub secrets: `RAILWAY_TOKEN`, `CF_API_TOKEN`, `DB_CONNECTION_URI` — `cd packages/vault-service && ./scripts/seed-github-secrets.sh`
-2. Deploy vault: push `packages/vault-service/**` to `main`, or `cd packages/vault-service && make gh` → run workflow
+2. Deploy vault: push `packages/vault-service/**` to `main`, or `gh workflow run ci.yml -f unseal_only=true` after first deploy
 3. Init/unseal OpenBao locally (`packages/vault-service/scripts/init.sh`); store keys in `crvouga.kv`
 4. Seed KV at `secret/data/personal/prd` (Railway token, Cloudflare, per-app keys)
-5. Fleet: `bun run provision-railway --apply` then **Deploy fleet**
+5. Fleet: `bun run provision-railway --apply` then **Deploy** (`gh workflow run deploy.yml`)
 
 **Local vault ops (Vault may be down — no `vault run`):**
 
@@ -88,8 +88,8 @@ If `vault run` fails with `No value found at secret/personal/prd`, KV is empty �
 
 The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-b2-s3.ts`, `vault-yaml-defaults.ts`).
 
-- CI: **CI turborepo** (`.github/workflows/ci-turborepo.yml`) on `packages/**` and root build config — check + publish on turborepo-remote-cache changes.
-- Deploy: publish dispatches infra **Deploy fleet** for the `turborepo` service.
+- CI: **CI** (`.github/workflows/ci.yml`) — `check` → optional `vault` / `publish` → `deploy` on one run.
+- Deploy: monorepo publish chains **Deploy** via `workflow_call`; sibling repos use `publish-image` → `repository_dispatch`.
 
 ### Hard rules
 
@@ -100,7 +100,7 @@ The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-c
 
 Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Backblaze B2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`). Physical object keys are always `turbo-cache/prd/<artifact-hash>` in the shared bucket. Runtime secrets load from Vault at boot.
 
-CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turborepo:<sha>`); infra **Deploy fleet** pulls and runs it. If the package is new, set GHCR visibility to public once in GitHub package settings.
+CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turborepo:<sha>`); **Deploy** pulls and runs it. If the package is new, set GHCR visibility to public once in GitHub package settings.
 
 ### Vault secrets (source of truth)
 
@@ -122,11 +122,13 @@ Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, B2 `B2_*`.
 | `bun run setup`                   | `packages/turborepo-remote-cache/.env` + ensure Vault defaults in dev/prd |
 | `bun run check:vault-secrets`     | Verify dev config (CI gate)                                               |
 | `bun run check:vault-secrets:prd` | Verify prd config (deploy gate)                                           |
-| `bun run deploy`                  | Points to infra ci-turborepo workflow                                     |
+| `bun run deploy`                  | Points to infra ci.yml production path                                    |
 
 ### CI/CD
 
-- **ci-turborepo.yml** (infra repo) — Vault dev secrets (OIDC) + `bun run check` on `packages/**`; publishes GHCR image on turborepo-remote-cache changes and dispatches **Deploy fleet**
+- **ci.yml** — single monorepo path: Vault OIDC (dev) + `bun run check`; on `main`, optional vault job, turborepo publish (`notify_deploy: false`), then **deploy.yml** via `workflow_call`
+- **deploy.yml** — fleet reconcile + optional Railway redeploy (`workflow_call`, `repository_dispatch`, `workflow_dispatch`)
+- **publish-image.yml** — reusable GHCR publish for siblings (dispatches deploy) and monorepo (chained)
 
 ### Client usage
 

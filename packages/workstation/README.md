@@ -374,7 +374,7 @@ The `provider-secrets.ts` openrouter entry attaches `models: { "openrouter/auto"
   rm ~/.config/opencode/plugins/notifications.ts
   ws sync                            # succeeds again
   ```
-- **Type check:** `bun run typecheck` (also runs in the Deploy fleet CI) covers `packages/workstation/**/*.ts`.
+- **Type check:** `bun run typecheck` (also runs in the CI `check` job) covers `packages/workstation/**/*.ts`.
 - **Provider config:**
   ```bash
   ws opencode sync

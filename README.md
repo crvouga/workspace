@@ -10,26 +10,24 @@ Platform paths, service names, and GHCR prefixes are derived from `services.yaml
 
 **Scale to zero (default):** most services use Railway serverless sleep (`railway.sleep: true`).
 
-**Always on:** `vault` only (`railway.sleep: false`). Vault is **standalone** — not deployed by the fleet **Deploy fleet** workflow.
+**Always on:** `vault` only (`railway.sleep: false`). Vault is **standalone** — not redeployed by the fleet **Deploy** matrix; the monorepo **CI** vault job owns it.
 
 ## Architecture
 
 ```
-Project repos ──▶ ghcr.io (public images)
-                        │
-                        ▼
-              Infra CI (GitHub Actions)
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-       dns-sync   railway-secrets  deploy-railway
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-         Railway (infra / production)
-                        │
-                        ▼
-              *.<zone> via Cloudflare DNS
+Project repos ──▶ publish-image.yml ──▶ repository_dispatch
+                                              │
+Monorepo CI   ──▶ check → vault? → publish? ──┤
+                                              ▼
+                                         deploy.yml
+                              (reconcile --apply --fleet-only
+                               → railway-deploy? → health)
+                                              │
+                                              ▼
+                               Railway (infra / production)
+                                              │
+                                              ▼
+                                    *.<zone> via Cloudflare DNS
 ```
 
 ## Configuration ([`services.yaml`](services.yaml))
@@ -67,7 +65,7 @@ export CLOUDFLARE_API_TOKEN='...'   # Zone:DNS:Edit for chrisvouga.dev
 ./scripts/seed-github-secrets.sh    # CF_API_TOKEN, DB_CONNECTION_URI, RAILWAY_TOKEN
 ```
 
-Run **Deploy vault** (push `packages/vault-service/**` to `main`, or Actions → Deploy vault). The workflow uses `packages/vault-service/scripts/railway-*.sh` — no Vault OIDC / KV required.
+Push `packages/vault-service/**` to `main` (CI vault job) or run Actions → **CI** with `unseal_only` after the first deploy. The vault job uses `packages/vault-service/scripts/railway-*.sh` — no Vault OIDC / KV required.
 
 After first deploy: `./scripts/init.sh`, store unseal keys in `crvouga.kv`.
 
@@ -99,9 +97,9 @@ vault run -- bun run provision-railway --apply
 
 Creates project `infra`, fleet services (excludes vault), custom domains, and volumes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
 
-### 4. Run Deploy fleet
+### 4. Run Deploy
 
-Actions → **Deploy fleet** → Run workflow (or push to `main`). Matrix excludes standalone vault.
+Actions → **Deploy** → Run workflow (or let **CI** chain deploy after check/publish/vault). Matrix excludes standalone vault.
 
 ### 5. DNS cutover
 
@@ -112,7 +110,7 @@ vault run -- bun run sync-dns --apply --wait-for-certs
 bun run health-check --all-public
 ```
 
-Fleet DNS sync does not manage `vault.<zone>` — that record is owned by deploy-vault / `cd packages/vault-service && make sync-dns`.
+Fleet DNS sync does not manage `vault.<zone>` — that record is owned by the CI vault job / `cd packages/vault-service && make sync-dns`.
 
 ### 6. Fly teardown (post-cutover)
 
@@ -129,7 +127,7 @@ Sibling repos dispatch `deploy-service` with `{ id, image_tag }` after publishin
 Manual single-service deploy:
 
 ```bash
-gh workflow run deploy-fleet.yml -f service_id=portfolio -f image_tag=abc123
+gh workflow run deploy.yml -f service_id=portfolio -f image_tag=abc123
 ```
 
 ## Local scripts
@@ -166,13 +164,12 @@ packages/
   infra/                   # services.yaml + lib/ + infra/fleet ops scripts (@pkgs/infra)
   {assert,logger,object-store,secret-store,secret-string,vault}/  # @pkgs/* libs
   9router/                 # local 9router CLI (@pkgs/9router)
-  vault-service/           # OpenBao (deploy-vault workflow)
+  vault-service/           # OpenBao (CI vault job)
   workstation/             # ws CLI + portable local-machine config (bun run ws:install)
 .github/workflows/
-  deploy-fleet.yml
-  deploy-vault.yml
-  ci-turborepo.yml
-  publish-image.yml
+  ci.yml                   # monorepo: check → vault? → publish? → deploy
+  deploy.yml               # fleet reconcile + optional Railway redeploy
+  publish-image.yml        # reusable GHCR publish (+ dispatch for siblings)
 ```
 
 Ops scripts are invoked via root wrappers, e.g. `bun run sync-dns`, `bun run provision-railway --apply` (each delegates to `bun run --filter @pkgs/infra …`).

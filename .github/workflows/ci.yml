@@ -1,0 +1,373 @@
+# Single monorepo production path:
+#   changes → check → vault? → publish? → deploy
+#
+# Sibling app repos still call publish-image.yml (notify_deploy: true) → repository_dispatch → deploy.yml.
+#
+# Secrets: Vault OIDC for check/smoke/deploy; GitHub repo secrets for vault bootstrap only.
+
+name: CI
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+  pull-requests: read
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - ".vscode/**"
+      - ".cursor/**"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".vscode/**"
+      - ".cursor/**"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Build/push turborepo GHCR image and redeploy
+        type: boolean
+        default: false
+      unseal_only:
+        description: Skip vault migrate/build/deploy; still DNS + unseal + fleet reconcile
+        type: boolean
+        default: false
+      service_id:
+        description: "Manual fleet redeploy: single service id (empty = all)"
+        required: false
+        type: string
+      image_tag:
+        description: "Manual fleet redeploy image tag"
+        required: false
+        type: string
+        default: latest
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      check: ${{ steps.flags.outputs.check }}
+      vault: ${{ steps.flags.outputs.vault }}
+      publish: ${{ steps.flags.outputs.publish }}
+      deploy: ${{ steps.flags.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        with:
+          filters: |
+            check:
+              - 'packages/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+              - 'tsconfig.json'
+              - 'tsconfig.strict.json'
+              - '.prettierrc'
+              - '.prettierignore'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/**'
+            vault:
+              - 'packages/vault-service/**'
+            publish:
+              - 'packages/turborepo-remote-cache/Dockerfile'
+              - 'packages/turborepo-remote-cache/package.json'
+              - 'packages/assert/package.json'
+              - 'packages/logger/package.json'
+              - 'packages/object-store/package.json'
+              - 'packages/secret-store/package.json'
+              - 'packages/secret-string/package.json'
+              - 'packages/vault/package.json'
+              - 'packages/eslint-rules/package.json'
+              - '.dockerignore'
+              - 'bun.lock'
+              - 'turbo.json'
+              - 'tsconfig.json'
+            deploy:
+              - 'packages/infra/**'
+              - '.github/workflows/deploy.yml'
+              - '.github/workflows/publish-image.yml'
+              - '.github/actions/vault-secrets/**'
+      - id: flags
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          INPUT_UNSEAL: ${{ inputs.unseal_only }}
+          INPUT_SERVICE_ID: ${{ inputs.service_id }}
+          FILTER_CHECK: ${{ steps.filter.outputs.check }}
+          FILTER_VAULT: ${{ steps.filter.outputs.vault }}
+          FILTER_PUBLISH: ${{ steps.filter.outputs.publish }}
+          FILTER_DEPLOY: ${{ steps.filter.outputs.deploy }}
+        run: |
+          set -euo pipefail
+          CHECK=false
+          VAULT=false
+          PUBLISH=false
+          DEPLOY=false
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            if [ "${INPUT_PUBLISH}" = "true" ]; then
+              CHECK=true
+              PUBLISH=true
+              DEPLOY=true
+            fi
+            if [ "${INPUT_UNSEAL}" = "true" ]; then
+              VAULT=true
+              DEPLOY=true
+            fi
+            if [ -n "${INPUT_SERVICE_ID}" ]; then
+              DEPLOY=true
+            fi
+            # Manual dispatch with no flags: still allow smoke; no gate jobs
+          elif [ "${EVENT_NAME}" = "pull_request" ]; then
+            CHECK="${FILTER_CHECK:-false}"
+          else
+            # push to main
+            CHECK="${FILTER_CHECK:-false}"
+            VAULT="${FILTER_VAULT:-false}"
+            PUBLISH="${FILTER_PUBLISH:-false}"
+            DEPLOY="${FILTER_DEPLOY:-false}"
+            if [ "${VAULT}" = "true" ] || [ "${PUBLISH}" = "true" ]; then
+              DEPLOY=true
+            fi
+          fi
+
+          echo "check=${CHECK}" >> "$GITHUB_OUTPUT"
+          echo "vault=${VAULT}" >> "$GITHUB_OUTPUT"
+          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
+          echo "deploy=${DEPLOY}" >> "$GITHUB_OUTPUT"
+          echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY}"
+
+  check:
+    needs: [changes]
+    if: needs.changes.outputs.check == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Import Vault secrets (dev)
+        uses: ./.github/actions/turborepo-vault-secrets
+        with:
+          vault_config: dev
+      - name: Verify Vault secrets (dev)
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          VAULT_CONFIG: dev
+          VAULT_PROJECT: personal
+        run: bun run --filter @pkgs/turborepo-remote-cache check:vault-secrets
+      - name: Smoke test secrets (dev)
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          VAULT_CONFIG: dev
+          VAULT_PROJECT: personal
+        run: bun run --filter @pkgs/turborepo-remote-cache smoke:secrets
+      - name: Turbo CI (format, tc, lint, test, build)
+        run: bun run check
+
+  smoke:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Import Vault secrets (prd)
+        uses: ./.github/actions/turborepo-vault-secrets
+        with:
+          vault_config: prd
+      - name: Smoke test remote cache
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          VAULT_CONFIG: prd
+          VAULT_PROJECT: personal
+        run: bun run --filter @pkgs/turborepo-remote-cache smoke
+
+  vault:
+    needs: [changes, check]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.vault == 'true' &&
+      (needs.check.result == 'success' || needs.check.result == 'skipped')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: vault-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      VAULT_ADDR: https://vault.chrisvouga.dev
+      VAULT_HOSTNAME: vault.chrisvouga.dev
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      DB_CONNECTION_URI: ${{ secrets.DB_CONNECTION_URI }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      DEPLOY_DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+    defaults:
+      run:
+        working-directory: packages/vault-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: .
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates lsb-release jq dnsutils
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Run migrations
+        if: inputs.unseal_only != true
+        run: |
+          set -euo pipefail
+          chmod +x scripts/migrate.sh
+          ./scripts/migrate.sh
+
+      - uses: docker/setup-buildx-action@v4.0.0
+        if: inputs.unseal_only != true
+
+      - name: Log in to ghcr.io
+        if: inputs.unseal_only != true
+        uses: docker/login-action@v4.1.0
+        with:
+          registry: ghcr.io
+          username: crvouga
+          password: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+
+      - name: Build and push
+        if: inputs.unseal_only != true
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: packages/vault-service
+          file: packages/vault-service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/crvouga/workspace
+            org.opencontainers.image.description=Standalone OpenBao vault for chrisvouga.dev
+          tags: |
+            ghcr.io/crvouga/chrisvouga-vault:latest
+            ghcr.io/crvouga/chrisvouga-vault:${{ github.sha }}
+
+      - name: Make package public
+        if: inputs.unseal_only != true
+        working-directory: .
+        run: bun run make-ghcr-public --id vault --require
+
+      - name: Provision Railway service
+        if: inputs.unseal_only != true
+        run: |
+          chmod +x scripts/railway-provision.sh
+          ./scripts/railway-provision.sh
+
+      - name: Deploy to Railway
+        if: inputs.unseal_only != true
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          chmod +x scripts/railway-deploy.sh
+          ./scripts/railway-deploy.sh
+
+      - name: Reconcile DNS
+        run: |
+          chmod +x scripts/railway-sync-dns.sh
+          ./scripts/railway-sync-dns.sh
+
+      - name: Verify custom domain (pre-unseal)
+        env:
+          REQUIRE_HEALTHY: "false"
+        run: |
+          chmod +x scripts/verify-custom-domain.sh
+          ./scripts/verify-custom-domain.sh
+
+      - name: Unseal OpenBao
+        run: |
+          set -euo pipefail
+          chmod +x scripts/install-vault-cli.sh scripts/repair-openbao-auth-mounts.sh scripts/unseal.sh
+          ./scripts/install-vault-cli.sh
+          ./scripts/repair-openbao-auth-mounts.sh
+          ./scripts/unseal.sh
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          export VAULT_TOKEN="$(./scripts/fetch-vault-token.sh)"
+          ./scripts/smoke-test.sh
+
+      - name: Health check custom domain
+        env:
+          REQUIRE_HEALTHY: "true"
+        run: ./scripts/verify-custom-domain.sh
+
+      - name: Health-check vault
+        working-directory: .
+        run: bun run health-check --id vault
+
+  publish:
+    needs: [changes, check]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.publish == 'true' &&
+      needs.check.result == 'success'
+    uses: ./.github/workflows/publish-image.yml
+    secrets:
+      DEPLOY_DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+    with:
+      service_id: turborepo
+      dockerfile: packages/turborepo-remote-cache/Dockerfile
+      context: .
+      image_prefix: chrisvouga
+      notify_deploy: false
+
+  deploy:
+    needs: [changes, check, vault, publish]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.deploy == 'true' &&
+      (needs.check.result == 'success' || needs.check.result == 'skipped') &&
+      (needs.vault.result == 'success' || needs.vault.result == 'skipped') &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    uses: ./.github/workflows/deploy.yml
+    with:
+      service_id: ${{ needs.publish.result == 'success' && 'turborepo' || inputs.service_id || '' }}
+      image_tag: ${{ needs.publish.outputs.image_tag || inputs.image_tag || 'latest' }}
+      redeploy: ${{ needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.service_id != '') }}
+      apply_dns: true

@@ -2,7 +2,7 @@
 
 This repo uses a complete local validation sequence for the workspace and its
 CI gates. Run all checks before committing; a green local run must still be
-followed by the full **CI turborepo** pipeline.
+followed by the full **CI** pipeline.
 
 ## Complete local check
 
@@ -121,11 +121,11 @@ it by committing and pushing.
 
 ## Watch CI & fix failures
 
-Pushing is not the end of the loop. After pushing, watch the **CI turborepo** run
+Pushing is not the end of the loop. After pushing, watch the **CI** run
 to completion and fix any failure before you are done:
 
 ```bash
-bun run gh:ci:watch     # blocks until the latest CI turborepo run finishes
+bun run gh:ci:watch     # blocks until the latest CI run finishes
 bun run gh:ci:status    # quick summary of the last few runs
 bun run gh:ci:log       # failed-step logs of the latest run (if it failed)
 ```
@@ -140,8 +140,17 @@ To browse the run in a browser: `bun run gh:ci`.
 
 ## CI workflow
 
-- `.github/workflows/ci-turborepo.yml` — the check gate. Triggered on push to `main` and on pull requests touching `packages/**`, `package.json`, `bun.lock`, `turbo.json`, `tsconfig.json`, `.prettierrc`, `.prettierignore`.
+Production path (one run on `main`):
+
+```
+changes → check → vault? → publish? → deploy
+```
+
+- `.github/workflows/ci.yml` — monorepo entry. PRs run `check`; pushes to `main` chain optional vault / turborepo publish / fleet deploy via `needs:`.
+- `.github/workflows/deploy.yml` — sole deploy entry (`workflow_call` from CI, `repository_dispatch` from sibling publish-image, or manual).
+- `.github/workflows/publish-image.yml` — reusable GHCR publish; siblings set `notify_deploy: true` (default); monorepo CI sets `false` and chains deploy.
 - The `check` job runs `bun install --frozen-lockfile`, imports Vault dev secrets via OIDC, runs `bun run check:vault-secrets`, then `bun run check`.
+- The `deploy` job runs `bun run reconcile --apply --fleet-only`, then optional Railway redeploy + health checks.
 
 ## Hard rules
 

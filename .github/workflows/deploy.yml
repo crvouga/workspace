@@ -1,27 +1,39 @@
-name: Deploy fleet
-
-# Railway stack — fully automated via GitHub Actions.
+# Sole production deploy entrypoint.
 #
-#   prepare | vault-ready → dns-sync | make-ghcr-public | railway-deploy (matrix)
-#                         → health-check-all
-#
-# Secrets: Vault OIDC via .github/actions/vault-secrets (not GitHub repo secrets).
+#   vault-ready → reconcile (--apply --fleet-only) → railway-deploy? → health-check-all
 #
 # Triggers:
-#   - push to main (checks, DNS, GHCR — no fleet redeploy)
-#   - repository_dispatch (deploy-service)
-#   - workflow_dispatch
-#   - workflow_run after Deploy vault succeeds (reconcile DNS/GHCR once vault is unsealed)
+#   - workflow_call (from ci.yml)
+#   - repository_dispatch deploy-service (sibling publish-image)
+#   - workflow_dispatch (manual)
+#
+# Secrets: Vault OIDC via .github/actions/vault-secrets (not GitHub repo secrets).
+
+name: Deploy
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**/*.md"
-      - ".vscode/**"
-      - ".cursor/**"
-      - "packages/**"
+  workflow_call:
+    inputs:
+      service_id:
+        description: "Single service id (empty = all deployable services)."
+        required: false
+        type: string
+        default: ""
+      image_tag:
+        description: "Image tag to deploy."
+        required: false
+        type: string
+        default: latest
+      redeploy:
+        description: "Roll Railway services to image_tag."
+        required: false
+        type: boolean
+        default: false
+      apply_dns:
+        description: "Apply Cloudflare DNS / redirect / alias changes."
+        required: false
+        type: boolean
+        default: true
   repository_dispatch:
     types:
       - deploy-service
@@ -41,13 +53,9 @@ on:
         required: false
         type: boolean
         default: true
-  workflow_run:
-    workflows: ["Deploy vault"]
-    types: [completed]
-    branches: [main]
 
 concurrency:
-  group: deploy-fleet-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -67,13 +75,18 @@ jobs:
       service_id: ${{ steps.resolve.outputs.service_id }}
       service_ids: ${{ steps.resolve.outputs.service_ids }}
       image_tag: ${{ steps.resolve.outputs.image_tag }}
+      redeploy: ${{ steps.resolve.outputs.redeploy }}
+      apply_dns: ${{ steps.resolve.outputs.apply_dns }}
+      wait_for_certs: ${{ steps.resolve.outputs.wait_for_certs }}
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run tc
-      - run: bun run provision-railway --check --fleet-only
       - id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_REDEPLOY: ${{ inputs.redeploy }}
+          INPUT_APPLY_DNS: ${{ inputs.apply_dns }}
         run: |
           set -euo pipefail
           SID="${SERVICE_ID}"
@@ -83,25 +96,33 @@ jobs:
           else
             SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts)"
           fi
+
+          REDEPLOY=false
+          WAIT_FOR_CERTS=false
+          if [ "${EVENT_NAME}" = "repository_dispatch" ] || [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            REDEPLOY=true
+            WAIT_FOR_CERTS=true
+          elif [ "${INPUT_REDEPLOY}" = "true" ]; then
+            REDEPLOY=true
+            WAIT_FOR_CERTS=true
+          fi
+
+          APPLY_DNS=true
+          if [ "${INPUT_APPLY_DNS}" = "false" ]; then
+            APPLY_DNS=false
+          fi
+
           echo "service_id=${SID}" >> "$GITHUB_OUTPUT"
           echo "service_ids=${SERVICE_IDS}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Deploy: service_id='${SID:-all}' services=${SERVICE_IDS} image_tag='${TAG}'"
+          echo "redeploy=${REDEPLOY}" >> "$GITHUB_OUTPUT"
+          echo "apply_dns=${APPLY_DNS}" >> "$GITHUB_OUTPUT"
+          echo "wait_for_certs=${WAIT_FOR_CERTS}" >> "$GITHUB_OUTPUT"
+          echo "Deploy: service_id='${SID:-all}' services=${SERVICE_IDS} image_tag='${TAG}' redeploy=${REDEPLOY}"
 
   vault-ready:
     runs-on: ubuntu-latest
     steps:
-      - name: Require successful Deploy vault for workflow_run
-        if: github.event_name == 'workflow_run'
-        run: |
-          set -euo pipefail
-          conclusion="${{ github.event.workflow_run.conclusion }}"
-          if [ "$conclusion" != "success" ]; then
-            echo "::error::Skipping Deploy fleet: Deploy vault concluded with '${conclusion}' (need success + unseal)"
-            exit 1
-          fi
-          echo "Deploy vault succeeded — waiting for Vault to be ready"
-
       - name: Wait for Vault to be unsealed
         run: |
           set -euo pipefail
@@ -127,7 +148,7 @@ jobs:
           echo "::error::Vault at ${addr} did not become unsealed within 15 minutes"
           exit 1
 
-  make-ghcr-public:
+  reconcile:
     runs-on: ubuntu-latest
     needs: [prepare, vault-ready]
     steps:
@@ -138,54 +159,27 @@ jobs:
       - uses: ./.github/actions/vault-secrets
         with:
           vault_addr: ${{ env.VAULT_ADDR }}
-      - run: bun run make-ghcr-public
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-  dns-sync:
-    runs-on: ubuntu-latest
-    needs: [prepare, vault-ready]
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
-      - uses: ./.github/actions/vault-secrets
-        with:
-          vault_addr: ${{ env.VAULT_ADDR }}
-      - name: Reconcile DNS
+      - name: Reconcile fleet desired state
         env:
           RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
-          CF_APPLY: ${{ github.event_name == 'push' || github.event_name == 'workflow_run' || inputs.apply_dns != false }}
+          APPLY_DNS: ${{ needs.prepare.outputs.apply_dns }}
         run: |
           set -euo pipefail
-          ARGS=()
-          if [ "${CF_APPLY}" = "true" ]; then ARGS+=(--apply); fi
-          if [ "${CF_APPLY}" = "true" ] && { [ "${{ github.event_name }}" = "repository_dispatch" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; }; then
-            ARGS+=(--wait-for-certs)
+          if [ "${APPLY_DNS}" = "true" ]; then
+            bun run reconcile --apply --fleet-only
+          else
+            bun run reconcile --apply --fleet-only --phase railway --phase ghcr
           fi
-          bun run sync-dns "${ARGS[@]}"
-      - name: Ensure apex redirect
+      - name: Wait for TLS certs
+        if: needs.prepare.outputs.wait_for_certs == 'true' && needs.prepare.outputs.apply_dns == 'true'
         env:
-          CF_APPLY: ${{ github.event_name == 'push' || github.event_name == 'workflow_run' || inputs.apply_dns != false }}
-        run: |
-          set -euo pipefail
-          ARGS=()
-          if [ "${CF_APPLY}" = "true" ]; then ARGS+=(--apply); fi
-          bun run sync-redirects "${ARGS[@]}"
-      - name: Ensure domain aliases
-        env:
-          CF_APPLY: ${{ github.event_name == 'push' || github.event_name == 'workflow_run' || inputs.apply_dns != false }}
-        run: |
-          set -euo pipefail
-          ARGS=()
-          if [ "${CF_APPLY}" = "true" ]; then ARGS+=(--apply); fi
-          bun run sync-aliases "${ARGS[@]}"
+          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
+        run: bun run sync-dns --apply --wait-for-certs
 
   railway-deploy:
-    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
+    if: needs.prepare.outputs.redeploy == 'true'
     runs-on: ubuntu-latest
-    needs: [prepare, vault-ready]
+    needs: [prepare, vault-ready, reconcile]
     strategy:
       fail-fast: false
       matrix:
@@ -198,16 +192,6 @@ jobs:
       - uses: ./.github/actions/vault-secrets
         with:
           vault_addr: ${{ env.VAULT_ADDR }}
-      - name: Sync Railway secrets
-        env:
-          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${RAILWAY_TOKEN:-}" ]; then
-            echo "::warning::RAILWAY_TOKEN not set — skipping sync-railway-secrets"
-            exit 0
-          fi
-          bun run sync-railway-secrets --id "${{ matrix.service_id }}"
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
@@ -221,15 +205,19 @@ jobs:
           bun run deploy-railway \
             --id "${{ matrix.service_id }}" \
             --image-tag "${{ needs.prepare.outputs.image_tag }}"
-
       - name: Health-check service
         if: success()
         run: bun run health-check --id "${{ matrix.service_id }}"
 
   health-check-all:
     runs-on: ubuntu-latest
-    needs: [prepare, vault-ready, railway-deploy]
-    if: always() && needs.prepare.result == 'success' && needs.vault-ready.result == 'success' && (needs.railway-deploy.result == 'success' || needs.railway-deploy.result == 'skipped')
+    needs: [prepare, vault-ready, reconcile, railway-deploy]
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.vault-ready.result == 'success' &&
+      needs.reconcile.result == 'success' &&
+      (needs.railway-deploy.result == 'success' || needs.railway-deploy.result == 'skipped')
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2

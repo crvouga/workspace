@@ -1,4 +1,4 @@
-# Shared workflow — call from each project repo (or ci-turborepo) to build, push, and notify deploy.
+# Shared workflow — call from each project repo (or ci.yml) to build, push, and notify deploy.
 #
 # Example caller (.github/workflows/publish.yml):
 #
@@ -19,6 +19,8 @@
 #         context: .
 #         image_prefix: chrisvouga
 #         infra_github_repo: crvouga/workspace
+#
+# Monorepo ci.yml passes notify_deploy: false and chains deploy via workflow_call.
 
 name: Publish image
 
@@ -54,6 +56,18 @@ on:
         required: false
         type: string
         default: crvouga/workspace
+      notify_deploy:
+        description: "POST repository_dispatch to infra after push. Set false when the caller chains deploy via needs."
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      image_tag:
+        description: "Image tag pushed (commit SHA)."
+        value: ${{ jobs.build-push-notify.outputs.image_tag }}
+      service_id:
+        description: "Service id that was published."
+        value: ${{ jobs.build-push-notify.outputs.service_id }}
     secrets:
       DEPLOY_DISPATCH_TOKEN:
         description: "PAT or GITHUB_TOKEN with repo dispatch to the infra repo."
@@ -72,7 +86,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+      service_id: ${{ inputs.service_id }}
     steps:
+      - id: tag
+        run: echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v5
 
       - name: Resolve GHCR credentials
@@ -145,6 +165,7 @@ jobs:
           echo "Package ${PKG} visibility not updated (may not exist yet on first push)"
 
       - name: Notify infra deploy
+        if: inputs.notify_deploy
         env:
           DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           INFRA_REPO: ${{ inputs.infra_github_repo }}
