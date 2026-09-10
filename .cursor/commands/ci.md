@@ -35,14 +35,14 @@ Package-only (no Vault): `bun check`
 **On failure:** fix in the order reported, re-run `bun run check:ci && bun run typecheck`,
 repeat until green. Then go to step 2.
 
-| Failure           | Fix                                                                                                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lockfile mismatch | `bun install`, then re-check                                                                                                                                                |
-| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                                                                         |
-| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config)                                                         |
-| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                                                                                |
-| `test`            | Fix assertion (`bun test`)                                                                                                                                                  |
-| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds                                                                                           |
+| Failure           | Fix                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Lockfile mismatch | `bun install`, then re-check                                                                                        |
+| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                 |
+| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config) |
+| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                        |
+| `test`            | Fix assertion (`bun test`)                                                                                          |
+| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds                                   |
 
 A green local run is **not** done — local `check` does not cover CI `publish` /
 `vault` / `deploy` (Docker, Railway, DNS).
@@ -61,7 +61,7 @@ Only after local checks are green and the change is good to merge:
    - `feat: …` — new behavior
    - `refactor: …` — non-behavior
    - `chore: …` — housekeeping  
-   Body only when the why is unclear.
+     Body only when the why is unclear.
 4. `git add <files> && git commit -m "…"`
 5. `git push` (triggers CI on `main`)
 
@@ -92,13 +92,13 @@ Watch the **full** workflow for the push you just made
 **Repeat until the watched run is green.** Never declare done after local green
 or push alone.
 
-| Job / area | Typical cause | Where to look |
-| ---------- | ------------- | ------------- |
-| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets` |
-| `publish` | Docker / context / `.dockerignore` | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore` |
-| `vault` | Image / migrate / unseal | `packages/vault-service/**` |
-| `deploy` | Reconcile / Railway / DNS / health | `packages/infra/services.yaml`, deploy logs |
-| `smoke` (dispatch) | Prod mid-redeploy | Wait for deploy; smoke `needs: [deploy]` in `ci.yml` |
+| Job / area           | Typical cause                       | Where to look                                                 |
+| -------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets`            |
+| `publish`            | Docker / context / `.dockerignore`  | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore` |
+| `vault`              | Image / migrate / unseal            | `packages/vault-service/**`                                   |
+| `deploy`             | Reconcile / Railway / DNS / health  | `packages/infra/services.yaml`, deploy logs                   |
+| `smoke` (dispatch)   | Prod mid-redeploy                   | Wait for deploy; smoke `needs: [deploy]` in `ci.yml`          |
 
 ### 4. Done
 
@@ -119,17 +119,17 @@ Needs a Vault session. Registry: `packages/turborepo-remote-cache/scripts/vault-
 
 ## Helper commands
 
-| Command                       | What it does                                      |
-| ----------------------------- | ------------------------------------------------- |
-| `bun run ci:format`           | `prettier --check .`                              |
-| `bun run ci:install`          | `bun install --frozen-lockfile`                   |
-| `bun run tc`                  | `turbo run tc`                                    |
-| `bun run typecheck`           | Root `tsc --noEmit`                               |
-| `bun run check:vault-secrets` | Vault `dev`                                       |
-| `bun run check:smoke:secrets` | Secret smoke                                      |
-| `bun run gh:ci:watch`         | Block until latest CI succeeds or fails           |
-| `bun run gh:ci:status`        | List recent CI runs                               |
-| `bun run gh:ci:log`           | Failed-step logs                                  |
+| Command                       | What it does                            |
+| ----------------------------- | --------------------------------------- |
+| `bun run ci:format`           | `prettier --check .`                    |
+| `bun run ci:install`          | `bun install --frozen-lockfile`         |
+| `bun run tc`                  | `turbo run tc`                          |
+| `bun run typecheck`           | Root `tsc --noEmit`                     |
+| `bun run check:vault-secrets` | Vault `dev`                             |
+| `bun run check:smoke:secrets` | Secret smoke                            |
+| `bun run gh:ci:watch`         | Block until latest CI succeeds or fails |
+| `bun run gh:ci:status`        | List recent CI runs                     |
+| `bun run gh:ci:log`           | Failed-step logs                        |
 
 ## CI workflow shape
 
