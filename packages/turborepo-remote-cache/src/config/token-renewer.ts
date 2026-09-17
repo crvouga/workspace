@@ -9,10 +9,10 @@
  * uptime no longer depends on an external cron or a redeploy cadence.
  */
 import { assert } from '@pkgs/assert';
-import { createLogger } from '@pkgs/logger';
+import { createLogger, type Logger } from '@pkgs/logger';
 import type { VaultFetch } from './vault-fetch';
 
-const log = createLogger({ name: 'turbo-cache-token' });
+const defaultLog = createLogger({ name: 'turbo-cache-token' });
 
 const DEFAULT_ADDR = 'https://vault.chrisvouga.dev';
 /** Never sleep longer than this, even for very long TTLs. */
@@ -29,6 +29,7 @@ export type VaultTokenRenewerOptions = {
   readonly addr?: string | null;
   readonly fetchFn?: VaultFetch;
   readonly setTimeoutFn?: typeof setTimeout;
+  readonly logger?: Logger;
 };
 
 type LookupResult = {
@@ -77,6 +78,7 @@ export class VaultTokenRenewer {
   private readonly addr: string;
   private readonly fetchFn: VaultFetch;
   private readonly setTimeoutFn: typeof setTimeout;
+  private readonly log: Logger;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
@@ -88,6 +90,7 @@ export class VaultTokenRenewer {
     this.fetchFn =
       options.fetchFn ?? ((input, init) => globalThis.fetch(input, init));
     this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
+    this.log = options.logger ?? defaultLog;
     assert.nonEmptyString(this.addr, 'VaultTokenRenewer requires addr');
   }
 
@@ -120,21 +123,23 @@ export class VaultTokenRenewer {
     try {
       const lookup = await this.renewSelf();
       if (!lookup.renewable) {
-        log.info('vault token is not renewable; renewal loop stopped', {
+        this.log.info('vault token is not renewable; renewal loop stopped', {
           ttlSeconds: lookup.ttlSeconds,
         });
         this.stop();
         return;
       }
       const delayMs = renewIntervalMs(lookup.ttlSeconds);
-      log.info('vault token renewed', {
+      this.log.info('vault token renewed', {
         ttlSeconds: lookup.ttlSeconds,
         nextRenewInSeconds: Math.round(delayMs / 1000),
       });
       this.schedule(delayMs);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      log.warn('vault token renewal failed; will retry', { error: message });
+      this.log.warn('vault token renewal failed; will retry', {
+        error: message,
+      });
       this.schedule(RETRY_INTERVAL_MS);
     }
   }

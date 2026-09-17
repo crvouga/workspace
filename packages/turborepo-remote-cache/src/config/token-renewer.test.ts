@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { createLogger } from '@pkgs/logger';
 import { renewIntervalMs, VaultTokenRenewer } from './token-renewer';
+
+const SILENT_LOG = createLogger({ name: 'turbo-cache-test', level: 'silent' });
 
 describe('renewIntervalMs', () => {
   test('renews at half the ttl', () => {
@@ -26,6 +29,7 @@ describe('VaultTokenRenewer', () => {
     const renewer = new VaultTokenRenewer({
       token: 'hvs.test',
       addr: 'https://vault.example.com/',
+      logger: SILENT_LOG,
       fetchFn: async (input) => {
         calls.push(String(input));
         return new Response(
@@ -51,6 +55,7 @@ describe('VaultTokenRenewer', () => {
     const scheduled: number[] = [];
     const renewer = new VaultTokenRenewer({
       token: 'hvs.test',
+      logger: SILENT_LOG,
       fetchFn: async () => new Response('permission denied', { status: 403 }),
       setTimeoutFn: ((_fn: () => void, ms: number) => {
         scheduled.push(ms);
@@ -67,6 +72,7 @@ describe('VaultTokenRenewer', () => {
     const scheduled: number[] = [];
     const renewer = new VaultTokenRenewer({
       token: 'hvs.root',
+      logger: SILENT_LOG,
       fetchFn: async () =>
         new Response(
           JSON.stringify({ auth: { lease_duration: 0, renewable: false } }),

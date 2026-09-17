@@ -1,5 +1,5 @@
 import { Assert, ThrowingCrashHandler, assert } from '@pkgs/assert';
-import { createLogger } from '@pkgs/logger';
+import { createLogger, type Logger } from '@pkgs/logger';
 
 import { CacheBootManager } from './cache/boot-manager';
 import {
@@ -12,7 +12,7 @@ import type { VaultFetch } from './config/vault-fetch';
 
 Assert.registerCrashHandler(new ThrowingCrashHandler());
 
-const log = createLogger({ name: 'turbo-cache' });
+const defaultLog = createLogger({ name: 'turbo-cache' });
 
 const ERROR_CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -93,6 +93,8 @@ export type CacheServerDeps = {
   readonly fetchFn?: VaultFetch;
   readonly now?: () => number;
   readonly setTimeoutFn?: typeof setTimeout;
+  /** Swap for a silent logger to keep test output readable. */
+  readonly logger?: Logger;
 };
 
 export type CacheServer = {
@@ -108,9 +110,11 @@ export function createCacheRequestHandler(
 ): CacheServer {
   assert.record(env, 'createCacheRequestHandler requires env');
   assert.record(deps, 'createCacheRequestHandler requires deps');
+  const log = deps.logger ?? defaultLog;
   const boot = new CacheBootManager(env, {
     ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}),
     ...(deps.now !== undefined ? { now: deps.now } : {}),
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
   assert.defined(boot, 'createCacheRequestHandler requires boot manager');
 
@@ -122,6 +126,7 @@ export function createCacheRequestHandler(
     ...(deps.setTimeoutFn !== undefined
       ? { setTimeoutFn: deps.setTimeoutFn }
       : {}),
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   async function fetch(request: Request): Promise<Response> {
@@ -177,7 +182,7 @@ export async function startServer(
   // stop the server from serving traffic.
   void handler.start();
 
-  log.info('cache server listening', {
+  defaultLog.info('cache server listening', {
     port: env.PORT,
     vaultConfig: env.VAULT_CONFIG ?? 'dev',
   });
@@ -192,7 +197,7 @@ export async function startServer(
 if (import.meta.main) {
   startServer().catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
-    log.error('cache server failed to start', { error: message });
+    defaultLog.error('cache server failed to start', { error: message });
     process.exit(1);
   });
 }

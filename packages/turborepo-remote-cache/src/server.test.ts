@@ -12,6 +12,7 @@
  * milliseconds.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createLogger } from '@pkgs/logger';
 import type { CacheServerEnv } from './config/env';
 import type { VaultFetch } from './config/vault-fetch';
 import { createCacheRequestHandler, type CacheServer } from './server';
@@ -23,6 +24,8 @@ const PERIOD_SECONDS = 768 * 60 * 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Matches RETRY_COOLDOWN_MS in cache/boot-manager.ts. */
 const BOOT_RETRY_COOLDOWN_MS = 5_000;
+/** 40 simulated days is ~160 renewals; without this the suite drowns in logs. */
+const SILENT_LOG = createLogger({ name: 'turbo-cache-test', level: 'silent' });
 
 const ENV: CacheServerEnv = {
   VAULT_TOKEN: RUNTIME_TOKEN,
@@ -179,6 +182,7 @@ function startServerWith(clock: FakeClock, vault: FakeVault): CacheServer {
     fetchFn: vault.fetchFn,
     now: clock.now,
     setTimeoutFn: clock.setTimeoutFn,
+    logger: SILENT_LOG,
   });
   servers.push(server);
   return server;

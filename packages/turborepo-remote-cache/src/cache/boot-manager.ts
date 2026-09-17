@@ -1,5 +1,5 @@
 import { assert } from '@pkgs/assert';
-import { createLogger } from '@pkgs/logger';
+import { createLogger, type Logger } from '@pkgs/logger';
 import {
   isSecretStoreError,
   SecretStoreRequestError,
@@ -15,7 +15,7 @@ import { createCacheSecretStore } from '../config/secret-store';
 import type { VaultFetch } from '../config/vault-fetch';
 import { createCacheApp } from './create-app';
 
-const log = createLogger({ name: 'turbo-cache' });
+const defaultLog = createLogger({ name: 'turbo-cache' });
 
 type App = ReturnType<typeof createCacheApp>;
 
@@ -23,6 +23,7 @@ type App = ReturnType<typeof createCacheApp>;
 export type CacheBootDeps = {
   readonly fetchFn?: VaultFetch;
   readonly now?: () => number;
+  readonly logger?: Logger;
 };
 
 type BootState =
@@ -87,6 +88,10 @@ export class CacheBootManager {
     return (this.deps.now ?? Date.now)();
   }
 
+  private get log(): Logger {
+    return this.deps.logger ?? defaultLog;
+  }
+
   /** Reason to surface in the 503 body: fatal reason, else last boot error. */
   fatalReason(): string | null {
     if (this.bootState.kind === 'fatal') return this.bootState.reason;
@@ -97,7 +102,7 @@ export class CacheBootManager {
     assert.nonEmptyString(reason, 'latchFatal requires reason');
     this.bootState = { kind: 'fatal', reason };
     if (!this.fatalLogged) {
-      log.error(`cache fatal: refusing to serve: ${reason}`, { reason });
+      this.log.error(`cache fatal: refusing to serve: ${reason}`, { reason });
       this.fatalLogged = true;
     }
   }
@@ -133,7 +138,7 @@ export class CacheBootManager {
         const message = err instanceof Error ? err.message : String(err);
         this.lastError = message;
         this.nextAttemptAtMs = this.nowMs() + RETRY_COOLDOWN_MS;
-        log.warn('cache boot vault error; will retry', { error: message });
+        this.log.warn('cache boot vault error; will retry', { error: message });
         return null;
       }
       if (isSecretStoreError(err)) {
