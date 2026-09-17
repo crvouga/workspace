@@ -746,16 +746,33 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
-    needs: [changes, health-check-all]
-    # Manual prod smoke only. When a deploy also runs, wait until it finishes so
-    # we don't probe mid-redeploy (503 race).
+    needs:
+      [
+        changes,
+        vault-state,
+        check,
+        vault,
+        publish,
+        deploy-prepare,
+        deploy-reconcile,
+        deploy-railway,
+        health-check-all,
+      ]
+    # Production smoke follows health checks on pushes and production
+    # dispatches; never probe production from PRs or sibling publish calls.
     if: |
       always() &&
-      github.event_name == 'workflow_dispatch' &&
-      (
-        (needs.changes.outputs.deploy != 'true' && needs.health-check-all.result == 'skipped') ||
-        needs.health-check-all.result == 'success'
-      )
+      github.event_name != 'pull_request' &&
+      github.event_name != 'workflow_call' &&
+      needs.changes.result == 'success' &&
+      (needs.vault-state.result == 'success' || needs.vault-state.result == 'skipped') &&
+      (needs.check.result == 'success' || needs.check.result == 'skipped') &&
+      (needs.vault.result == 'success' || needs.vault.result == 'skipped') &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped') &&
+      (needs.deploy-prepare.result == 'success' || needs.deploy-prepare.result == 'skipped') &&
+      (needs.deploy-reconcile.result == 'success' || needs.deploy-reconcile.result == 'skipped') &&
+      (needs.deploy-railway.result == 'success' || needs.deploy-railway.result == 'skipped') &&
+      (needs.health-check-all.result == 'success' || needs.health-check-all.result == 'skipped')
     timeout-minutes: 10
     steps:
       - name: Checkout
