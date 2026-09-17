@@ -1,6 +1,6 @@
 # Single workflow for the whole monorepo pipeline — no reusable sibling workflows.
 #
-#   push / pull_request .... check → (main) vault? / publish? → deploy
+#   push / pull_request .... vault? → check → (main) publish? → deploy
 #   workflow_dispatch ...... manual check / publish / vault rebuild / fleet redeploy
 #   workflow_call .......... sibling app repos publish their image (was publish-image.yml)
 #   repository_dispatch .... sibling publish notify → fleet deploy (deploy-service)
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
@@ -225,8 +225,11 @@ jobs:
           echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY}"
 
   check:
-    needs: [changes]
-    if: needs.changes.outputs.check == 'true'
+    needs: [changes, vault]
+    if: |
+      always() &&
+      needs.changes.outputs.check == 'true' &&
+      (needs.vault.result == 'success' || needs.vault.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -416,12 +419,10 @@ jobs:
           exit 1
 
   vault:
-    needs: [changes, check]
+    needs: [changes]
     if: |
-      always() &&
-      github.ref == 'refs/heads/main' &&
       needs.changes.outputs.vault == 'true' &&
-      (needs.check.result == 'success' || needs.check.result == 'skipped')
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
       group: vault-${{ github.ref }}
