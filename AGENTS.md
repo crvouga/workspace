@@ -66,7 +66,7 @@ Vault is **`standalone: true`** in [`packages/infra/services.yaml`](packages/inf
 2. Deploy vault: push `packages/vault-service/**` to `main`, or `gh workflow run ci.yml -f unseal_only=true` after first deploy
 3. Init/unseal OpenBao locally (`packages/vault-service/scripts/init.sh`); store keys in `crvouga.kv`
 4. Seed KV at `secret/data/personal/prd` (Railway token, Cloudflare, per-app keys)
-5. Fleet: `bun run provision-railway --apply` then **Deploy** (`gh workflow run deploy.yml`)
+5. Fleet: `bun run provision-railway --apply` then `gh workflow run ci.yml` (fleet redeploy at `latest`)
 
 **Local vault ops (Vault may be down — no `vault run`):**
 
@@ -88,8 +88,8 @@ If `vault run` fails with `No value found at secret/personal/prd`, KV is empty �
 
 The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-s3.ts`, `vault-yaml-defaults.ts`).
 
-- CI: **CI** (`.github/workflows/ci.yml`) — `check` → optional `vault` / `publish` → `deploy` on one run.
-- Deploy: monorepo publish chains **Deploy** via `workflow_call`; sibling repos use `publish-image` → `repository_dispatch`.
+- CI: **CI** (`.github/workflows/ci.yml`) — the only workflow: `check` → optional `vault` / `publish` → fleet deploy jobs on one run.
+- Deploy: monorepo publish feeds the deploy jobs in the same run; sibling repos call `ci.yml` (`workflow_call`) to publish and then `repository_dispatch` `deploy-service`.
 
 ### Hard rules
 
@@ -127,9 +127,7 @@ Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (shared bucke
 
 ### CI/CD
 
-- **ci.yml** — single monorepo path: Vault OIDC (dev) + `bun run check`; on `main`, optional vault job, turborepo publish (`notify_deploy: false`), then **deploy.yml** via `workflow_call`
-- **deploy.yml** — fleet reconcile + optional Railway redeploy (`workflow_call`, `repository_dispatch`, `workflow_dispatch`)
-- **publish-image.yml** — reusable GHCR publish for siblings (dispatches deploy) and monorepo (chained)
+- **ci.yml** — the only workflow. Vault OIDC (dev) + `bun run check`; on `main`, optional vault job, turborepo publish (`notify_deploy: false`), then fleet deploy jobs (`deploy-prepare` → `deploy-reconcile` → `deploy-railway` → `health-check-all`) in the same run; `workflow_dispatch` forces publish / vault rebuild / fleet redeploy; `repository_dispatch deploy-service` deploys one sibling service; `workflow_call` serves sibling repos' publish (GHCR build + dispatch).
 
 ### Client usage
 

@@ -92,13 +92,13 @@ Watch the **full** workflow for the push you just made
 **Repeat until the watched run is green.** Never declare done after local green
 or push alone.
 
-| Job / area           | Typical cause                       | Where to look                                                 |
-| -------------------- | ----------------------------------- | ------------------------------------------------------------- |
-| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets`            |
-| `publish`            | Docker / context / `.dockerignore`  | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore` |
-| `vault`              | Image / migrate / unseal            | `packages/vault-service/**`                                   |
-| `deploy`             | Reconcile / Railway / DNS / health  | `packages/infra/services.yaml`, deploy logs                   |
-| `smoke` (dispatch)   | Prod mid-redeploy                   | Wait for deploy; smoke `needs: [deploy]` in `ci.yml`          |
+| Job / area           | Typical cause                       | Where to look                                                  |
+| -------------------- | ----------------------------------- | -------------------------------------------------------------- |
+| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets`             |
+| `publish`            | Docker / context / `.dockerignore`  | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore`  |
+| `vault`              | Image / migrate / unseal            | `packages/vault-service/**`                                    |
+| `deploy-*`           | Reconcile / Railway / DNS / health  | `packages/infra/services.yaml`, deploy logs                    |
+| `smoke` (dispatch)   | Prod mid-redeploy                   | Wait for deploy; smoke waits on `health-check-all` in `ci.yml` |
 
 ### 4. Done
 
@@ -134,12 +134,17 @@ Needs a Vault session. Registry: `packages/turborepo-remote-cache/scripts/vault-
 ## CI workflow shape
 
 ```
-changes → check → vault? → publish? → deploy
+changes → check → vault? → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all
 ```
 
-- `.github/workflows/ci.yml` — monorepo entry; PRs run `check`; `main` chains vault / publish / deploy as needed
-- `.github/workflows/deploy.yml` — deploy entry (`workflow_call` / `repository_dispatch` / manual)
-- `.github/workflows/publish-image.yml` — GHCR publish; monorepo sets `notify_deploy: false` and chains deploy
+`.github/workflows/ci.yml` is the **only** workflow. It serves every path:
+
+- `push`/`pull_request` — PRs run `check`; `main` chains vault / publish / fleet deploy as needed
+- `workflow_dispatch` — manual `check` / `publish` / vault rebuild / fleet redeploy (`service_id`, `image_tag`, `apply_dns`)
+- `workflow_call` — sibling repos publish their GHCR image (`service_id`, `dockerfile`, `context`, `image_prefix`); `notify_deploy: true` dispatches the deploy back to infra
+- `repository_dispatch deploy-service` — sibling publish notify → single-service fleet deploy
+
+Composite actions under `.github/actions/` (`vault-secrets`, `turborepo-vault-secrets`) load Vault secrets via OIDC.
 
 ## Hard rules
 

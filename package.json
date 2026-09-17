@@ -14,7 +14,7 @@
     "ci:format": "prettier --check .",
     "ci:install": "bun install --frozen-lockfile",
     "cleanup-railway-deployments": "bun run --filter @pkgs/infra cleanup-railway-deployments",
-    "deploy": "echo 'Hosting is via infra — push main runs ci.yml (check → vault? → publish? → deploy)'",
+    "deploy": "echo 'Hosting is via infra — push main runs ci.yml (check → vault? → publish? → fleet deploy)'",
     "deploy-railway": "bun run --filter @pkgs/infra deploy-railway",
     "destroy-digitalocean": "bun run --filter @pkgs/infra destroy-digitalocean",
     "destroy-fly": "bun run --filter @pkgs/infra destroy-fly",

@@ -15,19 +15,19 @@ Platform paths, service names, and GHCR prefixes are derived from `services.yaml
 ## Architecture
 
 ```
-Project repos ──▶ publish-image.yml ──▶ repository_dispatch
-                                              │
-Monorepo CI   ──▶ check → vault? → publish? ──┤
-                                              ▼
-                                         deploy.yml
-                              (reconcile --apply --fleet-only
-                               → railway-deploy? → health)
-                                              │
-                                              ▼
-                               Railway (infra / production)
-                                              │
-                                              ▼
-                                    *.<zone> via Cloudflare DNS
+Sibling repos ──▶ ci.yml (workflow_call) ──▶ GHCR image ──▶ repository_dispatch ─┐
+                                                                                │
+Monorepo push/PR ──▶ ci.yml: check → vault? → publish? ─────────────────────────┤
+                                                                                ▼
+                                                            ci.yml deploy jobs
+                                                 prepare → reconcile --apply --fleet-only
+                                                       → railway-deploy? → health
+                                                                                │
+                                                                                ▼
+                                                Railway (infra / production)
+                                                                                │
+                                                                                ▼
+                                                       *.<zone> via Cloudflare DNS
 ```
 
 ## Configuration ([`services.yaml`](services.yaml))
@@ -97,9 +97,9 @@ vault run -- bun run provision-railway --apply
 
 Creates project `infra`, fleet services (excludes vault), custom domains, and volumes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
 
-### 4. Run Deploy
+### 4. Run CI deploy
 
-Actions → **Deploy** → Run workflow (or let **CI** chain deploy after check/publish/vault). Matrix excludes standalone vault.
+Actions → **CI** → Run workflow (or let **CI** chain deploy after check/publish/vault). The fleet matrix excludes standalone vault.
 
 ### 5. DNS cutover
 
@@ -122,12 +122,12 @@ Remove `FLY_TOKEN` from Vault after Fly apps are destroyed.
 
 ## Per-service deploy
 
-Sibling repos dispatch `deploy-service` with `{ id, image_tag }` after publishing to GHCR. Infra deploys a single Railway service.
+Sibling repos call `ci.yml` (`workflow_call`) to build/push their GHCR image, then dispatch `deploy-service` with `{ id, image_tag }` back to infra. Infra deploys a single Railway service.
 
 Manual single-service deploy:
 
 ```bash
-gh workflow run deploy.yml -f service_id=portfolio -f image_tag=abc123
+gh workflow run ci.yml -f service_id=portfolio -f image_tag=abc123
 ```
 
 ## Local scripts
@@ -166,10 +166,11 @@ packages/
   9router/                 # local 9router CLI (@pkgs/9router)
   vault-service/           # OpenBao (CI vault job)
   workstation/             # ws CLI + portable local-machine config (bun run ws:install)
-.github/workflows/
-  ci.yml                   # monorepo: check → vault? → publish? → deploy
-  deploy.yml               # fleet reconcile + optional Railway redeploy
-  publish-image.yml        # reusable GHCR publish (+ dispatch for siblings)
+.github/
+  workflows/ci.yml         # the only workflow: PR check, vault rebuild, publish, fleet deploy, sibling publish calls
+  actions/
+    vault-secrets/         # prd pipeline secrets via Vault OIDC
+    turborepo-vault-secrets/  # dev/prd turborepo-cache secrets via Vault OIDC
 ```
 
 Ops scripts are invoked via root wrappers, e.g. `bun run sync-dns`, `bun run provision-railway --apply` (each delegates to `bun run --filter @pkgs/infra …`).

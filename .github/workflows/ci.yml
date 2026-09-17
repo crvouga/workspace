@@ -1,7 +1,9 @@
-# Single monorepo production path:
-#   changes → check → vault? → publish? → deploy
+# Single workflow for the whole monorepo pipeline — no reusable sibling workflows.
 #
-# Sibling app repos still call publish-image.yml (notify_deploy: true) → repository_dispatch → deploy.yml.
+#   push / pull_request .... check → (main) vault? / publish? → deploy
+#   workflow_dispatch ...... manual check / publish / vault rebuild / fleet redeploy
+#   workflow_call .......... sibling app repos publish their image (was publish-image.yml)
+#   repository_dispatch .... sibling publish notify → fleet deploy (deploy-service)
 #
 # Secrets: Vault OIDC for check/smoke/deploy; GitHub repo secrets for vault bootstrap only.
 
@@ -44,10 +46,79 @@ on:
         required: false
         type: string
         default: latest
+      apply_dns:
+        description: Apply Cloudflare DNS / redirect / alias changes
+        type: boolean
+        default: true
+  repository_dispatch:
+    types:
+      - deploy-service
+  workflow_call:
+    inputs:
+      service_id:
+        description: "Service id matching services.yaml (e.g. portfolio, todo-app)."
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to Dockerfile relative to context."
+        required: false
+        type: string
+        default: ./Dockerfile
+      context:
+        description: "Docker build context."
+        required: false
+        type: string
+        default: .
+      image_owner:
+        description: "ghcr.io owner."
+        required: false
+        type: string
+        default: crvouga
+      image_prefix:
+        description: "GHCR package prefix (from services.yaml image_prefix)."
+        required: false
+        type: string
+        default: chrisvouga
+      infra_github_repo:
+        description: "Infra repo owner/name for deploy dispatch."
+        required: false
+        type: string
+        default: crvouga/workspace
+      notify_deploy:
+        description: "POST repository_dispatch to infra after push. Set false when chaining deploy."
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      DEPLOY_DISPATCH_TOKEN:
+        description: "PAT or GITHUB_TOKEN with repo dispatch to the infra repo."
+        required: false
+      CALLER_GITHUB_TOKEN:
+        description: "Caller workflow github.token — required for GHCR push from cross-repo calls."
+        required: false
+      RAILWAY_TOKEN:
+        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        required: false
+      CF_API_TOKEN:
+        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        required: false
+      DB_CONNECTION_URI:
+        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        required: false
+    outputs:
+      image_tag:
+        description: "Image tag pushed (commit SHA)."
+        value: ${{ jobs.publish.outputs.image_tag }}
+      service_id:
+        description: "Service id that was published."
+        value: ${{ jobs.publish.outputs.service_id }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  VAULT_ADDR: https://vault.chrisvouga.dev
 
 jobs:
   changes:
@@ -94,8 +165,7 @@ jobs:
               - 'tsconfig.json'
             deploy:
               - 'packages/infra/**'
-              - '.github/workflows/deploy.yml'
-              - '.github/workflows/publish-image.yml'
+              - '.github/workflows/ci.yml'
               - '.github/actions/vault-secrets/**'
       - id: flags
         env:
@@ -114,7 +184,10 @@ jobs:
           PUBLISH=false
           DEPLOY=false
 
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+            # Sibling repo publishes its image through this workflow; nothing else runs.
+            PUBLISH=true
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             if [ "${INPUT_PUBLISH}" = "true" ]; then
               CHECK=true
               PUBLISH=true
@@ -128,6 +201,8 @@ jobs:
               DEPLOY=true
             fi
             # Manual dispatch with no flags: still allow smoke; no gate jobs
+          elif [ "${EVENT_NAME}" = "repository_dispatch" ]; then
+            DEPLOY=true
           elif [ "${EVENT_NAME}" = "pull_request" ]; then
             CHECK="${FILTER_CHECK:-false}"
           else
@@ -141,10 +216,12 @@ jobs:
             fi
           fi
 
-          echo "check=${CHECK}" >> "$GITHUB_OUTPUT"
-          echo "vault=${VAULT}" >> "$GITHUB_OUTPUT"
-          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
-          echo "deploy=${DEPLOY}" >> "$GITHUB_OUTPUT"
+          {
+            echo "check=${CHECK}"
+            echo "vault=${VAULT}"
+            echo "publish=${PUBLISH}"
+            echo "deploy=${DEPLOY}"
+          } >> "$GITHUB_OUTPUT"
           echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY}"
 
   check:
@@ -180,37 +257,163 @@ jobs:
       - name: Turbo CI (format, tc, lint, test, build)
         run: bun run check
 
-  smoke:
+  publish:
+    needs: [changes]
+    if: needs.changes.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    needs: [changes, deploy]
-    # Manual prod smoke only. When publish/deploy also run, wait until deploy
-    # finishes so we don't probe mid-redeploy (503 race).
-    if: |
-      always() &&
-      github.event_name == 'workflow_dispatch' &&
-      (
-        (needs.changes.outputs.deploy != 'true' && needs.deploy.result == 'skipped') ||
-        needs.deploy.result == 'success'
-      )
-    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+      service_id: ${{ steps.resolve.outputs.service_id }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - name: Import Vault secrets (prd)
-        uses: ./.github/actions/turborepo-vault-secrets
-        with:
-          vault_config: prd
-      - name: Smoke test remote cache
+      - id: tag
+        run: echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+
+      - name: Resolve build inputs
+        id: resolve
         env:
-          CI: true
-          GITHUB_ACTIONS: true
-          VAULT_CONFIG: prd
-          VAULT_PROJECT: personal
-        run: bun run --filter @pkgs/turborepo-remote-cache smoke
+          EVENT_NAME: ${{ github.event_name }}
+          IN_SERVICE_ID: ${{ inputs.service_id }}
+          IN_DOCKERFILE: ${{ inputs.dockerfile }}
+          IN_CONTEXT: ${{ inputs.context }}
+          IN_OWNER: ${{ inputs.image_owner }}
+          IN_PREFIX: ${{ inputs.image_prefix }}
+          IN_NOTIFY: ${{ inputs.notify_deploy }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+            SID="${IN_SERVICE_ID}"
+            DOCKERFILE="${IN_DOCKERFILE}"
+            CONTEXT="${IN_CONTEXT}"
+            OWNER="${IN_OWNER}"
+            PREFIX="${IN_PREFIX}"
+            NOTIFY="${IN_NOTIFY}"
+          else
+            # Monorepo path: the turborepo remote cache image.
+            SID=turborepo
+            DOCKERFILE=packages/turborepo-remote-cache/Dockerfile
+            CONTEXT=.
+            OWNER=crvouga
+            PREFIX=chrisvouga
+            NOTIFY=false
+          fi
+          for v in "${SID}" "${DOCKERFILE}" "${CONTEXT}" "${OWNER}" "${PREFIX}"; do
+            if [ -z "${v}" ]; then
+              echo "::error::publish inputs must be non-empty" >&2
+              exit 1
+            fi
+          done
+          {
+            echo "service_id=${SID}"
+            echo "dockerfile=${DOCKERFILE}"
+            echo "context=${CONTEXT}"
+            echo "image_owner=${OWNER}"
+            echo "image_prefix=${PREFIX}"
+            echo "notify_deploy=${NOTIFY}"
+          } >> "$GITHUB_OUTPUT"
+          echo "publish ${OWNER}/${PREFIX}-${SID} dockerfile=${DOCKERFILE} context=${CONTEXT} notify=${NOTIFY}"
+
+      - name: Resolve GHCR credentials
+        id: ghcr_auth
+        env:
+          DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          CALLER_TOKEN: ${{ secrets.CALLER_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if { [ "${GITHUB_REPOSITORY}" = "crvouga/infra" ] || [ "${GITHUB_REPOSITORY}" = "crvouga/workspace" ]; } && [ -n "${DISPATCH_TOKEN}" ]; then
+            echo "username=${{ steps.resolve.outputs.image_owner }}" >> "$GITHUB_OUTPUT"
+            echo "password=${DISPATCH_TOKEN}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${CALLER_TOKEN}" ]; then
+            echo "username=${{ github.actor }}" >> "$GITHUB_OUTPUT"
+            echo "password=${CALLER_TOKEN}" >> "$GITHUB_OUTPUT"
+          else
+            echo "username=${{ github.actor }}" >> "$GITHUB_OUTPUT"
+            echo "password=${{ github.token }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ steps.ghcr_auth.outputs.username }}
+          password: ${{ steps.ghcr_auth.outputs.password }}
+
+      - uses: docker/setup-buildx-action@v4.0.0
+
+      - name: Build and push
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: ${{ steps.resolve.outputs.context }}
+          file: ${{ steps.resolve.outputs.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:latest
+            ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:${{ github.sha }}
+
+      - name: Make package public
+        env:
+          GH_TOKEN: ${{ steps.ghcr_auth.outputs.password }}
+          PKG: ${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}
+          OWNER: ${{ steps.resolve.outputs.image_owner }}
+        run: |
+          set -euo pipefail
+          for URL in \
+            "https://api.github.com/user/packages/container/${PKG}/visibility" \
+            "https://api.github.com/orgs/${OWNER}/packages/container/${PKG}/visibility"
+          do
+            STATUS=$(curl -s -o /tmp/ghcr-vis-body.txt -w "%{http_code}" \
+              -X PATCH \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -H "Content-Type: application/json" \
+              -d '{"visibility":"public"}' \
+              "${URL}")
+            if [ "${STATUS}" -ge 200 ] && [ "${STATUS}" -lt 300 ]; then
+              echo "Package ${PKG} is public (${URL})"
+              exit 0
+            fi
+            if [ "${STATUS}" != "404" ]; then
+              echo "Warning: could not set ${PKG} public via ${URL} (HTTP ${STATUS})"
+              cat /tmp/ghcr-vis-body.txt || true
+            fi
+          done
+          echo "Package ${PKG} visibility not updated (may not exist yet on first push)"
+
+      - name: Notify infra deploy
+        if: steps.resolve.outputs.notify_deploy == 'true'
+        env:
+          DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          INFRA_REPO: ${{ inputs.infra_github_repo }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISPATCH_TOKEN}" ]; then
+            echo "ERROR: DEPLOY_DISPATCH_TOKEN is not set on this repo" >&2
+            echo "Run: GITHUB_TOKEN_SUPER=... bun run rollout-publish -- --repo ${{ github.repository }} --set-org-dispatch-secret" >&2
+            exit 1
+          fi
+          HTTP=$(curl -sS -o /tmp/dispatch-body.txt -w "%{http_code}" -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${INFRA_REPO}/dispatches" \
+            -d "{\"event_type\":\"deploy-service\",\"client_payload\":{\"id\":\"${{ steps.resolve.outputs.service_id }}\",\"image_tag\":\"${{ github.sha }}\"}}")
+          if [ "${HTTP}" -ge 200 ] && [ "${HTTP}" -lt 300 ]; then
+            echo "Dispatched deploy-service for ${{ steps.resolve.outputs.service_id }}@${{ github.sha }}"
+            exit 0
+          fi
+          echo "Deploy dispatch failed (HTTP ${HTTP}):" >&2
+          cat /tmp/dispatch-body.txt >&2
+          if [ "${HTTP}" = "403" ]; then
+            echo "Set DEPLOY_DISPATCH_TOKEN on this repo (GITHUB_TOKEN_SUPER PAT with repo scope)." >&2
+          fi
+          exit 1
 
   vault:
     needs: [changes, check]
@@ -335,7 +538,8 @@ jobs:
       - name: Smoke test
         run: |
           set -euo pipefail
-          export VAULT_TOKEN="$(./scripts/fetch-vault-token.sh)"
+          VAULT_TOKEN="$(./scripts/fetch-vault-token.sh)"
+          export VAULT_TOKEN
           ./scripts/smoke-test.sh
 
       - name: Health check custom domain
@@ -347,35 +551,186 @@ jobs:
         working-directory: .
         run: bun run health-check --id vault
 
-  publish:
-    needs: [changes, check]
-    if: |
-      always() &&
-      github.ref == 'refs/heads/main' &&
-      needs.changes.outputs.publish == 'true' &&
-      needs.check.result == 'success'
-    uses: ./.github/workflows/publish-image.yml
-    secrets:
-      DEPLOY_DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-    with:
-      service_id: turborepo
-      dockerfile: packages/turborepo-remote-cache/Dockerfile
-      context: .
-      image_prefix: chrisvouga
-      notify_deploy: false
-
-  deploy:
+  # Fleet deploy: resolve → reconcile (--apply --fleet-only) → railway-deploy? → health-check-all
+  deploy-prepare:
     needs: [changes, check, vault, publish]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
       needs.changes.outputs.deploy == 'true' &&
       (needs.check.result == 'success' || needs.check.result == 'skipped') &&
       (needs.vault.result == 'success' || needs.vault.result == 'skipped') &&
       (needs.publish.result == 'success' || needs.publish.result == 'skipped')
-    uses: ./.github/workflows/deploy.yml
-    with:
-      service_id: ${{ needs.publish.result == 'success' && 'turborepo' || inputs.service_id || '' }}
-      image_tag: ${{ needs.publish.outputs.image_tag || inputs.image_tag || 'latest' }}
-      redeploy: ${{ needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.service_id != '') }}
-      apply_dns: true
+    runs-on: ubuntu-latest
+    outputs:
+      service_id: ${{ steps.resolve.outputs.service_id }}
+      service_ids: ${{ steps.resolve.outputs.service_ids }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+      redeploy: ${{ steps.resolve.outputs.redeploy }}
+      apply_dns: ${{ steps.resolve.outputs.apply_dns }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CLIENT_ID: ${{ github.event.client_payload.id }}
+          CLIENT_IMAGE_TAG: ${{ github.event.client_payload.image_tag }}
+          INPUT_SERVICE_ID: ${{ inputs.service_id }}
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+          INPUT_APPLY_DNS: ${{ inputs.apply_dns }}
+          PUBLISH_SERVICE_ID: ${{ needs.publish.outputs.service_id }}
+          PUBLISH_IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          # A publish in this run (monorepo turborepo image) wins; else dispatch payload.
+          if [ -n "${PUBLISH_SERVICE_ID}" ]; then
+            SID="${PUBLISH_SERVICE_ID}"
+          else
+            SID="${CLIENT_ID:-${INPUT_SERVICE_ID:-}}"
+          fi
+          if [ -n "${PUBLISH_IMAGE_TAG}" ]; then
+            TAG="${PUBLISH_IMAGE_TAG}"
+          else
+            TAG="${CLIENT_IMAGE_TAG:-${INPUT_IMAGE_TAG:-latest}}"
+          fi
+
+          if [ -n "${SID}" ]; then
+            SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts --id "${SID}")"
+          else
+            SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts)"
+          fi
+
+          REDEPLOY=false
+          if [ "${EVENT_NAME}" = "repository_dispatch" ] || \
+             [ "${EVENT_NAME}" = "workflow_dispatch" ] || \
+             [ -n "${PUBLISH_IMAGE_TAG}" ]; then
+            REDEPLOY=true
+          fi
+
+          APPLY_DNS=true
+          if [ "${INPUT_APPLY_DNS}" = "false" ]; then
+            APPLY_DNS=false
+          fi
+
+          {
+            echo "service_id=${SID}"
+            echo "service_ids=${SERVICE_IDS}"
+            echo "image_tag=${TAG}"
+            echo "redeploy=${REDEPLOY}"
+            echo "apply_dns=${APPLY_DNS}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploy: service_id='${SID:-all}' services=${SERVICE_IDS} image_tag='${TAG}' redeploy=${REDEPLOY}"
+
+  deploy-reconcile:
+    runs-on: ubuntu-latest
+    needs: [deploy-prepare]
+    if: needs.deploy-prepare.result == 'success'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
+      - uses: ./.github/actions/vault-secrets
+        with:
+          vault_addr: ${{ env.VAULT_ADDR }}
+      - name: Reconcile fleet desired state
+        env:
+          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
+          APPLY_DNS: ${{ needs.deploy-prepare.outputs.apply_dns }}
+        run: |
+          set -euo pipefail
+          if [ "${APPLY_DNS}" = "true" ]; then
+            bun run reconcile --apply --fleet-only
+          else
+            bun run reconcile --apply --fleet-only --phase railway --phase ghcr
+          fi
+      - name: Wait for TLS certs
+        if: needs.deploy-prepare.outputs.redeploy == 'true' && needs.deploy-prepare.outputs.apply_dns == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
+        run: bun run sync-dns --apply --wait-for-certs
+
+  deploy-railway:
+    if: needs.deploy-prepare.outputs.redeploy == 'true'
+    runs-on: ubuntu-latest
+    needs: [deploy-prepare, deploy-reconcile]
+    strategy:
+      fail-fast: false
+      matrix:
+        service_id: ${{ fromJson(needs.deploy-prepare.outputs.service_ids) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
+      - uses: ./.github/actions/vault-secrets
+        with:
+          vault_addr: ${{ env.VAULT_ADDR }}
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
+          GH_TOKEN: ${{ env.GITHUB_TOKEN_SUPER || github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "ERROR: RAILWAY_TOKEN is required" >&2
+            exit 1
+          fi
+          bun run deploy-railway \
+            --id "${{ matrix.service_id }}" \
+            --image-tag "${{ needs.deploy-prepare.outputs.image_tag }}"
+      - name: Health-check service
+        if: success()
+        run: bun run health-check --id "${{ matrix.service_id }}"
+
+  health-check-all:
+    runs-on: ubuntu-latest
+    needs: [deploy-prepare, deploy-reconcile, deploy-railway]
+    if: |
+      always() &&
+      needs.deploy-prepare.result == 'success' &&
+      needs.deploy-reconcile.result == 'success' &&
+      (needs.deploy-railway.result == 'success' || needs.deploy-railway.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
+      - uses: ./.github/actions/vault-secrets
+        with:
+          vault_addr: ${{ env.VAULT_ADDR }}
+      - name: Health-check all public services
+        run: bun run health-check --all-public
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: [changes, health-check-all]
+    # Manual prod smoke only. When a deploy also runs, wait until it finishes so
+    # we don't probe mid-redeploy (503 race).
+    if: |
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      (
+        (needs.changes.outputs.deploy != 'true' && needs.health-check-all.result == 'skipped') ||
+        needs.health-check-all.result == 'success'
+      )
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Import Vault secrets (prd)
+        uses: ./.github/actions/turborepo-vault-secrets
+        with:
+          vault_config: prd
+      - name: Smoke test remote cache
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          VAULT_CONFIG: prd
+          VAULT_PROJECT: personal
+        run: bun run --filter @pkgs/turborepo-remote-cache smoke

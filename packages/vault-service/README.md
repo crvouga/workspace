@@ -17,7 +17,7 @@ infra repo (packages/vault-service/** push → ci.yml vault job)
         ├── packages/vault-service/scripts/railway-sync-dns.sh (vault.chrisvouga.dev)
         └── unseal + smoke-test from crvouga.kv
               │
-              └── needs: → deploy.yml (fleet reconcile once vault is ready)
+              └── needs: → fleet deploy jobs (reconcile once vault is ready)
 
 OpenBao (Railway) ──storage──► Neon Postgres (secret_store schema)
 Cloudflare DNS ──► vault.chrisvouga.dev ──► Railway TLS
@@ -76,11 +76,11 @@ Flags:
 
 Optional overrides via [`.env`](.env) or [`.env.secrets`](.env.secrets.example). Set `NEON_PROJECT_ID` if you have multiple Neon projects.
 
-Runtime secrets (`DB_CONNECTION_URI`) are synced to Railway via the deploy workflow.
+Runtime secrets (`DB_CONNECTION_URI`) are synced to Railway by the `vault` job in `.github/workflows/ci.yml`.
 
 ### 2. Deploy via GitHub Actions
 
-Push `packages/vault-service/**` on the infra repo (or run **CI** with `unseal_only`). The vault job migrates the DB, builds the image, runs `packages/vault-service/scripts/railway-*.sh` (GitHub secrets only — no Vault KV), reconciles DNS, unseals OpenBao, and runs smoke tests. Fleet **Deploy** then runs in the same workflow via `needs:`.
+Push `packages/vault-service/**` on the infra repo (or run **CI** with `unseal_only`). The `vault` job migrates the DB, builds the image, runs `packages/vault-service/scripts/railway-*.sh` (GitHub secrets only — no Vault KV), reconciles DNS, unseals OpenBao, and runs smoke tests. Fleet deploy jobs then run in the same workflow via `needs:`.
 
 Every container restart leaves OpenBao **sealed**; CI unseals automatically on each deploy.
 
@@ -169,7 +169,7 @@ chmod +x scripts/smoke-test.sh
 
 ### In CI
 
-Smoke tests run at the end of the **Deploy** workflow after auto-unseal. The job reads `root_token` from `crvouga.kv` via [`scripts/fetch-vault-token.sh`](scripts/fetch-vault-token.sh).
+Smoke tests run in the `vault` job in `.github/workflows/ci.yml` after auto-unseal. The job reads `root_token` from `crvouga.kv` via [`scripts/fetch-vault-token.sh`](scripts/fetch-vault-token.sh).
 
 ## Syncing dev keys to prd
 
@@ -269,7 +269,7 @@ packages/vault-service/
 └── Dockerfile
 ```
 
-CI workflow: infra repo `.github/workflows/ci.yml` (vault job; not a nested `packages/vault-service/.github/workflows/deploy.yml`).
+CI workflow: infra repo `.github/workflows/ci.yml` — the only workflow; the vault job runs there (there is no nested `packages/vault-service/.github/workflows/`).
 
 ## Troubleshooting
 

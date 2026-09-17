@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Push publish-image.yml to every sibling repo listed in services.yaml.
+ * Push the sibling-repo publish workflow to every repo listed in services.yaml.
+ * Each job calls the monorepo's single `.github/workflows/ci.yml` (workflow_call);
+ * ci.yml builds/pushes the image and dispatches `deploy-service` back to infra.
  *
  * Usage:
  *   bun run rollout-publish
@@ -91,7 +93,7 @@ function renderPublishWorkflow(
       ha.nonEmptyString(s.build_context, "rollout service build context must be non-empty");
       const name = jobName(s);
       return `  ${name}:
-    uses: ${infraRepo}/.github/workflows/publish-image.yml@main
+    uses: ${infraRepo}/.github/workflows/ci.yml@main
     secrets:
       DEPLOY_DISPATCH_TOKEN: \${{ secrets.DEPLOY_DISPATCH_TOKEN }}
       CALLER_GITHUB_TOKEN: \${{ github.token }}
@@ -175,11 +177,12 @@ async function main(): Promise<void> {
         prefix,
         config.image_owner,
       );
-      const relPath = ".github/workflows/publish-image.yml";
+      const relPath = ".github/workflows/publish.yml";
+      const legacyPath = ".github/workflows/publish-image.yml";
 
       console.log(`\n${repo} (${services.length} service(s))`);
       if (args.dryRun) {
-        console.log("--- publish-image.yml ---");
+        console.log("--- publish.yml ---");
         console.log(workflow);
         if (args.setOrgDispatchSecret) {
           console.log(`[dry-run] Would set DEPLOY_DISPATCH_TOKEN on ${repo}`);
@@ -212,14 +215,19 @@ async function main(): Promise<void> {
         existing === null || typeof existing === "string",
         "rollout existing workflow must be a string when present",
       );
-      if (existing === workflow) {
+
+      const staleLegacy = existsSync(join(cloneDir, legacyPath));
+      if (existing === workflow && !staleLegacy) {
         console.log("  unchanged — skip");
         continue;
       }
 
       writeFileSync(workflowPath, workflow);
       await $`git -C ${cloneDir} add ${relPath}`.quiet();
-      await $`git -C ${cloneDir} commit -m ${"ci: update publish-image workflow for infra deploy"}`.quiet()
+      if (staleLegacy) {
+        await $`git -C ${cloneDir} rm -q ${legacyPath}`.quiet();
+      }
+      await $`git -C ${cloneDir} commit -m ${"ci: call infra ci.yml from publish workflow"}`.quiet()
         .nothrow();
       const push = await $`git -C ${cloneDir} push origin main`.quiet().nothrow();
       if (push.exitCode !== 0) {
