@@ -2,7 +2,13 @@ import { Assert, ThrowingCrashHandler, assert } from '@pkgs/assert';
 import { createLogger } from '@pkgs/logger';
 
 import { CacheBootManager } from './cache/boot-manager';
-import { readCacheServerEnv, type CacheServerEnv } from './config/env';
+import {
+  readCacheServerEnv,
+  readVaultScopeBindings,
+  type CacheServerEnv,
+} from './config/env';
+import { VaultTokenRenewer } from './config/token-renewer';
+import type { VaultFetch } from './config/vault-fetch';
 
 Assert.registerCrashHandler(new ThrowingCrashHandler());
 
@@ -79,12 +85,44 @@ function healthResponse(method: string): Response | null {
   return null;
 }
 
-export function createCacheRequestHandler(env: CacheServerEnv): {
+/**
+ * Injection seam for the whole server: a fake Vault transport plus a virtual
+ * clock let tests exercise months of uptime offline and deterministically.
+ */
+export type CacheServerDeps = {
+  readonly fetchFn?: VaultFetch;
+  readonly now?: () => number;
+  readonly setTimeoutFn?: typeof setTimeout;
+};
+
+export type CacheServer = {
   fetch: (request: Request) => Promise<Response>;
-} {
+  /** Begins Vault token renewal. Explicit so building a server starts nothing. */
+  start: () => Promise<void>;
+  stop: () => void;
+};
+
+export function createCacheRequestHandler(
+  env: CacheServerEnv,
+  deps: CacheServerDeps = {}
+): CacheServer {
   assert.record(env, 'createCacheRequestHandler requires env');
-  const boot = new CacheBootManager(env);
+  assert.record(deps, 'createCacheRequestHandler requires deps');
+  const boot = new CacheBootManager(env, {
+    ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}),
+    ...(deps.now !== undefined ? { now: deps.now } : {}),
+  });
   assert.defined(boot, 'createCacheRequestHandler requires boot manager');
+
+  // Keeps the periodic VAULT_TOKEN from expiring while the server runs.
+  const renewer = new VaultTokenRenewer({
+    token: env.VAULT_TOKEN,
+    addr: readVaultScopeBindings(env).addr,
+    ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}),
+    ...(deps.setTimeoutFn !== undefined
+      ? { setTimeoutFn: deps.setTimeoutFn }
+      : {}),
+  });
 
   async function fetch(request: Request): Promise<Response> {
     assert.ok(request instanceof Request, 'fetch handler requires Request');
@@ -118,7 +156,13 @@ export function createCacheRequestHandler(env: CacheServerEnv): {
     }
   }
 
-  return { fetch };
+  return {
+    fetch,
+    start: () => renewer.start(),
+    stop: () => {
+      renewer.stop();
+    },
+  };
 }
 
 export async function startServer(
@@ -128,6 +172,10 @@ export async function startServer(
   assert.nonNegativeInteger(env.PORT, 'startServer requires valid PORT');
   const handler = createCacheRequestHandler(env);
   assert.defined(handler, 'startServer requires handler');
+
+  // Fire-and-forget: renewal failures are logged and retried, and must never
+  // stop the server from serving traffic.
+  void handler.start();
 
   log.info('cache server listening', {
     port: env.PORT,

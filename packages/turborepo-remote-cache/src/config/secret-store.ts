@@ -1,6 +1,7 @@
 import { assert } from '@pkgs/assert';
 import type { SecretStore } from '@pkgs/secret-store';
 import { createCachingSecretStore, VaultSecretStore } from '@pkgs/secret-store';
+import type { VaultFetch } from './vault-fetch';
 
 const DEFAULT_VAULT_ADDR = 'https://vault.chrisvouga.dev';
 const DEFAULT_VAULT_MOUNT = 'secret';
@@ -12,6 +13,8 @@ export type CreateCacheSecretStoreOptions = {
   readonly mount?: string | null;
   readonly project?: string | null;
   readonly config?: string | null;
+  /** Swappable Vault transport; tests inject a fake instead of hitting the network. */
+  readonly fetchFn?: VaultFetch | null;
 };
 
 export function createCacheSecretStore(
@@ -24,12 +27,14 @@ export function createCacheSecretStore(
   const mount = options.mount ?? DEFAULT_VAULT_MOUNT;
   const project = options.project ?? DEFAULT_VAULT_PROJECT;
   const config = options.config ?? DEFAULT_VAULT_CONFIG;
+  const fetchFn = options.fetchFn ?? null;
   const store = new VaultSecretStore({
     token,
     addr,
     mount,
     project,
     config,
+    ...(fetchFn !== null ? { fetchFn } : {}),
   });
   assert.defined(store, 'createCacheSecretStore must return store');
   return createCachingSecretStore(store, { ttlMs: 300_000 });
