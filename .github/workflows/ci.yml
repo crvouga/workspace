@@ -689,7 +689,11 @@ jobs:
         run: bun run sync-dns --apply --wait-for-certs
 
   deploy-railway:
-    if: needs.deploy-prepare.outputs.redeploy == 'true'
+    if: |
+      always() &&
+      needs.deploy-prepare.result == 'success' &&
+      needs.deploy-reconcile.result == 'success' &&
+      needs.deploy-prepare.outputs.redeploy == 'true'
     runs-on: ubuntu-latest
     needs: [deploy-prepare, deploy-reconcile]
     strategy:
