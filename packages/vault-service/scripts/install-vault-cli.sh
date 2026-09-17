@@ -24,8 +24,18 @@ else
   RELEASE_URL="https://api.github.com/repos/${REPO}/releases/tags/v${OPENBAO_VERSION}"
 fi
 
+API_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+CURL_AUTH_ARGS=()
+if [ -n "${API_TOKEN}" ]; then
+  CURL_AUTH_ARGS+=("-H" "Authorization: Bearer ${API_TOKEN}")
+fi
+
 echo "==> Fetching OpenBao release metadata from ${RELEASE_URL}..."
-RELEASE_JSON="$(curl -sf "$RELEASE_URL")"
+RELEASE_JSON="$(curl -fsSL \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  "${CURL_AUTH_ARGS[@]}" \
+  "$RELEASE_URL")"
 TAG="$(echo "$RELEASE_JSON" | jq -r .tag_name)"
 VERSION="${TAG#v}"
 
