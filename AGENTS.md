@@ -88,7 +88,7 @@ If `vault run` fails with `No value found at secret/personal/prd`, KV is empty �
 
 The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-s3.ts`, `vault-yaml-defaults.ts`).
 
-- CI: **CI** (`.github/workflows/ci.yml`) — the only workflow: `check` → optional `vault` / `publish` → fleet deploy jobs on one run.
+- CI: **CI** (`.github/workflows/ci.yml`) — the only workflow: `vault-state` → optional `vault` bootstrap → `check` → optional `publish` → fleet deploy jobs on one run.
 - Deploy: monorepo publish feeds the deploy jobs in the same run; sibling repos call `ci.yml` (`workflow_call`) to publish and then `repository_dispatch` `deploy-service`.
 
 ### Hard rules
@@ -127,7 +127,7 @@ Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (shared bucke
 
 ### CI/CD
 
-- **ci.yml** — the only workflow. Vault OIDC (dev) + `bun run check`; on `main`, optional vault job, turborepo publish (`notify_deploy: false`), then fleet deploy jobs (`deploy-prepare` → `deploy-reconcile` → `deploy-railway` → `health-check-all`) in the same run; `workflow_dispatch` forces publish / vault rebuild / fleet redeploy; `repository_dispatch deploy-service` deploys one sibling service; `workflow_call` serves sibling repos' publish (GHCR build + dispatch).
+- **ci.yml** — the only workflow. `vault-state` checks production readiness first; if Vault is sealed/unavailable, `vault` deploys and unseals it before `check`. Then optional turborepo publish (`notify_deploy: false`) and fleet deploy jobs (`deploy-prepare` → `deploy-reconcile` → `deploy-railway` → `health-check-all`) run in the same `main` workflow; `workflow_dispatch` supports vault rebuild/fleet redeploy; `repository_dispatch deploy-service` deploys one sibling service; `workflow_call` serves sibling repos' publish (GHCR build + dispatch).
 
 ### Client usage
 

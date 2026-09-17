@@ -80,7 +80,7 @@ bun run gh:ci           # open Actions in browser
 ```
 
 Watch the **full** workflow for the push you just made
-(`changes → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all`), not only the `check` job.
+(`changes → vault-state → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all`), not only the `check` job.
 
 **On failure** (`gh:ci:watch` non-zero):
 
@@ -134,12 +134,12 @@ Needs a Vault session. Registry: `packages/turborepo-remote-cache/scripts/vault-
 ## CI workflow shape
 
 ```
-changes → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all
+changes → vault-state → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all
 ```
 
 `.github/workflows/ci.yml` is the **only** workflow. It serves every path:
 
-- `push`/`pull_request` — vault changes bootstrap first on `main`; checks wait for Vault to be deployed and unsealed
+- `push` on `main` and production dispatches — `vault-state` checks readiness first; if Vault is sealed or unavailable, `vault` deploys and unseals it before checks. PRs never mutate production and use the existing Vault.
 - `workflow_dispatch` — manual `check` / `publish` / vault rebuild / fleet redeploy (`service_id`, `image_tag`, `apply_dns`)
 - `workflow_call` — sibling repos publish their GHCR image (`service_id`, `dockerfile`, `context`, `image_prefix`); `notify_deploy: true` dispatches the deploy back to infra
 - `repository_dispatch deploy-service` — sibling publish notify → single-service fleet deploy

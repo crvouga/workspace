@@ -17,7 +17,7 @@ Platform paths, service names, and GHCR prefixes are derived from `services.yaml
 ```
 Sibling repos ──▶ ci.yml (workflow_call) ──▶ GHCR image ──▶ repository_dispatch ─┐
                                                                                 │
-Monorepo push/PR ──▶ ci.yml: check → vault? → publish? ─────────────────────────┤
+Monorepo push/PR ──▶ ci.yml: vault-state → vault? → check → publish? ───────────────┤
                                                                                 ▼
                                                             ci.yml deploy jobs
                                                  prepare → reconcile --apply --fleet-only

@@ -1,6 +1,6 @@
 # Single workflow for the whole monorepo pipeline — no reusable sibling workflows.
 #
-#   push / pull_request .... vault? → check → (main) publish? → deploy
+#   push (main) / production dispatch .... vault-state → vault? → check → publish? → deploy
 #   workflow_dispatch ...... manual check / publish / vault rebuild / fleet redeploy
 #   workflow_call .......... sibling app repos publish their image (was publish-image.yml)
 #   repository_dispatch .... sibling publish notify → fleet deploy (deploy-service)
@@ -224,6 +224,35 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY}"
 
+  vault-state:
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'repository_dispatch'
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      bootstrap: ${{ steps.health.outputs.bootstrap }}
+    steps:
+      - id: health
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /dev/null -w '%{http_code}' \
+            "${VAULT_ADDR}/v1/sys/health?standbyok=true&perfstandbyok=true" || true)"
+          case "${code}" in
+            200|429|472|473)
+              echo "Vault is unsealed (HTTP ${code}); bootstrap not required"
+              echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Vault requires bootstrap (HTTP ${code:-000}); vault job will deploy and unseal it"
+              echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+
   check:
     needs: [changes, vault]
     if: |
@@ -419,10 +448,15 @@ jobs:
           exit 1
 
   vault:
-    needs: [changes]
+    needs: [changes, vault-state]
     if: |
-      needs.changes.outputs.vault == 'true' &&
-      github.ref == 'refs/heads/main'
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      (
+        needs.changes.outputs.vault == 'true' ||
+        inputs.unseal_only == true ||
+        needs.vault-state.outputs.bootstrap == 'true'
+      )
     runs-on: ubuntu-latest
     concurrency:
       group: vault-${{ github.ref }}
