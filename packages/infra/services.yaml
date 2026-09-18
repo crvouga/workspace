@@ -30,7 +30,6 @@ github:
   org: crvouga
   infra_repo: crvouga/workspace
   skip_rollout_repos:
-    - crvouga/portfolio
     - crvouga/workspace
   org_secrets:
     - name: DEPLOY_DISPATCH_TOKEN
@@ -242,9 +241,9 @@ services:
   - id: portfolio
     kind: railway
     hostname: www.chrisvouga.dev
-    github_repo: crvouga/portfolio
-    source_code_url: https://github.com/crvouga/portfolio
-    dockerfile: ./Dockerfile
+    github_repo: crvouga/workspace
+    source_code_url: https://github.com/crvouga/workspace/tree/main/packages/portfolio
+    dockerfile: packages/portfolio/Dockerfile
     build_context: .
     port: 80
     health_check: true

@@ -23,7 +23,7 @@
     },
     "lint": {
       "dependsOn": ["^tc"],
-      "inputs": ["**/*.ts", "eslint.config.js"],
+      "inputs": ["**/*.ts", "eslint.config.js", "eslint.config.cjs"],
       "outputLogs": "new-only",
       "outputs": []
     },
