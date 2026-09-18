@@ -156,10 +156,10 @@ Its image `ghcr.io/crvouga/chrisvouga-portfolio` is built by this repo's CI: `pu
 
 | Command                                              | Purpose                                                                                    |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `bun run --filter @pkgs/portfolio build`             | `astro build` → `dist/` (package cwd; used by the Docker build and `turbo run build`).      |
-| `bun run --filter @pkgs/portfolio gen`               | Screenshots + resume PDF (Playwright; local only).                                          |
+| `bun run --filter @pkgs/portfolio build`             | `astro build` → `dist/` (package cwd; used by the Docker build and `turbo run build`).     |
+| `bun run --filter @pkgs/portfolio gen`               | Screenshots + resume PDF (Playwright; local only).                                         |
 | `bun run --filter @pkgs/portfolio health-check-urls` | GET every public URL in content.                                                           |
-| `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI).  |
+| `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI). |
 
 `bun run --filter @pkgs/portfolio test` discovers tests only under `src/`, which is why the Docker E2E never runs in the CI `check` job.
 

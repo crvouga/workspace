@@ -11,7 +11,8 @@ export const AGENTIC_CURSOR_BADGE = 'Recognized by Cursor';
 export const AGENTIC_CURSOR_TEXT =
   'Recognized by Cursor as one of their top tab users, with a custom tab button shipped as a gift.';
 
-export const AGENTIC_WORKFLOW_TITLE = 'Agents in the loop, engineer accountable';
+export const AGENTIC_WORKFLOW_TITLE =
+  'Agents in the loop, engineer accountable';
 export const AGENTIC_WORKFLOW_POINTS: readonly string[] = [
   'Coding agents draft, refactor, and sweep — under review gates, typed contracts, and test suites that decide what actually merges.',
   'Infrastructure, CI, and deployments are code: pipelines converge environments and deploy on push without manual steps.',

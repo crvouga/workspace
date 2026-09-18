@@ -17,9 +17,11 @@
 }
 
 :root {
-  --font-sans: 'Inter Variable', -apple-system, 'system-ui', 'Segoe UI', Roboto,
-    Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'SF Mono', 'Menlo', 'Consolas',
+  --font-sans:
+    'Inter Variable', -apple-system, 'system-ui', 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'SF Mono', 'Menlo', 'Consolas',
     'Liberation Mono', monospace;
 
   --bg: #0a0a0b;
@@ -109,7 +111,6 @@ p {
   margin: 0;
 }
 
-
 img {
   display: block;
   max-width: 100%;
@@ -152,7 +153,6 @@ section {
   font-size: 13px;
   color: var(--accent);
 }
-
 
 /* Experience entries without media should not reserve an empty media column. */
 .job.no-media {

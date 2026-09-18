@@ -14,7 +14,13 @@ import { PROJECTS, SIDE_PROJECTS, WORK_PROJECTS } from './project';
 import { SCHOOL } from './school';
 import { SECTIONS, getSection } from './sections';
 import { WORK } from './work';
-import { AGENTIC_CURSOR_BADGE, AGENTIC_CURSOR_TEXT, AGENTIC_HEADING, AGENTIC_WORKFLOW_POINTS, AGENTIC_WORKFLOW_TITLE } from './agentic';
+import {
+  AGENTIC_CURSOR_BADGE,
+  AGENTIC_CURSOR_TEXT,
+  AGENTIC_HEADING,
+  AGENTIC_WORKFLOW_POINTS,
+  AGENTIC_WORKFLOW_TITLE,
+} from './agentic';
 const PAGE_TITLE = 'Chris Vouga';
 
 const PAGE_SUBTITLE = 'Software Engineer';

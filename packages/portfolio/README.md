@@ -29,36 +29,36 @@ Requires Node ≥ 22 on PATH for `build`/`dev`/`tc` (Astro runs via Node; Bun in
 
 ## Layout
 
-| Path                           | Purpose                                                                            |
-| ------------------------------ | ---------------------------------------------------------------------------------- |
-| `astro.config.mjs`             | Astro config (static output, always-inlined stylesheets).                           |
-| `src/pages/index.astro`        | The single page.                                                                    |
-| `src/components/`              | Page sections (Nav, Hero, ProofOfWork, ContributionHeatmap, Agentic, …) + icons.    |
-| `src/lib/github.ts`            | Build-time GitHub GraphQL/REST fetch, level bucketing, streaks, cache.              |
-| `src/layouts/Base.astro`       | `<head>`: meta/OG/JSON-LD, font preloads, global stylesheet.                        |
-| `src/styles/global.css`        | Design tokens (palette ported from the retired `src/ui/theme.ts`) + base styles.    |
-| `src/content/`                 | Content registry (`projects.ts` at package root is the entry point).                |
-| `scripts/health-check-urls.ts` | Validates every public URL referenced by content (also run by CI).                  |
-| `Dockerfile`, `nginx.conf`     | Site container, built from the repo root.                                           |
-| `test/server.test.ts`          | Docker E2E smoke test (built from the repo root).                                   |
+| Path                           | Purpose                                                                          |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `astro.config.mjs`             | Astro config (static output, always-inlined stylesheets).                        |
+| `src/pages/index.astro`        | The single page.                                                                 |
+| `src/components/`              | Page sections (Nav, Hero, ProofOfWork, ContributionHeatmap, Agentic, …) + icons. |
+| `src/lib/github.ts`            | Build-time GitHub GraphQL/REST fetch, level bucketing, streaks, cache.           |
+| `src/layouts/Base.astro`       | `<head>`: meta/OG/JSON-LD, font preloads, global stylesheet.                     |
+| `src/styles/global.css`        | Design tokens (palette ported from the retired `src/ui/theme.ts`) + base styles. |
+| `src/content/`                 | Content registry (`projects.ts` at package root is the entry point).             |
+| `scripts/health-check-urls.ts` | Validates every public URL referenced by content (also run by CI).               |
+| `Dockerfile`, `nginx.conf`     | Site container, built from the repo root.                                        |
+| `test/server.test.ts`          | Docker E2E smoke test (built from the repo root).                                |
 
 ## Scripts
 
 Run from the repo root with `bun run --filter @pkgs/portfolio <script>`, or from this directory
 with `bun run <script>`.
 
-| Script                                                        | Purpose                                                                            |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `build`                                                       | `astro build` → single `dist/index.html` + `public/` assets.                        |
-| `dev`, `start`, `local`                                       | `astro dev` (watch + serve).                                                        |
-| `gen` / `generate-all`                                        | Content pipeline: screenshots (Playwright) + resume PDF.                            |
-| `generate-resume`                                             | Regenerate `public/chris-vouga-resume.pdf`.                                         |
-| `screenshot-work` / `screenshot-projects` / `screenshot-main` | Per-collection screenshot capture.                                                  |
-| `health-check-urls`                                           | GET every public URL in content; exits non-zero on failure.                         |
-| `preview`                                                     | Build the image and run the container on port 80.                                   |
-| `test:docker`                                                 | Build the image from the repo root, run it, assert it serves HTML (needs Docker).   |
-| `tc`                                                          | `astro check` (TS + `.astro`, strict).                                              |
-| `lint`                                                        | ESLint with the shared workspace rules (TS files; generated `.astro/` ignored).     |
+| Script                                                        | Purpose                                                                           |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `build`                                                       | `astro build` → single `dist/index.html` + `public/` assets.                      |
+| `dev`, `start`, `local`                                       | `astro dev` (watch + serve).                                                      |
+| `gen` / `generate-all`                                        | Content pipeline: screenshots (Playwright) + resume PDF.                          |
+| `generate-resume`                                             | Regenerate `public/chris-vouga-resume.pdf`.                                       |
+| `screenshot-work` / `screenshot-projects` / `screenshot-main` | Per-collection screenshot capture.                                                |
+| `health-check-urls`                                           | GET every public URL in content; exits non-zero on failure.                       |
+| `preview`                                                     | Build the image and run the container on port 80.                                 |
+| `test:docker`                                                 | Build the image from the repo root, run it, assert it serves HTML (needs Docker). |
+| `tc`                                                          | `astro check` (TS + `.astro`, strict).                                            |
+| `lint`                                                        | ESLint with the shared workspace rules (TS files; generated `.astro/` ignored).   |
 
 `test` intentionally runs only tests under `src/` so the Docker E2E never runs in the CI `check`
 job; run `test:docker` locally instead.
