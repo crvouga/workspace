@@ -20,6 +20,7 @@ import pretty from 'pretty-ms';
 import prettyBytes from 'pretty-bytes';
 import pc from 'picocolors';
 
+import { writeLine } from './library/cli-output';
 import {
   PUBLIC_DIR as SCREENSHOT_PUBLIC_DIR,
   captureScreenshot,
@@ -247,14 +248,14 @@ try {
 const elapsed = performance.now() - t0;
 const { screenshots, images, resume } = ctx.totals;
 
-console.log();
-console.log(pc.bold('Summary'));
-console.log(
+writeLine('');
+writeLine(pc.bold('Summary'));
+writeLine(
   `  ${pc.cyan('Screenshots')}: ${pc.green(`${screenshots.ok} ok`)}, ${pc.red(
     `${screenshots.failed} failed`
   )} (out of ${screenshotJobs.length})`
 );
-console.log(
+writeLine(
   `  ${pc.cyan('Resume PDF')}:  ${
     resume === 'ok'
       ? pc.green('ok')
@@ -263,7 +264,7 @@ console.log(
         : pc.dim('skipped')
   }`
 );
-console.log(
+writeLine(
   `  ${pc.cyan('Images')}:      ${pc.green(`${images.built} built`)}, ${pc.dim(
     `${images.cached} cached`
   )}, ${pc.red(`${images.failed} failed`)}` +
@@ -271,13 +272,13 @@ console.log(
       ? `  ${pc.dim(`(${prettyBytes(images.bytesBefore)} → ${prettyBytes(images.bytesAfter)})`)}`
       : '')
 );
-console.log(`  ${pc.cyan('Total')}:       ${pretty(elapsed)}`);
+writeLine(`  ${pc.cyan('Total')}:       ${pretty(elapsed)}`);
 
 if (ctx.failures.length > 0) {
-  console.log();
-  console.log(pc.red(pc.bold(`Failures (${ctx.failures.length}):`)));
+  writeLine('');
+  writeLine(pc.red(pc.bold(`Failures (${ctx.failures.length}):`)));
   for (const f of ctx.failures) {
-    console.log(`  ${pc.red('✗')} [${f.stage}] ${f.name} — ${f.error}`);
+    writeLine(`  ${pc.red('✗')} [${f.stage}] ${f.name} — ${f.error}`);
   }
   // Treat non-trivial failures as a non-zero exit so CI catches them.
   if (resume === 'failed' || images.failed > 0) exitCode = 1;

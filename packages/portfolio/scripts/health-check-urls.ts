@@ -9,6 +9,7 @@
 import { CONTENT } from '../src/content/content';
 import { PROJECTS } from '../src/content/project';
 import { WORK } from '../src/content/work';
+import { writeLine } from '../src/library/cli-output';
 
 type UrlCheckResult = {
   url: string;
@@ -43,7 +44,7 @@ function parseArgs(argv: readonly string[]): Args {
     else if (arg === '--retry-delay-ms')
       retryDelayMs = Number(argv[++i] ?? retryDelayMs);
     else if (arg === '--help' || arg === '-h') {
-      console.log(
+      writeLine(
         'Usage: bun run scripts/health-check-urls.ts ' +
           '[--timeout-ms <ms>] [--retries <n>] [--retry-delay-ms <ms>]'
       );
@@ -149,7 +150,7 @@ async function checkUrlWithRetries(
   };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    console.log(
+    writeLine(
       `Checking: ${url}...` +
         (attempt > 1 ? ` (retry ${attempt - 1}/${opts.retries})` : '')
     );
@@ -157,12 +158,12 @@ async function checkUrlWithRetries(
     last = { ...result, attempts: attempt };
 
     if (result.ok) {
-      console.log(`  ✓ OK (${result.status}) - ${result.duration}ms`);
+      writeLine(`  ✓ OK (${result.status}) - ${result.duration}ms`);
       return last;
     }
 
     const errMsg = result.error ?? `HTTP ${result.status}`;
-    console.log(
+    writeLine(
       `  ✗ attempt ${attempt}/${maxAttempts}: ${errMsg} - ${result.duration}ms` +
         (attempt < maxAttempts ? ` — waiting ${opts.retryDelayMs}ms` : '')
     );
@@ -177,41 +178,70 @@ async function checkUrlWithRetries(
   return last;
 }
 
-const extractUrls = (): string[] => {
-  const urls = new Set<string>();
+const collectContentUrls = (): string[] => {
+  const urls: string[] = [];
 
-  if (CONTENT.SITE_URL) urls.add(CONTENT.SITE_URL);
-  if (CONTENT.SITE_SOURCE_CODE_URL) urls.add(CONTENT.SITE_SOURCE_CODE_URL);
-  if (CONTENT.GITHUB_URL) urls.add(CONTENT.GITHUB_URL);
-  if (CONTENT.LINKEDIN_URL) urls.add(CONTENT.LINKEDIN_URL);
+  if (CONTENT.SITE_URL) urls.push(CONTENT.SITE_URL);
+  if (CONTENT.SITE_SOURCE_CODE_URL) urls.push(CONTENT.SITE_SOURCE_CODE_URL);
+  if (CONTENT.GITHUB_URL) urls.push(CONTENT.GITHUB_URL);
+  if (CONTENT.LINKEDIN_URL) urls.push(CONTENT.LINKEDIN_URL);
+
+  return urls;
+};
+
+const collectProjectUrls = (): string[] => {
+  const urls: string[] = [];
 
   for (const project of PROJECTS) {
     if (project.deployment?.t === 'public' && project.deployment.url) {
-      urls.add(project.deployment.url);
+      urls.push(project.deployment.url);
     }
     if (project.code?.t === 'public' && project.code.url) {
-      urls.add(project.code.url);
+      urls.push(project.code.url);
     }
   }
 
+  return urls;
+};
+
+const collectWorkUrls = (): string[] => {
+  const urls: string[] = [];
+
   for (const work of WORK) {
     if (work.infoUrl) {
-      urls.add(work.infoUrl);
+      urls.push(work.infoUrl);
     }
   }
+
+  return urls;
+};
+
+const extractUrls = (): string[] => {
+  const urls = new Set([
+    ...collectContentUrls(),
+    ...collectProjectUrls(),
+    ...collectWorkUrls(),
+  ]);
 
   return Array.from(urls).sort();
 };
 
-const main = async () => {
-  const args = parseArgs(process.argv.slice(2));
-  const urls = extractUrls();
+type FailedUrl = { url: string; error: string; attempts: number };
 
-  console.log(`\n🔍 Health Check: ${urls.length} URL(s)\n`);
-  console.log(
+type CheckRun = {
+  readonly results: UrlCheckResult[];
+  readonly totalDuration: number;
+};
+
+async function runChecks(
+  urls: readonly string[],
+  args: Args
+): Promise<CheckRun> {
+  writeLine(`\n🔍 Health Check: ${urls.length} URL(s)\n`);
+  writeLine(
     `   timeout=${args.timeoutMs}ms, retries=${args.retries}, delay=${args.retryDelayMs}ms\n`
   );
-  console.log('='.repeat(60));
+  writeLine('='.repeat(60));
 
   const startTime = Date.now();
   const results = await Promise.all(
@@ -219,16 +249,19 @@ const main = async () => {
   );
   const totalDuration = Date.now() - startTime;
 
-  console.log('='.repeat(60));
-  console.log('\n📊 Summary:\n');
+  writeLine('='.repeat(60));
+  writeLine('\n📊 Summary:\n');
+  return { results, totalDuration };
+}
 
-  let failed = 0;
-  const failedUrls: Array<{ url: string; error: string; attempts: number }> =
-    [];
+function summarize(
+  results: readonly UrlCheckResult[],
+  totalDuration: number
+): FailedUrl[] {
+  const failedUrls: FailedUrl[] = [];
 
   for (const result of results) {
     if (!result.ok) {
-      failed++;
       failedUrls.push({
         url: result.url,
         error: result.error || `HTTP ${result.status}`,
@@ -242,32 +275,45 @@ const main = async () => {
   const maxDuration = Math.max(...results.map((r) => r.duration));
   const minDuration = Math.min(...results.map((r) => r.duration));
 
-  console.log(`Total URLs checked: ${results.length}`);
-  console.log(`Successful: ${results.length - failed}`);
-  console.log(`Failed: ${failed}`);
-  console.log(`Total time: ${totalDuration}ms`);
-  console.log(`Average response time: ${Math.round(avgDuration)}ms`);
-  console.log(`Fastest: ${minDuration}ms`);
-  console.log(`Slowest: ${maxDuration}ms`);
+  writeLine(`Total URLs checked: ${results.length}`);
+  writeLine(`Successful: ${results.length - failedUrls.length}`);
+  writeLine(`Failed: ${failedUrls.length}`);
+  writeLine(`Total time: ${totalDuration}ms`);
+  writeLine(`Average response time: ${Math.round(avgDuration)}ms`);
+  writeLine(`Fastest: ${minDuration}ms`);
+  writeLine(`Slowest: ${maxDuration}ms`);
+  return failedUrls;
+}
 
-  if (failed > 0) {
-    console.log('\n❌ Failed URLs:\n');
-    for (const failedUrl of failedUrls) {
-      console.log(`  • ${failedUrl.url}`);
-      console.log(
-        `    Error: ${failedUrl.error} (${failedUrl.attempts} attempt(s))`
-      );
-    }
-    console.error(
-      `\n❌ Health check failed: ${failed} URL(s) are not accessible`
+function reportFailures(failedUrls: readonly FailedUrl[]): void {
+  writeLine('\n❌ Failed URLs:\n');
+  for (const failedUrl of failedUrls) {
+    writeLine(`  • ${failedUrl.url}`);
+    writeLine(
+      `    Error: ${failedUrl.error} (${failedUrl.attempts} attempt(s))`
     );
-    process.exit(1);
+  }
+  console.error(
+    `\n❌ Health check failed: ${failedUrls.length} URL(s) are not accessible`
+  );
+}
+
+const main = async () => {
+  const args = parseArgs(process.argv.slice(2));
+  const urls = extractUrls();
+  const { results, totalDuration } = await runChecks(urls, args);
+  const failedUrls = summarize(results, totalDuration);
+
+  if (failedUrls.length === 0) {
+    writeLine('\n✅ All URLs are healthy!');
+    return;
   }
 
-  console.log('\n✅ All URLs are healthy!');
+  reportFailures(failedUrls);
+  process.exit(1);
 };
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   console.error('Health check failed:', error);
   process.exit(1);
 });

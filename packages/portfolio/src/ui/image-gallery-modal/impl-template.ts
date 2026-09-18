@@ -1,8 +1,9 @@
 import type {
+  ImageGalleryModalProps,
   OpenImageGalleryModalJsFunction,
   ViewImageGalleryModalFunction,
 } from './interface';
-import { fragment, tag, text } from '../../library/html/index';
+import { fragment, tag, text, type Html } from '../../library/html/index';
 import { HEAD } from '../head';
 import { THEME, unit } from '../theme';
 
@@ -15,57 +16,57 @@ export const openImageGalleryModalJs: OpenImageGalleryModalJsFunction = (
   return `${openModalFunctionName}(0);`;
 };
 
-export const viewImageGalleryModal: ViewImageGalleryModalFunction =
-  (props) => () => {
-    const namespace = `${props.jsVarSafeNamespace}ImageGalleryModal`;
-    const modalId = `${namespace}modal`;
-    const imageContainerId = `${namespace}image-container`;
-    const currentIndexVarName = `${namespace}currentIndex`;
-    const totalImagesVarName = `${namespace}totalImages`;
-    const openModalFunctionName = `${namespace}openModal`;
-    const closeModalFunctionName = `${namespace}closeModal`;
-    const nextImageFunctionName = `${namespace}nextImage`;
-    const prevImageFunctionName = `${namespace}prevImage`;
-    const updateImageFunctionName = `${namespace}updateImage`;
+type Names = {
+  namespace: string;
+  modalId: string;
+  imageContainerId: string;
+  currentIndexVarName: string;
+  totalImagesVarName: string;
+  openModalFunctionName: string;
+  closeModalFunctionName: string;
+  nextImageFunctionName: string;
+  prevImageFunctionName: string;
+  updateImageFunctionName: string;
+};
 
-    return fragment([
-      tag('script', {}, [
-        text(`
-        let ${currentIndexVarName} = 0;
-        const ${totalImagesVarName} = ${JSON.stringify(props.imageSrc)}.length;
+const viewModalScript = (props: ImageGalleryModalProps, names: Names): Html => {
+  return tag('script', {}, [
+    text(`
+        let ${names.currentIndexVarName} = 0;
+        const ${names.totalImagesVarName} = ${JSON.stringify(props.imageSrc)}.length;
         
-        function ${openModalFunctionName}(index) {
-          ${currentIndexVarName} = index || 0;
-          const modal = document.getElementById('${modalId}');
+        function ${names.openModalFunctionName}(index) {
+          ${names.currentIndexVarName} = index || 0;
+          const modal = document.getElementById('${names.modalId}');
           modal.style.display = 'flex';
           document.body.style.overflow = 'hidden';
-          ${updateImageFunctionName}();
+          ${names.updateImageFunctionName}();
         }
         
-        function ${closeModalFunctionName}() {
-          const modal = document.getElementById('${modalId}');
+        function ${names.closeModalFunctionName}() {
+          const modal = document.getElementById('${names.modalId}');
           modal.style.display = 'none';
           document.body.style.overflow = '';
         }
         
-        function ${nextImageFunctionName}() {
-          ${currentIndexVarName} = (${currentIndexVarName} + 1) % ${totalImagesVarName};
-          ${updateImageFunctionName}();
+        function ${names.nextImageFunctionName}() {
+          ${names.currentIndexVarName} = (${names.currentIndexVarName} + 1) % ${names.totalImagesVarName};
+          ${names.updateImageFunctionName}();
         }
         
-        function ${prevImageFunctionName}() {
-          ${currentIndexVarName} = (${currentIndexVarName} - 1 + ${totalImagesVarName}) % ${totalImagesVarName};
-          ${updateImageFunctionName}();
+        function ${names.prevImageFunctionName}() {
+          ${names.currentIndexVarName} = (${names.currentIndexVarName} - 1 + ${names.totalImagesVarName}) % ${names.totalImagesVarName};
+          ${names.updateImageFunctionName}();
         }
         
-        function ${updateImageFunctionName}() {
-          const container = document.getElementById('${imageContainerId}');
+        function ${names.updateImageFunctionName}() {
+          const container = document.getElementById('${names.imageContainerId}');
           const imageSrcs = ${JSON.stringify(props.imageSrc)};
           const imageAlt = ${JSON.stringify(props.imageAlt || 'Gallery image')};
           
           container.innerHTML = '';
           const img = document.createElement('img');
-          img.src = imageSrcs[${currentIndexVarName}];
+          img.src = imageSrcs[${names.currentIndexVarName}];
           img.alt = imageAlt;
           img.className = 'gallery-modal-image animate-pulse';
           img.onload = function() {
@@ -74,100 +75,128 @@ export const viewImageGalleryModal: ViewImageGalleryModalFunction =
           container.appendChild(img);
           
           // Update counter
-          const counter = document.getElementById('${namespace}counter');
-          counter.textContent = \`\${${currentIndexVarName} + 1} / \${${totalImagesVarName}}\`;
+          const counter = document.getElementById('${names.namespace}counter');
+          counter.textContent = \`\${${names.currentIndexVarName} + 1} / \${${names.totalImagesVarName}}\`;
         }
         
         // Close modal when clicking outside the image
         window.addEventListener('click', function(event) {
-          const modal = document.getElementById('${modalId}');
+          const modal = document.getElementById('${names.modalId}');
           if (event.target === modal) {
-            ${closeModalFunctionName}();
+            ${names.closeModalFunctionName}();
           }
         });
         
         // Keyboard navigation
         window.addEventListener('keydown', function(event) {
-          const modal = document.getElementById('${modalId}');
+          const modal = document.getElementById('${names.modalId}');
           if (modal.style.display === 'flex') {
             if (event.key === 'ArrowRight') {
-              ${nextImageFunctionName}();
+              ${names.nextImageFunctionName}();
             } else if (event.key === 'ArrowLeft') {
-              ${prevImageFunctionName}();
+              ${names.prevImageFunctionName}();
             } else if (event.key === 'Escape') {
-              ${closeModalFunctionName}();
+              ${names.closeModalFunctionName}();
             }
           }
         });
       `),
-      ]),
+  ]);
+};
 
-      // Modal
+const viewModalBody = (names: Names): Html => {
+  const {
+    modalId,
+    closeModalFunctionName,
+    prevImageFunctionName,
+    nextImageFunctionName,
+    imageContainerId,
+    namespace,
+  } = names;
+
+  return tag(
+    'div',
+    {
+      id: modalId,
+      class: 'gallery-modal',
+    },
+    [
+      // Close button
+      tag(
+        'button',
+        {
+          class: 'gallery-modal-close',
+          onclick: `${closeModalFunctionName}()`,
+          'aria-label': 'Close gallery',
+        },
+        [text('×')]
+      ),
+
+      // Previous button
+      tag(
+        'button',
+        {
+          class: 'gallery-modal-nav gallery-modal-prev',
+          onclick: `${prevImageFunctionName}()`,
+          'aria-label': 'Previous image',
+        },
+        [text('❮')]
+      ),
+
+      // Image container
       tag(
         'div',
         {
-          id: modalId,
-          class: 'gallery-modal',
+          class: 'gallery-modal-content',
         },
         [
-          // Close button
-          tag(
-            'button',
-            {
-              class: 'gallery-modal-close',
-              onclick: `${closeModalFunctionName}()`,
-              'aria-label': 'Close gallery',
-            },
-            [text('×')]
-          ),
-
-          // Previous button
-          tag(
-            'button',
-            {
-              class: 'gallery-modal-nav gallery-modal-prev',
-              onclick: `${prevImageFunctionName}()`,
-              'aria-label': 'Previous image',
-            },
-            [text('❮')]
-          ),
-
-          // Image container
           tag(
             'div',
             {
-              class: 'gallery-modal-content',
+              id: imageContainerId,
+              class: 'gallery-modal-image-container',
             },
-            [
-              tag(
-                'div',
-                {
-                  id: imageContainerId,
-                  class: 'gallery-modal-image-container',
-                },
-                []
-              ),
-              tag(
-                'div',
-                { id: `${namespace}counter`, class: 'gallery-modal-counter' },
-                [text('1 / 1')]
-              ),
-            ]
+            []
           ),
-
-          // Next button
           tag(
-            'button',
-            {
-              class: 'gallery-modal-nav gallery-modal-next',
-              onclick: `${nextImageFunctionName}()`,
-              'aria-label': 'Next image',
-            },
-            [text('❯')]
+            'div',
+            { id: `${namespace}counter`, class: 'gallery-modal-counter' },
+            [text('1 / 1')]
           ),
         ]
       ),
-    ]);
+
+      // Next button
+      tag(
+        'button',
+        {
+          class: 'gallery-modal-nav gallery-modal-next',
+          onclick: `${nextImageFunctionName}()`,
+          'aria-label': 'Next image',
+        },
+        [text('❯')]
+      ),
+    ]
+  );
+};
+
+export const viewImageGalleryModal: ViewImageGalleryModalFunction =
+  (props) => () => {
+    const namespace = `${props.jsVarSafeNamespace}ImageGalleryModal`;
+    const names: Names = {
+      namespace,
+      modalId: `${namespace}modal`,
+      imageContainerId: `${namespace}image-container`,
+      currentIndexVarName: `${namespace}currentIndex`,
+      totalImagesVarName: `${namespace}totalImages`,
+      openModalFunctionName: `${namespace}openModal`,
+      closeModalFunctionName: `${namespace}closeModal`,
+      nextImageFunctionName: `${namespace}nextImage`,
+      prevImageFunctionName: `${namespace}prevImage`,
+      updateImageFunctionName: `${namespace}updateImage`,
+    };
+
+    return fragment([viewModalScript(props, names), viewModalBody(names)]);
   };
 
 HEAD.push(

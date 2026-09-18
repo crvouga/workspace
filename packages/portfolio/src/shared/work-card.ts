@@ -1,5 +1,5 @@
 import { tag } from '../library/html/index';
-import type { ViewWithProps } from '../library/html/index';
+import type { Html, ViewWithProps } from '../library/html/index';
 import type { Work } from '../content/work';
 import { viewButton } from '../ui/button';
 import { viewCard, viewCardActions, viewCardContent } from '../ui/card';
@@ -11,6 +11,40 @@ import { unit } from '../ui/theme';
 import { viewTypography } from '../ui/typography';
 import { viewWorkCardMedia } from './work-card/media/index';
 
+const viewWorkCardHeader = (work: Work): Html =>
+  tag(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        'align-items': 'center',
+        'justify-content': 'space-between',
+        gap: unit(1.5),
+        'margin-bottom': unit(1),
+        'flex-wrap': 'wrap',
+      },
+    },
+    [
+      viewLink(
+        {
+          href: work.infoUrl ?? ' ',
+        },
+        [
+          viewTypography({
+            level: 'h3',
+            text: work.infoUrl
+              ? appendExternalLinkIndicator({ text: work.name })
+              : work.name,
+          })(),
+        ]
+      ),
+      viewDatePill({
+        yearStart: work.yearStart,
+        yearEnd: work.yearEnd,
+      })(),
+    ]
+  );
+
 export const viewWorkCard: ViewWithProps<{
   work: Work;
   fetchPriority?: 'high' | 'auto';
@@ -21,38 +55,7 @@ export const viewWorkCard: ViewWithProps<{
     return viewCard({}, [
       viewWorkCardMedia(mediaProps)({}),
       viewCardContent({}, [
-        tag(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              'align-items': 'center',
-              'justify-content': 'space-between',
-              gap: unit(1.5),
-              'margin-bottom': unit(1),
-              'flex-wrap': 'wrap',
-            },
-          },
-          [
-            viewLink(
-              {
-                href: work.infoUrl ?? ' ',
-              },
-              [
-                viewTypography({
-                  level: 'h3',
-                  text: work.infoUrl
-                    ? appendExternalLinkIndicator({ text: work.name })
-                    : work.name,
-                })(),
-              ]
-            ),
-            viewDatePill({
-              yearStart: work.yearStart,
-              yearEnd: work.yearEnd,
-            })(),
-          ]
-        ),
+        viewWorkCardHeader(work),
 
         viewTypography({
           level: 'title-sm',

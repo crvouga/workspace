@@ -19,7 +19,7 @@ const minifyHtml = (html: string): string => {
 
   const withPlaceholders = html.replace(
     /<(script|style)([^>]*)>([\s\S]*?)<\/\1>/gi,
-    (_match, tag, attrs, content) => {
+    (_match: string, tag: string, attrs: string, content: string) => {
       const placeholder = `__PRESERVED_${preservedIndex}__`;
       preserved[preservedIndex] = `<${tag}${attrs}>${content}</${tag}>`;
       preservedIndex++;

@@ -12,6 +12,60 @@ const PEEK_ITEM_CLASSES = [
   'grid-collapsible-item-peek-3',
 ] as const;
 
+const renderToggleScript = (names: {
+  onClickToggleName: string;
+  rootId: string;
+  toggleButtonId: string;
+  seeMoreLabel: string;
+  seeLessLabel: string;
+}): string => {
+  const {
+    onClickToggleName,
+    rootId,
+    toggleButtonId,
+    seeMoreLabel,
+    seeLessLabel,
+  } = names;
+
+  return `
+          function ${onClickToggleName}(event) {
+            const root = document.getElementById(${JSON.stringify(rootId)});
+            if (!root) return;
+            const button = document.getElementById(${JSON.stringify(toggleButtonId)});
+            const isExpanded = root.getAttribute('data-expanded') === 'true';
+            const willExpand = !isExpanded;
+            if (willExpand) {
+              root.setAttribute('data-scroll-position', String(window.scrollY));
+              root.setAttribute('data-expanded', 'true');
+              if (button) {
+                button.textContent = ${JSON.stringify(seeLessLabel)};
+                button.setAttribute('aria-expanded', 'true');
+              }
+            } else {
+              root.setAttribute('data-expanded', 'false');
+              if (button) {
+                button.textContent = ${JSON.stringify(seeMoreLabel)};
+                button.setAttribute('aria-expanded', 'false');
+              }
+              const savedScrollPosition = parseInt(root.getAttribute('data-scroll-position') || '0', 10);
+              window.scrollTo({ top: savedScrollPosition, behavior: 'instant' });
+            }
+          }
+        `;
+};
+
+const classForIndex = (
+  index: number,
+  maxVisibleCardCount: number
+): string | null => {
+  if (index < maxVisibleCardCount) return null;
+  const peekIndex = index - maxVisibleCardCount;
+  if (peekIndex < PEEK_ITEM_CLASSES.length) {
+    return PEEK_ITEM_CLASSES[peekIndex] ?? null;
+  }
+  return EXTRA_ITEM_CLASS;
+};
+
 export const viewGridCollapsible: ViewWithProps<{
   jsVarSafeNamespace: string;
   children: Html[];
@@ -43,14 +97,6 @@ export const viewGridCollapsible: ViewWithProps<{
   //   - The next 3 (one full row at the widest breakpoint) get peek classes
   //     so they render as a half-visible, masked-out row.
   //   - The rest are flagged as fully hidden when collapsed.
-  const classFor = (index: number): string | null => {
-    if (index < maxVisibleCardCount) return null;
-    const peekIndex = index - maxVisibleCardCount;
-    if (peekIndex < PEEK_ITEM_CLASSES.length) {
-      return PEEK_ITEM_CLASSES[peekIndex] ?? null;
-    }
-    return EXTRA_ITEM_CLASS;
-  };
 
   return tag(
     'div',
@@ -61,38 +107,22 @@ export const viewGridCollapsible: ViewWithProps<{
     },
     [
       tag('script', {}, [
-        text(`
-          function ${onClickToggleName}(event) {
-            const root = document.getElementById(${JSON.stringify(rootId)});
-            if (!root) return;
-            const button = document.getElementById(${JSON.stringify(toggleButtonId)});
-            const isExpanded = root.getAttribute('data-expanded') === 'true';
-            const willExpand = !isExpanded;
-            if (willExpand) {
-              root.setAttribute('data-scroll-position', String(window.scrollY));
-              root.setAttribute('data-expanded', 'true');
-              if (button) {
-                button.textContent = ${JSON.stringify(seeLessLabel)};
-                button.setAttribute('aria-expanded', 'true');
-              }
-            } else {
-              root.setAttribute('data-expanded', 'false');
-              if (button) {
-                button.textContent = ${JSON.stringify(seeMoreLabel)};
-                button.setAttribute('aria-expanded', 'false');
-              }
-              const savedScrollPosition = parseInt(root.getAttribute('data-scroll-position') || '0', 10);
-              window.scrollTo({ top: savedScrollPosition, behavior: 'instant' });
-            }
-          }
-        `),
+        text(
+          renderToggleScript({
+            onClickToggleName,
+            rootId,
+            toggleButtonId,
+            seeMoreLabel,
+            seeLessLabel,
+          })
+        ),
       ]),
 
       tag('div', { class: 'grid-collapsible-content' }, [
         viewGrid(
           {},
           props.children.map((child, index) => {
-            const cls = classFor(index);
+            const cls = classForIndex(index, maxVisibleCardCount);
             return viewGridItem(cls ? { class: cls } : {}, [child]);
           })
         ),

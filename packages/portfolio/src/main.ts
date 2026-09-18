@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { viewApp } from './app';
 import { copyFontFiles } from './build/copy-fonts';
+import { writeLine } from './library/cli-output';
 import { copyDirectory, deleteDirectory } from './library/file-system';
 import { render } from './library/html/render';
 
@@ -9,7 +10,7 @@ const PUBLIC_PATH = './public';
 const DIST_PATH = './dist';
 
 export const main = async (): Promise<void> => {
-  console.log('Building...');
+  writeLine('Building...');
   const start = Date.now();
   await deleteDirectory(DIST_PATH);
   await mkdir(DIST_PATH, { recursive: true });
@@ -21,10 +22,10 @@ export const main = async (): Promise<void> => {
   await copyFontFiles(DIST_PATH);
   const end = Date.now();
   const seconds = ((end - start) / 1000).toFixed(2);
-  console.log(`Built in ${seconds} seconds`);
+  writeLine(`Built in ${seconds} seconds`);
 };
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   console.error('Build failed:', error);
   process.exit(1);
 });

@@ -133,118 +133,105 @@ HEAD.push(
   ])
 );
 
-export const viewDoc: View = (_a?: Attrs, c?: Html[]) => {
-  return tag('html', { lang: 'en' }, [
-    tag('head', {}, [
-      tag('meta', { charset: 'UTF-8' }, []),
-      tag(
-        'meta',
-        {
-          name: 'viewport',
-          content: 'width=device-width, initial-scale=1.0',
-        },
-        []
-      ),
-      tag('title', {}, [text(CONTENT.META_TITLE)]),
-      tag('meta', { name: 'description', content: metaDescription() }, []),
-      tag('link', { rel: 'canonical', href: CONTENT.SITE_URL }, []),
-      tag('meta', { property: 'og:title', content: CONTENT.META_TITLE }, []),
-      tag(
-        'meta',
-        { property: 'og:description', content: metaDescription() },
-        []
-      ),
-      tag('meta', { property: 'og:image', content: sitePreviewImageUrl }, []),
-      tag(
-        'meta',
-        { property: 'og:image:secure_url', content: sitePreviewImageUrl },
-        []
-      ),
-      tag(
-        'meta',
-        {
-          property: 'og:image:width',
-          content: String(SITE_PREVIEW_IMAGE.width),
-        },
-        []
-      ),
-      tag(
-        'meta',
-        {
-          property: 'og:image:height',
-          content: String(SITE_PREVIEW_IMAGE.height),
-        },
-        []
-      ),
-      tag(
-        'meta',
-        { property: 'og:image:alt', content: sitePreviewImageAlt },
-        []
-      ),
-      tag('meta', { property: 'og:image:type', content: 'image/webp' }, []),
-      tag('meta', { property: 'og:url', content: CONTENT.SITE_URL }, []),
-      tag('meta', { property: 'og:type', content: 'website' }, []),
-      tag(
-        'meta',
-        { property: 'og:site_name', content: CONTENT.PAGE_TITLE },
-        []
-      ),
-      tag('meta', { name: 'twitter:card', content: 'summary_large_image' }, []),
-      tag('meta', { name: 'twitter:title', content: CONTENT.META_TITLE }, []),
-      tag(
-        'meta',
-        { name: 'twitter:description', content: metaDescription() },
-        []
-      ),
-      tag('meta', { name: 'twitter:image', content: sitePreviewImageUrl }, []),
-      tag(
-        'meta',
-        { name: 'twitter:image:alt', content: sitePreviewImageAlt },
-        []
-      ),
-      viewSiteStructuredData(),
-      tag('link', { rel: 'shortcut icon', href: '/favicon.ico' }, []),
-      tag('link', { rel: 'icon', href: '/favicon.ico' }, []),
-      tag(
-        'script',
-        { src: './web-components/toaster-element.js', async: 'true' },
-        []
-      ),
-      tag(
-        'script',
-        { src: './web-components/loading-spinner-element.js', async: 'true' },
-        []
-      ),
-      tag(
-        'script',
-        {
-          src: './web-components/image-gallery-modal-element.js',
-          async: 'true',
-        },
-        []
-      ),
-      ...HEAD,
+const viewDocHeadMeta = (): Html[] => [
+  tag('meta', { charset: 'UTF-8' }, []),
+  tag(
+    'meta',
+    {
+      name: 'viewport',
+      content: 'width=device-width, initial-scale=1.0',
+    },
+    []
+  ),
+  tag('title', {}, [text(CONTENT.META_TITLE)]),
+  tag('meta', { name: 'description', content: metaDescription() }, []),
+  tag('link', { rel: 'canonical', href: CONTENT.SITE_URL }, []),
+  tag('meta', { property: 'og:title', content: CONTENT.META_TITLE }, []),
+  tag('meta', { property: 'og:description', content: metaDescription() }, []),
+  tag('meta', { property: 'og:image', content: sitePreviewImageUrl }, []),
+  tag(
+    'meta',
+    { property: 'og:image:secure_url', content: sitePreviewImageUrl },
+    []
+  ),
+  tag(
+    'meta',
+    {
+      property: 'og:image:width',
+      content: String(SITE_PREVIEW_IMAGE.width),
+    },
+    []
+  ),
+  tag(
+    'meta',
+    {
+      property: 'og:image:height',
+      content: String(SITE_PREVIEW_IMAGE.height),
+    },
+    []
+  ),
+  tag('meta', { property: 'og:image:alt', content: sitePreviewImageAlt }, []),
+  tag('meta', { property: 'og:image:type', content: 'image/webp' }, []),
+  tag('meta', { property: 'og:url', content: CONTENT.SITE_URL }, []),
+  tag('meta', { property: 'og:type', content: 'website' }, []),
+  tag('meta', { property: 'og:site_name', content: CONTENT.PAGE_TITLE }, []),
+  tag('meta', { name: 'twitter:card', content: 'summary_large_image' }, []),
+  tag('meta', { name: 'twitter:title', content: CONTENT.META_TITLE }, []),
+  tag('meta', { name: 'twitter:description', content: metaDescription() }, []),
+  tag('meta', { name: 'twitter:image', content: sitePreviewImageUrl }, []),
+  tag('meta', { name: 'twitter:image:alt', content: sitePreviewImageAlt }, []),
+];
+
+const viewDocHeadAssets = (): Html[] => [
+  viewSiteStructuredData(),
+  tag('link', { rel: 'shortcut icon', href: '/favicon.ico' }, []),
+  tag('link', { rel: 'icon', href: '/favicon.ico' }, []),
+  tag(
+    'script',
+    { src: './web-components/toaster-element.js', async: 'true' },
+    []
+  ),
+  tag(
+    'script',
+    { src: './web-components/loading-spinner-element.js', async: 'true' },
+    []
+  ),
+  tag(
+    'script',
+    {
+      src: './web-components/image-gallery-modal-element.js',
+      async: 'true',
+    },
+    []
+  ),
+];
+
+const viewDocHead = (): Html =>
+  tag('head', {}, [...viewDocHeadMeta(), ...viewDocHeadAssets(), ...HEAD]);
+
+const viewDocBody = (c?: Html[]): Html =>
+  tag('body', {}, [
+    viewBackdrop(),
+    tag(
+      'toaster-element',
+      {
+        id: 'toaster',
+        'data-bg-color': THEME.colors.paper,
+        'data-border-color': THEME.colors.paperBorder,
+        'data-text-color': THEME.colors.text,
+      },
+      []
+    ),
+    tag('div', { class: 'visually-hidden' }, [
+      viewImage({
+        src: SITE_PREVIEW_IMAGE.path,
+        alt: sitePreviewImageAlt,
+        fetchPriority: 'high',
+      })({}, []),
     ]),
-    tag('body', {}, [
-      viewBackdrop(),
-      tag(
-        'toaster-element',
-        {
-          id: 'toaster',
-          'data-bg-color': THEME.colors.paper,
-          'data-border-color': THEME.colors.paperBorder,
-          'data-text-color': THEME.colors.text,
-        },
-        []
-      ),
-      tag('div', { class: 'visually-hidden' }, [
-        viewImage({
-          src: SITE_PREVIEW_IMAGE.path,
-          alt: sitePreviewImageAlt,
-          fetchPriority: 'high',
-        })({}, []),
-      ]),
-      ...(c ?? []),
-    ]),
+    ...(c ?? []),
   ]);
+
+export const viewDoc: View = (_a?: Attrs, c?: Html[]) => {
+  return tag('html', { lang: 'en' }, [viewDocHead(), viewDocBody(c)]);
 };

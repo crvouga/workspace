@@ -1,4 +1,4 @@
-import type { ViewWithProps } from '../library/html/index';
+import type { Attrs, ViewWithProps } from '../library/html/index';
 import { fragment, tag, text } from '../library/html/index';
 import { HEAD } from './head';
 import { THEME } from './theme';
@@ -8,7 +8,7 @@ export const viewImage: ViewWithProps<{
   alt: string;
   fetchPriority?: 'high' | 'auto';
 }> = (props) => (attr, _) => {
-  const imgAttributes: Record<string, any> = {
+  const imgAttributes: Attrs = {
     ...attr,
     src: props.src,
     alt: props.alt || '',

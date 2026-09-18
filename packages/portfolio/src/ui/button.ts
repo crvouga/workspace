@@ -84,10 +84,7 @@ export const viewButton: ViewWithProps<Props> =
     );
   };
 
-export const viewButtonStyles: ViewWithProps<Record<string, never>> =
-  (_props) => (_attrs, _children) => {
-    return tag('style', {}, [
-      text(`
+const BUTTON_STYLES = `
       .btn {
         font-family: var(--font-mono);
         font-weight: 500;
@@ -243,8 +240,11 @@ export const viewButtonStyles: ViewWithProps<Record<string, never>> =
       a.btn-plain.btn-disabled:visited {
         color: ${THEME.colors.plainTextDisabled};
       }
-    `),
-    ]);
+    `;
+
+export const viewButtonStyles: ViewWithProps<Record<string, never>> =
+  (_props) => (_attrs, _children) => {
+    return tag('style', {}, [text(BUTTON_STYLES)]);
   };
 
 HEAD.push(viewButtonStyles({})());

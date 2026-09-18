@@ -1,7 +1,13 @@
 import os from 'node:os';
 import path from 'node:path';
-import { chromium, type Browser, type Page } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from 'playwright';
 import pLimit from 'p-limit';
+import { writeLine } from './library/cli-output';
 
 export const VIEWPORT = { width: 1920, height: 1080 } as const;
 export const PUBLIC_DIR = path.resolve('./public');
@@ -61,7 +67,7 @@ function hostnameOf(url: string): string | null {
 export function isHostedOnChrisvougaDev(url: string): boolean {
   const host = hostnameOf(url);
   return (
-    host != null &&
+    host !== null &&
     (host === CHRISVOUGA_DEV_ZONE || host.endsWith(`.${CHRISVOUGA_DEV_ZONE}`))
   );
 }
@@ -122,7 +128,7 @@ export async function warmupScreenshotJobs(
   ];
   if (urls.length === 0) return;
 
-  console.log(
+  writeLine(
     `\nWarmup: pre-fetching ${urls.length} chrisvouga.dev site(s) ` +
       `(timeout=${WARMUP_TIMEOUT_MS}ms, concurrency=${WARMUP_CONCURRENCY})…`
   );
@@ -138,19 +144,19 @@ export async function warmupScreenshotJobs(
             redirect: 'follow',
             signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS),
           });
-          console.log(
+          writeLine(
             `  warmup ${host} ${res.status} in ${Date.now() - start}ms`
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.log(
+          writeLine(
             `  warmup ${host} still waking (${msg}) in ${Date.now() - start}ms`
           );
         }
       })
     )
   );
-  console.log('');
+  writeLine('');
 }
 
 /** Default screenshot concurrency: capped at 12, never exceeds available cores. */
@@ -177,6 +183,42 @@ export async function closeSharedBrowser(
     console.warn(`(cleanup) browser.close() failed: ${msg}`);
   }
 }
+async function closeContextQuietly(context: BrowserContext): Promise<void> {
+  try {
+    await context.close();
+  } catch (closeErr) {
+    const msg = closeErr instanceof Error ? closeErr.message : String(closeErr);
+    console.warn(`  (cleanup) context.close() failed: ${msg}`);
+  }
+}
+
+async function attemptCapture(
+  browser: Browser,
+  job: { url: string; filename: string },
+  t0: number,
+  timeoutMs: number
+): Promise<CaptureResult> {
+  const context = await browser.newContext({
+    viewport: VIEWPORT,
+    colorScheme: 'dark',
+  });
+  try {
+    const page = await context.newPage();
+    await page.emulateMedia({ colorScheme: 'dark' });
+
+    const remainingMs = Math.max(5_000, MAX_JOB_MS - (performance.now() - t0));
+    await navigateAndSettle(page, job.url, Math.min(timeoutMs, remainingMs));
+
+    const screenshotPath = path.join(
+      PUBLIC_DIR,
+      `${job.filename}-screenshot.png`
+    );
+    await page.screenshot({ path: screenshotPath, fullPage: false });
+    return { screenshotPath, elapsedMs: performance.now() - t0 };
+  } finally {
+    await closeContextQuietly(context);
+  }
+}
 
 /**
  * Capture a single screenshot using a shared {@link Browser}. Each job runs in
@@ -193,7 +235,6 @@ export async function captureScreenshot(
   const t0 = performance.now();
   const timeoutMs = navTimeoutForUrl(job.url);
   const maxAttempts = maxRetriesForUrl(job.url) + 1;
-  let lastError = 'unknown error';
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const elapsed = performance.now() - t0;
@@ -203,29 +244,10 @@ export async function captureScreenshot(
       );
     }
 
-    const context = await browser.newContext({
-      viewport: VIEWPORT,
-      colorScheme: 'dark',
-    });
     try {
-      const page = await context.newPage();
-      await page.emulateMedia({ colorScheme: 'dark' });
-
-      const remainingMs = Math.max(
-        5_000,
-        MAX_JOB_MS - (performance.now() - t0)
-      );
-      await navigateAndSettle(page, job.url, Math.min(timeoutMs, remainingMs));
-
-      const screenshotPath = path.join(
-        PUBLIC_DIR,
-        `${job.filename}-screenshot.png`
-      );
-      await page.screenshot({ path: screenshotPath, fullPage: false });
-      return { screenshotPath, elapsedMs: performance.now() - t0 };
+      return await attemptCapture(browser, job, t0, timeoutMs);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      lastError = message;
       const statusMatch = message.match(/HTTP (\d+)/);
       const status = statusMatch ? Number(statusMatch[1]) : 0;
       const retriable = isRetriableError(message) || isRetriableStatus(status);
@@ -237,18 +259,10 @@ export async function captureScreenshot(
       throw new Error(
         maxAttempts > 1 ? `${message} (after ${attempt} attempt(s))` : message
       );
-    } finally {
-      try {
-        await context.close();
-      } catch (closeErr) {
-        const msg =
-          closeErr instanceof Error ? closeErr.message : String(closeErr);
-        console.warn(`  (cleanup) context.close() failed: ${msg}`);
-      }
     }
   }
 
-  throw new Error(lastError);
+  throw new Error('Screenshot capture failed without an attempt');
 }
 
 export type RunResult = {
@@ -269,6 +283,73 @@ export type RunOptions = {
   readonly warmup?: boolean;
 };
 
+type JobFailure = { name: string; url: string; error: string };
+
+type JobRunState = { ok: number; failed: JobFailure[] };
+
+type BrowserLaunch =
+  { browser: Browser; ownsBrowser: boolean } | { failure: RunResult };
+
+async function launchOrReuseBrowser(
+  suppliedBrowser: Browser | undefined,
+  jobs: readonly ScreenshotJob[],
+  t0: number
+): Promise<BrowserLaunch> {
+  if (suppliedBrowser) {
+    return { browser: suppliedBrowser, ownsBrowser: false };
+  }
+  try {
+    return { browser: await launchSharedBrowser(), ownsBrowser: true };
+  } catch (launchErr) {
+    const msg =
+      launchErr instanceof Error ? launchErr.message : String(launchErr);
+    console.error(`✗ Failed to launch Chromium: ${msg}`);
+    console.error('  Hint: try `bunx playwright install chromium`');
+    return {
+      failure: {
+        ok: 0,
+        failed: jobs.map((j) => ({
+          name: j.name,
+          url: j.url,
+          error: `chromium launch failed: ${msg}`,
+        })),
+        elapsedMs: performance.now() - t0,
+      },
+    };
+  }
+}
+
+async function runScreenshotJob(
+  browser: Browser,
+  job: ScreenshotJob,
+  state: JobRunState
+): Promise<void> {
+  try {
+    const result = await captureScreenshot(browser, job);
+    state.ok += 1;
+    writeLine(`  ✓ ${job.name}  (${(result.elapsedMs / 1000).toFixed(1)}s)`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    state.failed.push({ name: job.name, url: job.url, error: message });
+    console.error(`  ✗ ${job.name}: ${message}`);
+  }
+}
+
+function printRunSummary(
+  label: string,
+  ok: number,
+  failed: readonly JobFailure[],
+  elapsedMs: number
+): void {
+  writeLine(
+    `[${label}] done. ok=${ok}, failed=${failed.length}, elapsed=${(elapsedMs / 1000).toFixed(1)}s`
+  );
+  if (failed.length === 0) return;
+  writeLine('Failed jobs:');
+  for (const failure of failed) {
+    writeLine(`  • ${failure.name} (${failure.url}) — ${failure.error}`);
+  }
+}
 /**
  * Standalone screenshot runner used by the per-collection scripts
  * (`screenshot-work`, `screenshot-projects`, `screenshot-main`).
@@ -284,69 +365,30 @@ export async function runScreenshotJobs(
   if (warmup) await warmupScreenshotJobs(jobs);
 
   const concurrency = options.concurrency ?? defaultScreenshotConcurrency();
-  const ownsBrowser = !options.browser;
-  let browser = options.browser;
-
   const t0 = performance.now();
-  if (!browser) {
-    try {
-      browser = await launchSharedBrowser();
-    } catch (launchErr) {
-      const msg =
-        launchErr instanceof Error ? launchErr.message : String(launchErr);
-      console.error(`✗ Failed to launch Chromium: ${msg}`);
-      console.error('  Hint: try `bunx playwright install chromium`');
-      return {
-        ok: 0,
-        failed: jobs.map((j) => ({
-          name: j.name,
-          url: j.url,
-          error: `chromium launch failed: ${msg}`,
-        })),
-        elapsedMs: performance.now() - t0,
-      };
-    }
-  }
+  const launch = await launchOrReuseBrowser(options.browser, jobs, t0);
+  if ('failure' in launch) return launch.failure;
 
-  const failed: { name: string; url: string; error: string }[] = [];
-  let ok = 0;
-
-  console.log(
+  const { browser, ownsBrowser } = launch;
+  writeLine(
     `[${label}] running ${jobs.length} job(s) with concurrency=${concurrency}…`
   );
 
   const limit = pLimit(concurrency);
+  let runResult: RunResult;
   try {
+    const state: JobRunState = { ok: 0, failed: [] };
     await Promise.all(
-      jobs.map((job) =>
-        limit(async () => {
-          try {
-            const r = await captureScreenshot(browser!, job);
-            ok += 1;
-            console.log(
-              `  ✓ ${job.name}  (${(r.elapsedMs / 1000).toFixed(1)}s)`
-            );
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            failed.push({ name: job.name, url: job.url, error: message });
-            console.error(`  ✗ ${job.name}: ${message}`);
-          }
-        })
-      )
+      jobs.map((job) => limit(() => runScreenshotJob(browser, job, state)))
     );
+    runResult = {
+      ok: state.ok,
+      failed: state.failed,
+      elapsedMs: performance.now() - t0,
+    };
   } finally {
     if (ownsBrowser) await closeSharedBrowser(browser);
   }
-
-  const elapsedMs = performance.now() - t0;
-  console.log(
-    `[${label}] done. ok=${ok}, failed=${failed.length}, elapsed=${(elapsedMs / 1000).toFixed(1)}s`
-  );
-  if (failed.length > 0) {
-    console.log('Failed jobs:');
-    for (const f of failed)
-      console.log(`  • ${f.name} (${f.url}) — ${f.error}`);
-  }
-  return { ok, failed, elapsedMs };
+  printRunSummary(label, runResult.ok, runResult.failed, runResult.elapsedMs);
+  return runResult;
 }

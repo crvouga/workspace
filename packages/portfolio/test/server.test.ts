@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { join } from 'path';
 import { promisify } from 'util';
 import { setTimeout } from 'timers/promises';
+import { writeLine } from '../src/library/cli-output';
 
 const execAsync = promisify(exec);
 
@@ -26,10 +27,10 @@ async function runCommand(
       error instanceof Error
         ? error.message +
           (error && typeof error === 'object' && 'stderr' in error
-            ? `\nstderr: ${error.stderr}`
+            ? `\nstderr: ${String(error.stderr)}`
             : '') +
           (error && typeof error === 'object' && 'stdout' in error
-            ? `\nstdout: ${error.stdout}`
+            ? `\nstdout: ${String(error.stdout)}`
             : '')
         : String(error);
     throw new Error(`Command failed: ${command}\n${message}`);
@@ -62,12 +63,12 @@ async function printDockerLogs(): Promise<void> {
       `docker logs ${CONTAINER_NAME} 2>&1 || true`
     );
     if (stdout && stdout.trim()) {
-      console.log(`Docker logs for ${CONTAINER_NAME}:\n${stdout}`);
+      writeLine(`Docker logs for ${CONTAINER_NAME}:\n${stdout}`);
     } else {
-      console.log(`(No logs found for container ${CONTAINER_NAME})`);
+      writeLine(`(No logs found for container ${CONTAINER_NAME})`);
     }
   } catch {
-    console.log(`Unable to retrieve Docker logs for ${CONTAINER_NAME}`);
+    writeLine(`Unable to retrieve Docker logs for ${CONTAINER_NAME}`);
   }
 }
 
@@ -83,23 +84,23 @@ async function cleanup(): Promise<void> {
 
 test('Docker container serves HTML on port 80', async () => {
   try {
-    console.log('Cleaning up any existing containers/images...');
+    writeLine('Cleaning up any existing containers/images...');
     await cleanup();
 
-    console.log('Building Docker image...');
+    writeLine('Building Docker image...');
     await runCommand(
       `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} "${REPO_ROOT}"`
     );
 
-    console.log('Starting container...');
+    writeLine('Starting container...');
     await runCommand(
       `docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 ${IMAGE_NAME}`
     );
 
-    console.log('Waiting for container to be ready...');
+    writeLine('Waiting for container to be ready...');
     await waitForContainer();
 
-    console.log('Making HTTP request to test server...');
+    writeLine('Making HTTP request to test server...');
     const response = await fetch(TEST_URL);
 
     expect(response.status).toBe(200);
@@ -114,12 +115,12 @@ test('Docker container serves HTML on port 80', async () => {
       true
     );
 
-    console.log('✓ Test passed: Server responds with 200 HTML');
+    writeLine('✓ Test passed: Server responds with 200 HTML');
   } catch (error) {
     await printDockerLogs();
     throw error;
   } finally {
-    console.log('Cleaning up...');
+    writeLine('Cleaning up...');
     await cleanup();
   }
 });

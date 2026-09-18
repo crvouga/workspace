@@ -13,6 +13,7 @@ import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import sharp from 'sharp';
 import pLimit from 'p-limit';
+import { writeLine } from './library/cli-output';
 import { getAllFiles } from './library/file-system';
 
 export const PUBLIC_DIR = './public';
@@ -167,17 +168,17 @@ if (import.meta.main) {
   (async () => {
     const jobs = buildOptimizeJobs();
     if (jobs.length === 0) {
-      console.log('No source images found.');
+      writeLine('No source images found.');
       return;
     }
     const concurrency = defaultOptimizeConcurrency();
-    console.log(
+    writeLine(
       `Optimizing ${jobs.length} image(s) with concurrency=${concurrency}…`
     );
     const result = await optimizeImages(jobs, concurrency);
     const reused = result.ok.filter((r) => r.skipped).length;
     const built = result.ok.length - reused;
-    console.log(
+    writeLine(
       `Done in ${(result.elapsedMs / 1000).toFixed(1)}s. ` +
         `built=${built}, cached=${reused}, failed=${result.failed.length}.`
     );
@@ -186,7 +187,7 @@ if (import.meta.main) {
         console.error(`  ✗ ${f.job.name} — ${f.error}`);
       process.exit(1);
     }
-  })().catch((err) => {
+  })().catch((err: unknown) => {
     console.error('Fatal error:', err);
     process.exit(1);
   });
