@@ -1,15 +1,15 @@
-import type { Html, ViewWithProps } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { viewButton } from "./button";
-import { viewGrid, viewGridItem } from "./grid";
-import { HEAD } from "./head";
-import { THEME, unit } from "./theme";
+import type { Html, ViewWithProps } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { viewButton } from './button';
+import { viewGrid, viewGridItem } from './grid';
+import { HEAD } from './head';
+import { THEME, unit } from './theme';
 
-const EXTRA_ITEM_CLASS = "grid-collapsible-item-extra";
+const EXTRA_ITEM_CLASS = 'grid-collapsible-item-extra';
 const PEEK_ITEM_CLASSES = [
-  "grid-collapsible-item-peek-1",
-  "grid-collapsible-item-peek-2",
-  "grid-collapsible-item-peek-3",
+  'grid-collapsible-item-peek-1',
+  'grid-collapsible-item-peek-2',
+  'grid-collapsible-item-peek-3',
 ] as const;
 
 export const viewGridCollapsible: ViewWithProps<{
@@ -37,7 +37,7 @@ export const viewGridCollapsible: ViewWithProps<{
   const onClickToggleName = `${props.jsVarSafeNamespace}OnClickToggle`;
 
   const seeMoreLabel = `See ${hiddenCardCount.toLocaleString()} more`;
-  const seeLessLabel = "See less";
+  const seeLessLabel = 'See less';
 
   // Items past the visible threshold split into two pools:
   //   - The next 3 (one full row at the widest breakpoint) get peek classes
@@ -53,14 +53,14 @@ export const viewGridCollapsible: ViewWithProps<{
   };
 
   return tag(
-    "div",
+    'div',
     {
       id: rootId,
-      class: "grid-collapsible",
-      "data-expanded": "false",
+      class: 'grid-collapsible',
+      'data-expanded': 'false',
     },
     [
-      tag("script", {}, [
+      tag('script', {}, [
         text(`
           function ${onClickToggleName}(event) {
             const root = document.getElementById(${JSON.stringify(rootId)});
@@ -88,7 +88,7 @@ export const viewGridCollapsible: ViewWithProps<{
         `),
       ]),
 
-      tag("div", { class: "grid-collapsible-content" }, [
+      tag('div', { class: 'grid-collapsible-content' }, [
         viewGrid(
           {},
           props.children.map((child, index) => {
@@ -96,21 +96,21 @@ export const viewGridCollapsible: ViewWithProps<{
             return viewGridItem(cls ? { class: cls } : {}, [child]);
           })
         ),
-        tag("div", { class: "grid-collapsible-actions" }, [
+        tag('div', { class: 'grid-collapsible-actions' }, [
           viewButton({
             disabled: false,
-            size: "xl",
+            size: 'xl',
             startDecorator: null,
-            tag: "button",
+            tag: 'button',
             text: seeMoreLabel,
-            variant: "contained",
+            variant: 'contained',
           })({
             id: toggleButtonId,
-            class: "grid-collapsible-toggle",
-            type: "button",
+            class: 'grid-collapsible-toggle',
+            type: 'button',
             onclick: `${onClickToggleName}(event)`,
-            "aria-expanded": "false",
-            "aria-controls": rootId,
+            'aria-expanded': 'false',
+            'aria-controls': rootId,
           }),
         ]),
       ]),
@@ -118,12 +118,12 @@ export const viewGridCollapsible: ViewWithProps<{
   );
 };
 
-const PEEK_MAX_HEIGHT = "240px";
+const PEEK_MAX_HEIGHT = '240px';
 const PEEK_MASK =
-  "linear-gradient(to bottom, rgba(0, 0, 0, 0.66) 0%, rgba(0, 0, 0, 0) 100%)";
+  'linear-gradient(to bottom, rgba(0, 0, 0, 0.66) 0%, rgba(0, 0, 0, 0) 100%)';
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .grid-collapsible {
         position: relative;

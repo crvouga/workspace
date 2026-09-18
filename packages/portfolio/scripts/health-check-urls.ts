@@ -6,9 +6,9 @@
  *   bun run scripts/health-check-urls.ts
  *   bun run scripts/health-check-urls.ts --timeout-ms 30000 --retries 4
  */
-import { CONTENT } from "../src/content/content";
-import { PROJECTS } from "../src/content/project";
-import { WORK } from "../src/content/work";
+import { CONTENT } from '../src/content/content';
+import { PROJECTS } from '../src/content/project';
+import { WORK } from '../src/content/work';
 
 type UrlCheckResult = {
   url: string;
@@ -38,13 +38,14 @@ function parseArgs(argv: readonly string[]): Args {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--timeout-ms") timeoutMs = Number(argv[++i] ?? timeoutMs);
-    else if (arg === "--retries") retries = Number(argv[++i] ?? retries);
-    else if (arg === "--retry-delay-ms") retryDelayMs = Number(argv[++i] ?? retryDelayMs);
-    else if (arg === "--help" || arg === "-h") {
+    if (arg === '--timeout-ms') timeoutMs = Number(argv[++i] ?? timeoutMs);
+    else if (arg === '--retries') retries = Number(argv[++i] ?? retries);
+    else if (arg === '--retry-delay-ms')
+      retryDelayMs = Number(argv[++i] ?? retryDelayMs);
+    else if (arg === '--help' || arg === '-h') {
       console.log(
-        "Usage: bun run scripts/health-check-urls.ts " +
-          "[--timeout-ms <ms>] [--retries <n>] [--retry-delay-ms <ms>]",
+        'Usage: bun run scripts/health-check-urls.ts ' +
+          '[--timeout-ms <ms>] [--retries <n>] [--retry-delay-ms <ms>]'
       );
       process.exit(0);
     } else {
@@ -61,28 +62,31 @@ function sleep(ms: number): Promise<void> {
 
 async function fetchOnce(
   url: string,
-  method: "HEAD" | "GET",
-  timeoutMs: number,
+  method: 'HEAD' | 'GET',
+  timeoutMs: number
 ): Promise<{ status: number; ok: boolean }> {
   const response = await fetch(url, {
     method,
-    redirect: "follow",
+    redirect: 'follow',
     signal: AbortSignal.timeout(timeoutMs),
   });
-  const isLinkedIn = url.includes("linkedin.com");
+  const isLinkedIn = url.includes('linkedin.com');
   const ok =
     response.ok ||
     (isLinkedIn && (response.status === 999 || response.status === 405));
   return { status: response.status, ok };
 }
 
-async function checkUrlOnce(url: string, opts: CheckOptions): Promise<UrlCheckResult> {
+async function checkUrlOnce(
+  url: string,
+  opts: CheckOptions
+): Promise<UrlCheckResult> {
   const startTime = Date.now();
-  const isLinkedIn = url.includes("linkedin.com");
+  const isLinkedIn = url.includes('linkedin.com');
 
   try {
     try {
-      const head = await fetchOnce(url, "HEAD", opts.timeoutMs);
+      const head = await fetchOnce(url, 'HEAD', opts.timeoutMs);
       if (head.ok) {
         return {
           url,
@@ -105,7 +109,7 @@ async function checkUrlOnce(url: string, opts: CheckOptions): Promise<UrlCheckRe
       /* try GET below for linkedin edge cases */
     }
 
-    const get = await fetchOnce(url, "GET", opts.timeoutMs);
+    const get = await fetchOnce(url, 'GET', opts.timeoutMs);
     return {
       url,
       status: get.status,
@@ -125,7 +129,10 @@ async function checkUrlOnce(url: string, opts: CheckOptions): Promise<UrlCheckRe
   }
 }
 
-async function checkUrlWithRetries(url: string, args: Args): Promise<UrlCheckResult> {
+async function checkUrlWithRetries(
+  url: string,
+  args: Args
+): Promise<UrlCheckResult> {
   const opts: CheckOptions = {
     timeoutMs: args.timeoutMs,
     retries: args.retries,
@@ -136,7 +143,7 @@ async function checkUrlWithRetries(url: string, args: Args): Promise<UrlCheckRes
     url,
     status: 0,
     ok: false,
-    error: "no attempts",
+    error: 'no attempts',
     duration: 0,
     attempts: 0,
   };
@@ -144,7 +151,7 @@ async function checkUrlWithRetries(url: string, args: Args): Promise<UrlCheckRes
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(
       `Checking: ${url}...` +
-        (attempt > 1 ? ` (retry ${attempt - 1}/${opts.retries})` : ""),
+        (attempt > 1 ? ` (retry ${attempt - 1}/${opts.retries})` : '')
     );
     const result = await checkUrlOnce(url, opts);
     last = { ...result, attempts: attempt };
@@ -157,7 +164,7 @@ async function checkUrlWithRetries(url: string, args: Args): Promise<UrlCheckRes
     const errMsg = result.error ?? `HTTP ${result.status}`;
     console.log(
       `  ✗ attempt ${attempt}/${maxAttempts}: ${errMsg} - ${result.duration}ms` +
-        (attempt < maxAttempts ? ` — waiting ${opts.retryDelayMs}ms` : ""),
+        (attempt < maxAttempts ? ` — waiting ${opts.retryDelayMs}ms` : '')
     );
 
     if (attempt < maxAttempts) {
@@ -179,10 +186,10 @@ const extractUrls = (): string[] => {
   if (CONTENT.LINKEDIN_URL) urls.add(CONTENT.LINKEDIN_URL);
 
   for (const project of PROJECTS) {
-    if (project.deployment?.t === "public" && project.deployment.url) {
+    if (project.deployment?.t === 'public' && project.deployment.url) {
       urls.add(project.deployment.url);
     }
-    if (project.code?.t === "public" && project.code.url) {
+    if (project.code?.t === 'public' && project.code.url) {
       urls.add(project.code.url);
     }
   }
@@ -202,19 +209,22 @@ const main = async () => {
 
   console.log(`\n🔍 Health Check: ${urls.length} URL(s)\n`);
   console.log(
-    `   timeout=${args.timeoutMs}ms, retries=${args.retries}, delay=${args.retryDelayMs}ms\n`,
+    `   timeout=${args.timeoutMs}ms, retries=${args.retries}, delay=${args.retryDelayMs}ms\n`
   );
-  console.log("=".repeat(60));
+  console.log('='.repeat(60));
 
   const startTime = Date.now();
-  const results = await Promise.all(urls.map((url) => checkUrlWithRetries(url, args)));
+  const results = await Promise.all(
+    urls.map((url) => checkUrlWithRetries(url, args))
+  );
   const totalDuration = Date.now() - startTime;
 
-  console.log("=".repeat(60));
-  console.log("\n📊 Summary:\n");
+  console.log('='.repeat(60));
+  console.log('\n📊 Summary:\n');
 
   let failed = 0;
-  const failedUrls: Array<{ url: string; error: string; attempts: number }> = [];
+  const failedUrls: Array<{ url: string; error: string; attempts: number }> =
+    [];
 
   for (const result of results) {
     if (!result.ok) {
@@ -227,7 +237,8 @@ const main = async () => {
     }
   }
 
-  const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+  const avgDuration =
+    results.reduce((sum, r) => sum + r.duration, 0) / results.length;
   const maxDuration = Math.max(...results.map((r) => r.duration));
   const minDuration = Math.min(...results.map((r) => r.duration));
 
@@ -240,19 +251,23 @@ const main = async () => {
   console.log(`Slowest: ${maxDuration}ms`);
 
   if (failed > 0) {
-    console.log("\n❌ Failed URLs:\n");
+    console.log('\n❌ Failed URLs:\n');
     for (const failedUrl of failedUrls) {
       console.log(`  • ${failedUrl.url}`);
-      console.log(`    Error: ${failedUrl.error} (${failedUrl.attempts} attempt(s))`);
+      console.log(
+        `    Error: ${failedUrl.error} (${failedUrl.attempts} attempt(s))`
+      );
     }
-    console.error(`\n❌ Health check failed: ${failed} URL(s) are not accessible`);
+    console.error(
+      `\n❌ Health check failed: ${failed} URL(s) are not accessible`
+    );
     process.exit(1);
   }
 
-  console.log("\n✅ All URLs are healthy!");
+  console.log('\n✅ All URLs are healthy!');
 };
 
 main().catch((error) => {
-  console.error("Health check failed:", error);
+  console.error('Health check failed:', error);
   process.exit(1);
 });

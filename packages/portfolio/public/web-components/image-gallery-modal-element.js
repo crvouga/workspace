@@ -3,38 +3,38 @@ class ImageGalleryModalElement extends HTMLElement {
   constructor() {
     super();
 
-    const shadow = this.attachShadow({ mode: "open" });
+    const shadow = this.attachShadow({ mode: 'open' });
 
     // Create container for the modal
-    const container = document.createElement("div");
-    container.className = "gallery-modal";
+    const container = document.createElement('div');
+    container.className = 'gallery-modal';
 
     // Create close button
-    const closeButton = document.createElement("button");
-    closeButton.className = "gallery-modal-close";
-    closeButton.textContent = "×";
-    closeButton.setAttribute("aria-label", "Close gallery");
+    const closeButton = document.createElement('button');
+    closeButton.className = 'gallery-modal-close';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', 'Close gallery');
 
     // Create previous button
-    const prevButton = document.createElement("button");
-    prevButton.className = "gallery-modal-nav gallery-modal-prev";
-    prevButton.textContent = "❮";
-    prevButton.setAttribute("aria-label", "Previous image");
+    const prevButton = document.createElement('button');
+    prevButton.className = 'gallery-modal-nav gallery-modal-prev';
+    prevButton.textContent = '❮';
+    prevButton.setAttribute('aria-label', 'Previous image');
 
     // Create next button
-    const nextButton = document.createElement("button");
-    nextButton.className = "gallery-modal-nav gallery-modal-next";
-    nextButton.textContent = "❯";
-    nextButton.setAttribute("aria-label", "Next image");
+    const nextButton = document.createElement('button');
+    nextButton.className = 'gallery-modal-nav gallery-modal-next';
+    nextButton.textContent = '❯';
+    nextButton.setAttribute('aria-label', 'Next image');
 
     // Create image container
-    const imageContainer = document.createElement("div");
-    imageContainer.className = "gallery-modal-image-container";
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'gallery-modal-image-container';
 
     // Create counter
-    const counter = document.createElement("div");
-    counter.className = "gallery-modal-counter";
-    counter.textContent = "1 / 1";
+    const counter = document.createElement('div');
+    counter.className = 'gallery-modal-counter';
+    counter.textContent = '1 / 1';
 
     // Append all elements to the main container
     container.appendChild(imageContainer);
@@ -44,7 +44,7 @@ class ImageGalleryModalElement extends HTMLElement {
     container.appendChild(nextButton);
 
     // Create styles
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.textContent = `
       .gallery-modal {
         display: none;
@@ -202,8 +202,8 @@ class ImageGalleryModalElement extends HTMLElement {
     shadow.appendChild(container);
 
     // Create a container for preloaded images
-    const preloadContainer = document.createElement("div");
-    preloadContainer.className = "preloaded-images";
+    const preloadContainer = document.createElement('div');
+    preloadContainer.className = 'preloaded-images';
     shadow.appendChild(preloadContainer);
 
     // Store references to elements
@@ -222,29 +222,28 @@ class ImageGalleryModalElement extends HTMLElement {
     this.isModalOpen = false;
 
     // Add event listeners
-    closeButton.addEventListener("click", () => this.closeModal());
-    prevButton.addEventListener("click", () => this.prevImage());
-    nextButton.addEventListener("click", () => this.nextImage());
+    closeButton.addEventListener('click', () => this.closeModal());
+    prevButton.addEventListener('click', () => this.prevImage());
+    nextButton.addEventListener('click', () => this.nextImage());
 
     // Add click event listener to the modal backdrop to close it
-    container.addEventListener("click", (event) => {
+    container.addEventListener('click', (event) => {
       const target = event.target;
-      
+
       // Don't close if clicking on images, videos, buttons, counter, or spinner
       if (
         !target ||
         target instanceof HTMLImageElement ||
         target instanceof HTMLIFrameElement ||
         target === counter ||
-        (target instanceof HTMLElement && (
-          target.tagName === "BUTTON" ||
-          target.closest("button") ||
-          target.closest("loading-spinner")
-        ))
+        (target instanceof HTMLElement &&
+          (target.tagName === 'BUTTON' ||
+            target.closest('button') ||
+            target.closest('loading-spinner')))
       ) {
         return;
       }
-      
+
       // Close if clicking on the backdrop (container) or image container (empty space around image)
       if (target === container || target === imageContainer) {
         this.closeModal();
@@ -252,20 +251,20 @@ class ImageGalleryModalElement extends HTMLElement {
     });
 
     // Keyboard navigation
-    window.addEventListener("keydown", (event) => {
-      if (this.modal.style.display === "flex") {
-        if (event.key === "ArrowRight") {
+    window.addEventListener('keydown', (event) => {
+      if (this.modal.style.display === 'flex') {
+        if (event.key === 'ArrowRight') {
           this.nextImage();
-        } else if (event.key === "ArrowLeft") {
+        } else if (event.key === 'ArrowLeft') {
           this.prevImage();
-        } else if (event.key === "Escape") {
+        } else if (event.key === 'Escape') {
           this.closeModal();
         }
       }
     });
 
     // Handle popstate events to close the modal when back button is pressed
-    window.addEventListener("popstate", (_event) => {
+    window.addEventListener('popstate', (_event) => {
       if (this.isModalOpen) {
         this.closeModal(false); // Close without pushing state
       }
@@ -282,19 +281,19 @@ class ImageGalleryModalElement extends HTMLElement {
    * @param {unknown} _newValue
    */
   attributeChangedCallback(name, _oldValue, _newValue) {
-    if (name === "data-skeleton-color") {
+    if (name === 'data-skeleton-color') {
       this.updateCSSVariables();
     }
   }
 
   static get observedAttributes() {
-    return ["data-skeleton-color"];
+    return ['data-skeleton-color'];
   }
 
   updateCSSVariables() {
-    const skeletonColor = this.getAttribute("data-skeleton-color");
+    const skeletonColor = this.getAttribute('data-skeleton-color');
     if (skeletonColor) {
-      this.style.setProperty("--skeleton-color", skeletonColor);
+      this.style.setProperty('--skeleton-color', skeletonColor);
     }
   }
 
@@ -304,7 +303,7 @@ class ImageGalleryModalElement extends HTMLElement {
    * @returns {boolean} - True if URL is a YouTube video
    */
   isYouTubeUrl(url) {
-    return url.includes("youtube.com/") || url.includes("youtu.be/");
+    return url.includes('youtube.com/') || url.includes('youtu.be/');
   }
 
   /**
@@ -313,14 +312,14 @@ class ImageGalleryModalElement extends HTMLElement {
    * @returns {string} - YouTube video ID
    */
   getYouTubeVideoId(url) {
-    let videoId = "";
-    if (url.includes("youtube.com/watch")) {
+    let videoId = '';
+    if (url.includes('youtube.com/watch')) {
       const urlParams = new URL(url).searchParams;
-      videoId = urlParams.get("v") || "";
-    } else if (url.includes("youtu.be/")) {
-      videoId = url.split("youtu.be/")[1].split("?")[0];
-    } else if (url.includes("youtube.com/embed/")) {
-      videoId = url.split("youtube.com/embed/")[1].split("?")[0];
+      videoId = urlParams.get('v') || '';
+    } else if (url.includes('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1].split('?')[0];
+    } else if (url.includes('youtube.com/embed/')) {
+      videoId = url.split('youtube.com/embed/')[1].split('?')[0];
     }
     return videoId;
   }
@@ -330,13 +329,13 @@ class ImageGalleryModalElement extends HTMLElement {
    * @param {string[]} media - Array of image URLs or YouTube URLs
    * @param {string} [alt="Gallery media"] - Alt text for images
    */
-  setImages(media, alt = "Gallery media") {
+  setImages(media, alt = 'Gallery media') {
     if (!Array.isArray(media)) {
-      throw new Error("Media must be an array of URLs");
+      throw new Error('Media must be an array of URLs');
     }
     this.images = media;
     this.mediaTypes = media.map((url) =>
-      this.isYouTubeUrl(url) ? "video" : "image"
+      this.isYouTubeUrl(url) ? 'video' : 'image'
     );
     this.imageAlt = alt;
   }
@@ -346,20 +345,20 @@ class ImageGalleryModalElement extends HTMLElement {
    */
   preloadImages() {
     // Clear previous preloaded images
-    this.preloadContainer.innerHTML = "";
+    this.preloadContainer.innerHTML = '';
     this.preloadedImages = [];
 
     // Only preload actual images, not videos
     const imagesToPreload = this.images.filter(
-      (_, index) => this.mediaTypes[index] === "image"
+      (_, index) => this.mediaTypes[index] === 'image'
     );
 
     // Create and load all images
     imagesToPreload.forEach((url) => {
-      const img = document.createElement("img");
+      const img = document.createElement('img');
       img.src = url;
-      img.alt = this.imageAlt || "Gallery image";
-      img.className = "gallery-modal-image";
+      img.alt = this.imageAlt || 'Gallery image';
+      img.className = 'gallery-modal-image';
       this.preloadedImages.push(img);
       this.preloadContainer.appendChild(img);
     });
@@ -370,26 +369,26 @@ class ImageGalleryModalElement extends HTMLElement {
    */
   openModal(index = 0) {
     if (this.images.length === 0) {
-      console.error("No media items have been set for the gallery");
+      console.error('No media items have been set for the gallery');
       return;
     }
 
     this.currentIndex = index || 0;
-    this.modal.style.display = "flex";
+    this.modal.style.display = 'flex';
 
     // Store the current scroll position before disabling scrolling
     this.scrollPosition =
       window.pageYOffset || document.documentElement.scrollTop;
 
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
     document.body.style.top = `-${this.scrollPosition}px`;
-    document.body.style.width = "100%";
-    document.body.style.height = "100%";
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
     this.isModalOpen = true;
 
     // Add state to browser history
-    history.pushState({ galleryModal: true }, "");
+    history.pushState({ galleryModal: true }, '');
 
     // Preload all images when opening the modal
     this.preloadImages();
@@ -402,14 +401,14 @@ class ImageGalleryModalElement extends HTMLElement {
    * @param {boolean} [pushState=true] - Whether to push a new history state
    */
   closeModal(pushState = true) {
-    this.modal.style.display = "none";
+    this.modal.style.display = 'none';
 
     // Restore scrolling and scroll position
-    document.body.style.overflow = "";
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.width = "";
-    document.body.style.height = "";
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
 
     // Restore the scroll position
     window.scrollTo(0, this.scrollPosition || 0);
@@ -420,7 +419,7 @@ class ImageGalleryModalElement extends HTMLElement {
     // we need to add a new history entry to prevent reopening the modal
     // when the user navigates forward
     if (pushState) {
-      history.pushState(null, "");
+      history.pushState(null, '');
     }
   }
 
@@ -445,11 +444,11 @@ class ImageGalleryModalElement extends HTMLElement {
    * Update the displayed media (image or video)
    */
   updateImage() {
-    this.imageContainer.innerHTML = "";
+    this.imageContainer.innerHTML = '';
     const currentUrl = this.images[this.currentIndex];
     const mediaType = this.mediaTypes[this.currentIndex];
 
-    if (mediaType === "video") {
+    if (mediaType === 'video') {
       this.displayVideo(currentUrl);
     } else {
       this.displayImage(currentUrl);
@@ -466,13 +465,13 @@ class ImageGalleryModalElement extends HTMLElement {
    * @returns {HTMLElement} The created spinner element
    */
   createLoadingSpinner() {
-    const spinner = document.createElement("loading-spinner");
-    spinner.setAttribute("data-spinner-color", "#ffffff");
+    const spinner = document.createElement('loading-spinner');
+    spinner.setAttribute('data-spinner-color', '#ffffff');
     spinner.setAttribute(
-      "data-spinner-color-light",
-      "rgba(255, 255, 255, 0.2)"
+      'data-spinner-color-light',
+      'rgba(255, 255, 255, 0.2)'
     );
-    spinner.setAttribute("data-spinner-size", "60px");
+    spinner.setAttribute('data-spinner-size', '60px');
     this.imageContainer.appendChild(spinner);
     return spinner;
   }
@@ -486,24 +485,24 @@ class ImageGalleryModalElement extends HTMLElement {
     if (videoId) {
       const spinner = this.createLoadingSpinner();
 
-      const iframe = document.createElement("iframe");
-      iframe.className = "gallery-modal-video";
+      const iframe = document.createElement('iframe');
+      iframe.className = 'gallery-modal-video';
       iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-      iframe.title = this.imageAlt || "YouTube video";
+      iframe.title = this.imageAlt || 'YouTube video';
       iframe.allow =
-        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-      iframe.setAttribute("allowfullscreen", "");
-      iframe.style.display = "none"; // Hide iframe until loaded
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.style.display = 'none'; // Hide iframe until loaded
 
       // Remove spinner when iframe is loaded
-      iframe.addEventListener("load", () => {
+      iframe.addEventListener('load', () => {
         spinner.remove();
-        iframe.style.display = "block";
+        iframe.style.display = 'block';
       });
 
       this.imageContainer.appendChild(iframe);
     } else {
-      console.error("Invalid YouTube URL:", videoUrl);
+      console.error('Invalid YouTube URL:', videoUrl);
     }
   }
 
@@ -534,10 +533,10 @@ class ImageGalleryModalElement extends HTMLElement {
    */
   displayPreloadedImage(imageUrl, spinner, preloadedImageIndex) {
     const preloadedImg = this.preloadedImages[preloadedImageIndex];
-    const img = document.createElement("img");
+    const img = document.createElement('img');
     img.src = imageUrl;
-    img.alt = this.imageAlt || "Gallery image";
-    img.className = "gallery-modal-image";
+    img.alt = this.imageAlt || 'Gallery image';
+    img.className = 'gallery-modal-image';
 
     // If the image is already loaded, show it immediately
     if (preloadedImg.complete) {
@@ -545,10 +544,10 @@ class ImageGalleryModalElement extends HTMLElement {
       this.imageContainer.appendChild(img);
     } else {
       // Otherwise wait for it to load
-      img.style.display = "none";
+      img.style.display = 'none';
       preloadedImg.onload = () => {
         spinner.remove();
-        img.style.display = "block";
+        img.style.display = 'block';
       };
       this.imageContainer.appendChild(img);
     }
@@ -560,11 +559,11 @@ class ImageGalleryModalElement extends HTMLElement {
    * @param {HTMLElement} _spinner - The spinner element
    */
   displayFallbackImage(imageUrl, _spinner) {
-    const img = document.createElement("img");
+    const img = document.createElement('img');
     img.src = imageUrl;
-    img.alt = this.imageAlt || "Gallery image";
-    img.className = "gallery-modal-image";
-    img.style.display = "none"; // Hide image until loaded
+    img.alt = this.imageAlt || 'Gallery image';
+    img.className = 'gallery-modal-image';
+    img.style.display = 'none'; // Hide image until loaded
 
     img.onload = function () {
       // Use the correct type for 'this' in the event handler
@@ -573,12 +572,12 @@ class ImageGalleryModalElement extends HTMLElement {
         // Hide spinner and show image
         const container = imgElement.parentElement;
         if (container) {
-          const spinnerElement = container.querySelector("loading-spinner");
+          const spinnerElement = container.querySelector('loading-spinner');
           if (spinnerElement) {
             spinnerElement.remove();
           }
         }
-        imgElement.style.display = "block";
+        imgElement.style.display = 'block';
       }
     };
 
@@ -586,4 +585,4 @@ class ImageGalleryModalElement extends HTMLElement {
   }
 }
 
-customElements.define("image-gallery-modal", ImageGalleryModalElement);
+customElements.define('image-gallery-modal', ImageGalleryModalElement);

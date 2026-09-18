@@ -1,4 +1,4 @@
-import type { ViewWithProps } from "../../library/html/index";
+import type { ViewWithProps } from '../../library/html/index';
 
 export type ImageGalleryModalProps = {
   jsVarSafeNamespace: string;
@@ -11,4 +11,5 @@ export type OpenImageGalleryModalJsFunction = (input: {
   jsVarSafeNamespace: string;
 }) => string;
 
-export type ViewImageGalleryModalFunction = ViewWithProps<ImageGalleryModalProps>;
+export type ViewImageGalleryModalFunction =
+  ViewWithProps<ImageGalleryModalProps>;

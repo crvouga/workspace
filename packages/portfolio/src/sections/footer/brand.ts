@@ -1,17 +1,17 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewMonogram } from "../../ui/monogram";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewMonogram } from '../../ui/monogram';
 
 export const viewFooterBrand: View = () => {
-  return tag("div", { class: "footer-brand" }, [
-    viewMonogram({ initials: CONTENT.MONOGRAM_INITIALS, size: "sm" })(),
-    tag("div", { class: "footer-brand-text" }, [
-      tag("span", { class: "footer-brand-name" }, [
+  return tag('div', { class: 'footer-brand' }, [
+    viewMonogram({ initials: CONTENT.MONOGRAM_INITIALS, size: 'sm' })(),
+    tag('div', { class: 'footer-brand-text' }, [
+      tag('span', { class: 'footer-brand-name' }, [
         text(CONTENT.FOOTER_COPY.brand),
       ]),
-      tag("span", { class: "footer-brand-location" }, [
+      tag('span', { class: 'footer-brand-location' }, [
         text(CONTENT.FOOTER_COPY.location),
       ]),
     ]),
@@ -19,7 +19,7 @@ export const viewFooterBrand: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .footer-brand {
         display: flex;

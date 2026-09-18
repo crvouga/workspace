@@ -1,20 +1,20 @@
-import type { View } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
+import type { View } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
 
 export const viewCard: View = (attr, children) => {
   return tag(
-    "article",
+    'article',
     {
       ...attr,
-      class: ["card", attr?.["class"]].filter(Boolean).join(" "),
+      class: ['card', attr?.['class']].filter(Boolean).join(' '),
     },
     children
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .card {
         display: flex;
@@ -31,17 +31,17 @@ HEAD.push(
 
 export const viewCardContent: View = (attrs, children) => {
   return tag(
-    "div",
+    'div',
     {
       ...attrs,
-      class: ["card-content", attrs?.["class"]].filter(Boolean).join(" "),
+      class: ['card-content', attrs?.['class']].filter(Boolean).join(' '),
     },
     children
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .card-content {
         padding: 24px;
@@ -55,17 +55,17 @@ HEAD.push(
 
 export const viewCardActions: View = (attrs, children) => {
   return tag(
-    "div",
+    'div',
     {
       ...attrs,
-      class: ["card-actions", attrs?.["class"]].filter(Boolean).join(" "),
+      class: ['card-actions', attrs?.['class']].filter(Boolean).join(' '),
     },
     children
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .card-actions {
         display: flex;

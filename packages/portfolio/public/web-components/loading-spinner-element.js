@@ -3,15 +3,15 @@ class LoadingSpinnerElement extends HTMLElement {
   constructor() {
     super();
 
-    const shadow = this.attachShadow({ mode: "open" });
+    const shadow = this.attachShadow({ mode: 'open' });
 
-    const container = document.createElement("div");
-    container.className = "spinner-container";
+    const container = document.createElement('div');
+    container.className = 'spinner-container';
 
-    const spinner = document.createElement("div");
-    spinner.className = "spinner";
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
 
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.textContent = `
       .spinner-container {
           display: flex;
@@ -66,10 +66,10 @@ class LoadingSpinnerElement extends HTMLElement {
    */
   attributeChangedCallback(name, _oldValue, _newValue) {
     if (
-      name === "data-spinner-color" ||
-      name === "data-spinner-color-light" ||
-      name === "data-spinner-size" ||
-      name === "data-spinner-thickness"
+      name === 'data-spinner-color' ||
+      name === 'data-spinner-color-light' ||
+      name === 'data-spinner-size' ||
+      name === 'data-spinner-thickness'
     ) {
       this.updateCSSVariables();
     }
@@ -77,30 +77,30 @@ class LoadingSpinnerElement extends HTMLElement {
 
   static get observedAttributes() {
     return [
-      "data-spinner-color",
-      "data-spinner-color-light",
-      "data-spinner-size",
-      "data-spinner-thickness",
+      'data-spinner-color',
+      'data-spinner-color-light',
+      'data-spinner-size',
+      'data-spinner-thickness',
     ];
   }
 
   updateCSSVariables() {
-    const spinnerColor = this.getAttribute("data-spinner-color");
-    const spinnerColorLight = this.getAttribute("data-spinner-color-light");
-    const spinnerSize = this.getAttribute("data-spinner-size");
-    const spinnerThickness = this.getAttribute("data-spinner-thickness");
+    const spinnerColor = this.getAttribute('data-spinner-color');
+    const spinnerColorLight = this.getAttribute('data-spinner-color-light');
+    const spinnerSize = this.getAttribute('data-spinner-size');
+    const spinnerThickness = this.getAttribute('data-spinner-thickness');
 
     if (spinnerColor) {
-      this.style.setProperty("--spinner-color", spinnerColor);
+      this.style.setProperty('--spinner-color', spinnerColor);
     }
     if (spinnerColorLight) {
-      this.style.setProperty("--spinner-color-light", spinnerColorLight);
+      this.style.setProperty('--spinner-color-light', spinnerColorLight);
     }
     if (spinnerSize) {
-      this.style.setProperty("--spinner-size", spinnerSize);
+      this.style.setProperty('--spinner-size', spinnerSize);
     }
     if (spinnerThickness) {
-      this.style.setProperty("--spinner-thickness", spinnerThickness);
+      this.style.setProperty('--spinner-thickness', spinnerThickness);
     }
   }
 
@@ -108,15 +108,15 @@ class LoadingSpinnerElement extends HTMLElement {
    * Show the spinner
    */
   show() {
-    this.style.display = "block";
+    this.style.display = 'block';
   }
 
   /**
    * Hide the spinner
    */
   hide() {
-    this.style.display = "none";
+    this.style.display = 'none';
   }
 }
 
-customElements.define("loading-spinner", LoadingSpinnerElement);
+customElements.define('loading-spinner', LoadingSpinnerElement);

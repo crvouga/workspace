@@ -1,45 +1,46 @@
-import { tag, text } from "../../../library/html/index";
-import { toYouTubeVideoUrl } from "../../../library/youtube";
-import { HEAD } from "../../../ui/head";
-import type { ProjectCardView } from "../props";
+import { tag, text } from '../../../library/html/index';
+import { toYouTubeVideoUrl } from '../../../library/youtube';
+import { HEAD } from '../../../ui/head';
+import type { ProjectCardView } from '../props';
 
-export const viewProjectCardMediaVideo: ProjectCardView = (props) => (attr, _) => {
-  if (!props.project?.youTubeVideoId) {
-    throw new Error("missing youTubeVideoId");
-  }
+export const viewProjectCardMediaVideo: ProjectCardView =
+  (props) => (attr, _) => {
+    if (!props.project?.youTubeVideoId) {
+      throw new Error('missing youTubeVideoId');
+    }
 
-  const videoUrl = toYouTubeVideoUrl({
-    youTubeVideoId: props.project.youTubeVideoId,
-  });
+    const videoUrl = toYouTubeVideoUrl({
+      youTubeVideoId: props.project.youTubeVideoId,
+    });
 
-  const posterImage = props.project?.imageSrc?.[0] ?? null;
+    const posterImage = props.project?.imageSrc?.[0] ?? null;
 
-  return tag(
-    "div",
-    {
-      ...attr,
-      class: "project-card-media-video-container",
-    },
-    [
-      tag(
-        "div",
-        {
-          class: "project-card-media-video-thumbnail",
-          style: `background-image: url('${posterImage}');`,
-          onclick: `loadYouTubeVideo(this, '${videoUrl}')`,
-        },
-        [
-          tag("button", { class: "project-card-media-video-play-button" }, [
-            text("▶"),
-          ]),
-        ]
-      ),
-    ]
-  );
-};
+    return tag(
+      'div',
+      {
+        ...attr,
+        class: 'project-card-media-video-container',
+      },
+      [
+        tag(
+          'div',
+          {
+            class: 'project-card-media-video-thumbnail',
+            style: `background-image: url('${posterImage}');`,
+            onclick: `loadYouTubeVideo(this, '${videoUrl}')`,
+          },
+          [
+            tag('button', { class: 'project-card-media-video-play-button' }, [
+              text('▶'),
+            ]),
+          ]
+        ),
+      ]
+    );
+  };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .project-card-media-video-container {
         position: relative;
@@ -84,7 +85,7 @@ HEAD.push(
 );
 
 HEAD.push(
-  tag("script", {}, [
+  tag('script', {}, [
     text(`
       function loadYouTubeVideo(container, videoUrl) {
         container.innerHTML = '';

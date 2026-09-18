@@ -1,20 +1,20 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewLink } from "../../ui/link";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewLink } from '../../ui/link';
 
 export const viewFooterCredit: View = () => {
-  return tag("div", { class: "footer-credit" }, [
-    tag("span", { class: "footer-credit-text" }, [
+  return tag('div', { class: 'footer-credit' }, [
+    tag('span', { class: 'footer-credit-text' }, [
       text(CONTENT.FOOTER_COPY.creditText),
     ]),
     viewLink(
       {
-        target: "_blank",
-        rel: "noopener noreferrer",
+        target: '_blank',
+        rel: 'noopener noreferrer',
         href: CONTENT.SITE_SOURCE_CODE_URL,
-        class: "footer-credit-link",
+        class: 'footer-credit-link',
       },
       [text(CONTENT.FOOTER_COPY.sourceLinkLabel)]
     ),
@@ -22,7 +22,7 @@ export const viewFooterCredit: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .footer-credit {
         display: flex;

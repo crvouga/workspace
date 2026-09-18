@@ -1,46 +1,50 @@
-import type { Deployment } from "../../../content/project";
-import { tag, text } from "../../../library/html/index";
-import type { View } from "../../../library/html/index";
-import { HEAD } from "../../../ui/head";
-import { viewStatusDot } from "../../../ui/status-dot";
+import type { Deployment } from '../../../content/project';
+import { tag, text } from '../../../library/html/index';
+import type { View } from '../../../library/html/index';
+import { HEAD } from '../../../ui/head';
+import { viewStatusDot } from '../../../ui/status-dot';
 
-type Tone = "live" | "warn" | "muted";
+type Tone = 'live' | 'warn' | 'muted';
 
 const toTone = (deployment: Deployment): Tone => {
   switch (deployment.t) {
-    case "public":
-      return "live";
-    case "not-deployed-yet":
-      return "warn";
-    case "not-deployed-anymore":
-    case "private":
-      return "muted";
+    case 'public':
+      return 'live';
+    case 'not-deployed-yet':
+      return 'warn';
+    case 'not-deployed-anymore':
+    case 'private':
+      return 'muted';
   }
 };
 
 const toLabel = (deployment: Deployment): string => {
   switch (deployment.t) {
-    case "public":
-      return "Live";
-    case "not-deployed-yet":
-      return "Soon";
-    case "not-deployed-anymore":
-      return "Archived";
-    case "private":
-      return "Private";
+    case 'public':
+      return 'Live';
+    case 'not-deployed-yet':
+      return 'Soon';
+    case 'not-deployed-anymore':
+      return 'Archived';
+    case 'private':
+      return 'Private';
   }
 };
 
-export const viewProjectLiveIndicator = (props: { deployment: Deployment }): ReturnType<View> => {
+export const viewProjectLiveIndicator = (props: {
+  deployment: Deployment;
+}): ReturnType<View> => {
   const tone = toTone(props.deployment);
-  return tag("span", { class: `project-live project-live-${tone}` }, [
+  return tag('span', { class: `project-live project-live-${tone}` }, [
     viewStatusDot({ tone })(),
-    tag("span", { class: "project-live-label" }, [text(toLabel(props.deployment))]),
+    tag('span', { class: 'project-live-label' }, [
+      text(toLabel(props.deployment)),
+    ]),
   ]);
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .project-live {
         display: inline-flex;

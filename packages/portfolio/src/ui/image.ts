@@ -1,31 +1,35 @@
-import type { ViewWithProps } from "../library/html/index";
-import { fragment, tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { ViewWithProps } from '../library/html/index';
+import { fragment, tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
-export const viewImage: ViewWithProps<{src: string; alt: string; fetchPriority?: "high" | "auto"}> = (props) => (attr, _) => {
+export const viewImage: ViewWithProps<{
+  src: string;
+  alt: string;
+  fetchPriority?: 'high' | 'auto';
+}> = (props) => (attr, _) => {
   const imgAttributes: Record<string, any> = {
     ...attr,
     src: props.src,
-    alt: props.alt || "",
-    class: ["image animate-pulse", attr?.["class"]].filter(Boolean).join(" "),
+    alt: props.alt || '',
+    class: ['image animate-pulse', attr?.['class']].filter(Boolean).join(' '),
     onload: "this.classList.remove('animate-pulse')",
-    onerror: "onImageError(event)",
+    onerror: 'onImageError(event)',
   };
 
   if (props.fetchPriority) {
-    imgAttributes["fetchpriority"] = props.fetchPriority;
+    imgAttributes['fetchpriority'] = props.fetchPriority;
   }
 
-  if (props.fetchPriority === "high") {
-    imgAttributes["loading"] = "eager";
+  if (props.fetchPriority === 'high') {
+    imgAttributes['loading'] = 'eager';
   }
 
-  return fragment([tag("img", imgAttributes, [])]);
+  return fragment([tag('img', imgAttributes, [])]);
 };
 
 HEAD.push(
-  tag("script", {}, [
+  tag('script', {}, [
     text(`
       function onImageError(e) {
         // Prevent the broken image icon from showing
@@ -66,7 +70,7 @@ HEAD.push(
 );
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
     .image {
       width: 100%;

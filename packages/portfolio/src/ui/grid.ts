@@ -1,14 +1,14 @@
-import type { Html, View } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { Html, View } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 export const viewGrid: View = (attr, children) => {
   return tag(
-    "div",
+    'div',
     {
       ...attr,
-      class: "grid",
+      class: 'grid',
     },
     children
   );
@@ -16,17 +16,17 @@ export const viewGrid: View = (attr, children) => {
 
 export const viewGridItem: View = (a, c) => {
   return tag(
-    "div",
+    'div',
     {
       ...a,
-      class: ["grid-item", a?.["class"]].filter(Boolean).join(" "),
+      class: ['grid-item', a?.['class']].filter(Boolean).join(' '),
     },
     c
   );
 };
 
 const viewGridStyles = (): Html => {
-  return tag("style", {}, [
+  return tag('style', {}, [
     text(
       `
       .grid {

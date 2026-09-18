@@ -1,34 +1,36 @@
-import { test, expect } from "bun:test";
-import { exec } from "child_process";
-import { join } from "path";
-import { promisify } from "util";
-import { setTimeout } from "timers/promises";
+import { test, expect } from 'bun:test';
+import { exec } from 'child_process';
+import { join } from 'path';
+import { promisify } from 'util';
+import { setTimeout } from 'timers/promises';
 
 const execAsync = promisify(exec);
 
-const PACKAGE_DIR = join(import.meta.dir, "..");
-const REPO_ROOT = join(PACKAGE_DIR, "..", "..");
+const PACKAGE_DIR = join(import.meta.dir, '..');
+const REPO_ROOT = join(PACKAGE_DIR, '..', '..');
 
-const IMAGE_NAME = "portfolio-app-test";
-const CONTAINER_NAME = "portfolio-app-test-container";
+const IMAGE_NAME = 'portfolio-app-test';
+const CONTAINER_NAME = 'portfolio-app-test-container';
 const PORT = 8080;
 const TEST_URL = `http://localhost:${PORT}`;
 const MAX_RETRIES = 30;
 const RETRY_DELAY_MS = 1000;
 
-async function runCommand(command: string): Promise<{ stdout: string; stderr: string }> {
+async function runCommand(
+  command: string
+): Promise<{ stdout: string; stderr: string }> {
   try {
     return await execAsync(command);
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message +
-          (error && typeof error === "object" && "stderr" in error
+          (error && typeof error === 'object' && 'stderr' in error
             ? `\nstderr: ${error.stderr}`
-            : "") +
-          (error && typeof error === "object" && "stdout" in error
+            : '') +
+          (error && typeof error === 'object' && 'stdout' in error
             ? `\nstdout: ${error.stdout}`
-            : "")
+            : '')
         : String(error);
     throw new Error(`Command failed: ${command}\n${message}`);
   }
@@ -38,7 +40,7 @@ async function waitForContainer(): Promise<void> {
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
       const response = await fetch(TEST_URL, {
-        method: "GET",
+        method: 'GET',
         signal: AbortSignal.timeout(2000),
       });
       if (response.ok) {
@@ -75,45 +77,49 @@ async function cleanup(): Promise<void> {
     await runCommand(`docker rmi ${IMAGE_NAME} 2>/dev/null || true`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Cleanup error (non-fatal):", message);
+    console.error('Cleanup error (non-fatal):', message);
   }
 }
 
-test("Docker container serves HTML on port 80", async () => {
+test('Docker container serves HTML on port 80', async () => {
   try {
-    console.log("Cleaning up any existing containers/images...");
+    console.log('Cleaning up any existing containers/images...');
     await cleanup();
 
-    console.log("Building Docker image...");
+    console.log('Building Docker image...');
     await runCommand(
       `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} "${REPO_ROOT}"`
     );
 
-    console.log("Starting container...");
+    console.log('Starting container...');
     await runCommand(
       `docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 ${IMAGE_NAME}`
     );
 
-    console.log("Waiting for container to be ready...");
+    console.log('Waiting for container to be ready...');
     await waitForContainer();
 
-    console.log("Making HTTP request to test server...");
+    console.log('Making HTTP request to test server...');
     const response = await fetch(TEST_URL);
 
     expect(response.status).toBe(200);
 
-    const contentType = response.headers.get("content-type") || "";
-    expect(contentType.includes("html") || contentType.includes("text/html")).toBe(true);
+    const contentType = response.headers.get('content-type') || '';
+    expect(
+      contentType.includes('html') || contentType.includes('text/html')
+    ).toBe(true);
 
     const body = await response.text();
-    expect(body.includes("<!DOCTYPE html") || body.includes("<html")).toBe(true);
+    expect(body.includes('<!DOCTYPE html') || body.includes('<html')).toBe(
+      true
+    );
 
-    console.log("✓ Test passed: Server responds with 200 HTML");
+    console.log('✓ Test passed: Server responds with 200 HTML');
   } catch (error) {
     await printDockerLogs();
     throw error;
   } finally {
-    console.log("Cleaning up...");
+    console.log('Cleaning up...');
     await cleanup();
   }
 });

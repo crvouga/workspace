@@ -1,13 +1,13 @@
-import type { View, ViewWithProps } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { View, ViewWithProps } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 type Props = {
   tag: string;
   startDecorator: View | null;
-  size: "sm" | "lg" | "xl";
-  variant: "soft" | "plain" | "contained";
+  size: 'sm' | 'lg' | 'xl';
+  variant: 'soft' | 'plain' | 'contained';
   disabled: boolean;
   text: string;
 };
@@ -18,73 +18,76 @@ const toTag = (input: Props): string => {
 
 const toClassName = (props: Props): string => {
   const classNames: string[] = [];
-  classNames.push("btn");
+  classNames.push('btn');
   switch (props.variant) {
-    case "soft":
-      classNames.push("btn-soft");
+    case 'soft':
+      classNames.push('btn-soft');
       break;
-    case "plain":
-      classNames.push("btn-plain");
+    case 'plain':
+      classNames.push('btn-plain');
       break;
-    case "contained":
-      classNames.push("btn-contained");
+    case 'contained':
+      classNames.push('btn-contained');
       break;
   }
 
   switch (props.size) {
-    case "sm":
-      classNames.push("btn-sm");
+    case 'sm':
+      classNames.push('btn-sm');
       break;
-    case "lg":
-      classNames.push("btn-lg");
+    case 'lg':
+      classNames.push('btn-lg');
       break;
-    case "xl":
-      classNames.push("btn-xl");
+    case 'xl':
+      classNames.push('btn-xl');
       break;
   }
 
   if (props.disabled) {
-    classNames.push("btn-disabled");
+    classNames.push('btn-disabled');
   }
 
-  return classNames.join(" ");
+  return classNames.join(' ');
 };
 
-export const viewButton: ViewWithProps<Props> = (props) => (attrs, children) => {
-  const tagName = toTag(props);
-  const baseClass = toClassName(props);
-  const extraClass = typeof attrs?.["class"] === "string" ? (attrs["class"] as string) : "";
+export const viewButton: ViewWithProps<Props> =
+  (props) => (attrs, children) => {
+    const tagName = toTag(props);
+    const baseClass = toClassName(props);
+    const extraClass =
+      typeof attrs?.['class'] === 'string' ? (attrs['class'] as string) : '';
 
-  return tag(
-    tagName,
-    {
-      ...(props.disabled
-        ? {
-            disabled: "true",
-            "aria-disabled": "true",
-            tabindex: "-1",
-          }
-        : {}),
-      ...attrs,
-      class: extraClass ? `${baseClass} ${extraClass}` : baseClass,
-    },
-    [
-      ...(props.startDecorator
-        ? [
-            props.startDecorator({
-              class: "btn-start-decorator",
-            }),
-          ]
-        : []),
-      text(props.text),
-      ...(children ?? []),
-    ]
-  );
-};
+    return tag(
+      tagName,
+      {
+        ...(props.disabled
+          ? {
+              disabled: 'true',
+              'aria-disabled': 'true',
+              tabindex: '-1',
+            }
+          : {}),
+        ...attrs,
+        class: extraClass ? `${baseClass} ${extraClass}` : baseClass,
+      },
+      [
+        ...(props.startDecorator
+          ? [
+              props.startDecorator({
+                class: 'btn-start-decorator',
+              }),
+            ]
+          : []),
+        text(props.text),
+        ...(children ?? []),
+      ]
+    );
+  };
 
-export const viewButtonStyles: ViewWithProps<Record<string, never>> = (_props) => (_attrs, _children) => {
-  return tag("style", {}, [
-    text(`
+export const viewButtonStyles: ViewWithProps<Record<string, never>> =
+  (_props) => (_attrs, _children) => {
+    return tag('style', {}, [
+      text(`
       .btn {
         font-family: var(--font-mono);
         font-weight: 500;
@@ -241,7 +244,7 @@ export const viewButtonStyles: ViewWithProps<Record<string, never>> = (_props) =
         color: ${THEME.colors.plainTextDisabled};
       }
     `),
-  ]);
-};
+    ]);
+  };
 
 HEAD.push(viewButtonStyles({})());

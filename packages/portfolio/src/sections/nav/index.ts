@@ -1,24 +1,24 @@
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewNavCta } from "./cta";
-import { viewNavLinks } from "./links";
-import { viewNavMonogram } from "./monogram";
-import { viewNavScrollspyScript } from "./scrollspy";
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewNavCta } from './cta';
+import { viewNavLinks } from './links';
+import { viewNavMonogram } from './monogram';
+import { viewNavScrollspyScript } from './scrollspy';
 
 export const viewNavSection: View = () => {
-  return tag("div", { class: "nav-shell" }, [
-    tag("div", { class: "nav-bar", role: "banner" }, [
-      tag("div", { class: "nav-bar-left" }, [viewNavMonogram()]),
-      tag("div", { class: "nav-bar-center" }, [viewNavLinks()]),
-      tag("div", { class: "nav-bar-right" }, [viewNavCta()]),
+  return tag('div', { class: 'nav-shell' }, [
+    tag('div', { class: 'nav-bar', role: 'banner' }, [
+      tag('div', { class: 'nav-bar-left' }, [viewNavMonogram()]),
+      tag('div', { class: 'nav-bar-center' }, [viewNavLinks()]),
+      tag('div', { class: 'nav-bar-right' }, [viewNavCta()]),
     ]),
     viewNavScrollspyScript(),
   ]);
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .nav-shell {
         position: fixed;

@@ -1,9 +1,9 @@
-import { tag } from "../library/html/index";
-import type { ViewWithProps } from "../library/html/index";
-import { text } from "../library/html/index";
-import { HEAD } from "./head";
+import { tag } from '../library/html/index';
+import type { ViewWithProps } from '../library/html/index';
+import { text } from '../library/html/index';
+import { HEAD } from './head';
 
-type Tone = "live" | "warn" | "muted";
+type Tone = 'live' | 'warn' | 'muted';
 
 type Props = {
   tone: Tone;
@@ -11,31 +11,31 @@ type Props = {
 
 const toneToClass = (tone: Tone): string => {
   switch (tone) {
-    case "live":
-      return "status-dot-live";
-    case "warn":
-      return "status-dot-warn";
-    case "muted":
-      return "status-dot-muted";
+    case 'live':
+      return 'status-dot-live';
+    case 'warn':
+      return 'status-dot-warn';
+    case 'muted':
+      return 'status-dot-muted';
   }
 };
 
 export const viewStatusDot: ViewWithProps<Props> = (props) => (attrs) => {
   return tag(
-    "span",
+    'span',
     {
       ...attrs,
-      class: ["status-dot", toneToClass(props.tone), attrs?.["class"]]
+      class: ['status-dot', toneToClass(props.tone), attrs?.['class']]
         .filter(Boolean)
-        .join(" "),
-      "aria-hidden": "true",
+        .join(' '),
+      'aria-hidden': 'true',
     },
     []
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .status-dot {
         display: inline-block;

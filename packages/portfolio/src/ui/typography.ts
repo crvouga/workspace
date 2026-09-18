@@ -1,43 +1,43 @@
-import type { ViewWithProps } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { ViewWithProps } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 type Level =
-  | "display"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "title-sm"
-  | "body-md"
-  | "body-xs"
-  | "eyebrow";
+  | 'display'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'title-sm'
+  | 'body-md'
+  | 'body-xs'
+  | 'eyebrow';
 
 type Props = { level: Level; text: string };
 
 const toClassName = (input: Props): string => {
   switch (input.level) {
-    case "display":
-      return "typography-display";
-    case "h1":
-      return "typography-h1";
-    case "h2":
-      return "typography-h2";
-    case "h3":
-      return "typography-h3";
-    case "title-sm":
-      return "typography-title-sm";
-    case "body-md":
-      return "typography-body-md";
-    case "body-xs":
-      return "typography-body-xs";
-    case "eyebrow":
-      return "typography-eyebrow";
+    case 'display':
+      return 'typography-display';
+    case 'h1':
+      return 'typography-h1';
+    case 'h2':
+      return 'typography-h2';
+    case 'h3':
+      return 'typography-h3';
+    case 'title-sm':
+      return 'typography-title-sm';
+    case 'body-md':
+      return 'typography-body-md';
+    case 'body-xs':
+      return 'typography-body-xs';
+    case 'eyebrow':
+      return 'typography-eyebrow';
   }
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       h1, h2, h3, h4, p {
         margin: 0;
@@ -108,36 +108,37 @@ HEAD.push(
   ])
 );
 
-const BASE_CLASS = "typography-base";
+const BASE_CLASS = 'typography-base';
 
-export const viewTypography: ViewWithProps<Props> = (props) => (attrs, children) => {
-  const tagName = (() => {
-    switch (props.level) {
-      case "display":
-        return "h1";
-      case "h1":
-        return "h1";
-      case "h2":
-        return "h2";
-      case "h3":
-        return "h3";
-      case "title-sm":
-        return "h4";
-      case "body-md":
-        return "p";
-      case "body-xs":
-        return "p";
-      case "eyebrow":
-        return "p";
-    }
-  })();
+export const viewTypography: ViewWithProps<Props> =
+  (props) => (attrs, children) => {
+    const tagName = (() => {
+      switch (props.level) {
+        case 'display':
+          return 'h1';
+        case 'h1':
+          return 'h1';
+        case 'h2':
+          return 'h2';
+        case 'h3':
+          return 'h3';
+        case 'title-sm':
+          return 'h4';
+        case 'body-md':
+          return 'p';
+        case 'body-xs':
+          return 'p';
+        case 'eyebrow':
+          return 'p';
+      }
+    })();
 
-  const className = [BASE_CLASS, toClassName(props), attrs?.["class"]]
-    .filter(Boolean)
-    .join(" ");
+    const className = [BASE_CLASS, toClassName(props), attrs?.['class']]
+      .filter(Boolean)
+      .join(' ');
 
-  return tag(tagName, { ...attrs, class: className }, [
-    text(props.text),
-    ...(children ?? []),
-  ]);
-};
+    return tag(tagName, { ...attrs, class: className }, [
+      text(props.text),
+      ...(children ?? []),
+    ]);
+  };

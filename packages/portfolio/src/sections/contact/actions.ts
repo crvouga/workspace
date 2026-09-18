@@ -1,14 +1,14 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { viewEmailButton } from "../../shared/email-button";
-import { viewGithubButton } from "../../shared/github-button";
-import { viewLinkedInButton } from "../../shared/linkedin-button";
-import { viewResumeButton } from "../../shared/resume-button";
-import { HEAD } from "../../ui/head";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { viewEmailButton } from '../../shared/email-button';
+import { viewGithubButton } from '../../shared/github-button';
+import { viewLinkedInButton } from '../../shared/linkedin-button';
+import { viewResumeButton } from '../../shared/resume-button';
+import { HEAD } from '../../ui/head';
 
 export const viewContactActions: View = () => {
-  return tag("div", { class: "contact-actions" }, [
+  return tag('div', { class: 'contact-actions' }, [
     viewEmailButton({ label: CONTENT.CONTACT_COPY.ctaPrimary.label })(),
     viewResumeButton({})(),
     viewGithubButton({})(),
@@ -17,7 +17,7 @@ export const viewContactActions: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .contact-actions {
         display: flex;

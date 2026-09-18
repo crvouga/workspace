@@ -1,26 +1,26 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { viewSection } from "../../shared/section";
-import { HEAD } from "../../ui/head";
-import { viewAboutCopy } from "./copy";
-import { viewAboutCursorCard } from "./cursor-card";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { viewSection } from '../../shared/section';
+import { HEAD } from '../../ui/head';
+import { viewAboutCopy } from './copy';
+import { viewAboutCursorCard } from './cursor-card';
 
 export const viewAboutMeSection: View = () => {
-  const section = CONTENT.GET_SECTION("about");
+  const section = CONTENT.GET_SECTION('about');
   return viewSection({
     title: section.title,
     number: section.number,
   })({ id: section.id }, [
-    tag("div", { class: "about-grid" }, [
-      tag("div", { class: "about-grid-left" }, [viewAboutCopy()]),
-      tag("div", { class: "about-grid-right" }, [viewAboutCursorCard()]),
+    tag('div', { class: 'about-grid' }, [
+      tag('div', { class: 'about-grid-left' }, [viewAboutCopy()]),
+      tag('div', { class: 'about-grid-right' }, [viewAboutCursorCard()]),
     ]),
   ]);
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .about-grid {
         display: grid;

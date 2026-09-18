@@ -15,15 +15,18 @@
  * generator throws with a clear diagnostic. The build never silently produces
  * a 2-page resume.
  */
-import { mkdir, readFile } from "node:fs/promises";
-import { chromium, type Page } from "playwright";
-import { PDFDocument } from "pdf-lib";
+import { mkdir, readFile } from 'node:fs/promises';
+import { chromium, type Page } from 'playwright';
+import { PDFDocument } from 'pdf-lib';
 
-import { CONTENT } from "./content/content";
-import { TOPIC_TO_NAME, type Topic } from "./content/topic";
-import { projectToLinkHref, type Project as PortfolioProject } from "./content/project";
-import { formatPhoneNumber } from "./library/phone-number";
-import { RESUME_FILENAME } from "./constants/resume";
+import { CONTENT } from './content/content';
+import { TOPIC_TO_NAME, type Topic } from './content/topic';
+import {
+  projectToLinkHref,
+  type Project as PortfolioProject,
+} from './content/project';
+import { formatPhoneNumber } from './library/phone-number';
+import { RESUME_FILENAME } from './constants/resume';
 
 // ---------------------------------------------------------------------------
 // Page math
@@ -37,14 +40,16 @@ const MARGIN_BOTTOM_IN = 0.5;
 const MARGIN_SIDE_IN = 0.6;
 
 const CONTENT_WIDTH_PX = Math.round((PAGE_WIDTH_IN - MARGIN_SIDE_IN * 2) * DPI);
-const CONTENT_HEIGHT_PX = Math.round((PAGE_HEIGHT_IN - MARGIN_TOP_IN - MARGIN_BOTTOM_IN) * DPI);
+const CONTENT_HEIGHT_PX = Math.round(
+  (PAGE_HEIGHT_IN - MARGIN_TOP_IN - MARGIN_BOTTOM_IN) * DPI
+);
 
-const ACCENT = "#0b6bcb"; // matches THEME.colors.primary500 but as a plain hex for portability
-const RULE_COLOR = "#d4d8dc";
-const TEXT_PRIMARY = "#0f1419";
-const TEXT_SECONDARY = "#4a5159";
-const TEXT_MUTED = "#6c727a";
-const LOCATION = "Phoenix, AZ";
+const ACCENT = '#0b6bcb'; // matches THEME.colors.primary500 but as a plain hex for portability
+const RULE_COLOR = '#d4d8dc';
+const TEXT_PRIMARY = '#0f1419';
+const TEXT_SECONDARY = '#4a5159';
+const TEXT_MUTED = '#6c727a';
+const LOCATION = 'Phoenix, AZ';
 
 // ---------------------------------------------------------------------------
 // Content shape
@@ -106,70 +111,72 @@ type ResumeContent = {
 // Topic → Skill category
 // ---------------------------------------------------------------------------
 
-const TOPIC_CATEGORY: Partial<Record<Topic, "Languages" | "Frontend" | "Backend" | "Data" | "Cloud & Infra">> = {
+const TOPIC_CATEGORY: Partial<
+  Record<Topic, 'Languages' | 'Frontend' | 'Backend' | 'Data' | 'Cloud & Infra'>
+> = {
   // Languages
-  typescript: "Languages",
-  javascript: "Languages",
-  python: "Languages",
-  rust: "Languages",
-  go: "Languages",
-  php: "Languages",
-  html: "Languages",
-  css: "Languages",
-  elm: "Languages",
-  roc: "Languages",
+  typescript: 'Languages',
+  javascript: 'Languages',
+  python: 'Languages',
+  rust: 'Languages',
+  go: 'Languages',
+  php: 'Languages',
+  html: 'Languages',
+  css: 'Languages',
+  elm: 'Languages',
+  roc: 'Languages',
   // Frontend
-  react: "Frontend",
-  nextjs: "Frontend",
-  vue: "Frontend",
-  nuxt: "Frontend",
-  tailwind: "Frontend",
-  redux: "Frontend",
-  "redux-saga": "Frontend",
-  "react-query": "Frontend",
-  "material-ui": "Frontend",
-  bootstrap: "Frontend",
-  greensock: "Frontend",
-  rxjs: "Frontend",
-  alphinejs: "Frontend",
-  htmx: "Frontend",
-  datastar: "Frontend",
-  gridsome: "Frontend",
+  react: 'Frontend',
+  nextjs: 'Frontend',
+  vue: 'Frontend',
+  nuxt: 'Frontend',
+  tailwind: 'Frontend',
+  redux: 'Frontend',
+  'redux-saga': 'Frontend',
+  'react-query': 'Frontend',
+  'material-ui': 'Frontend',
+  bootstrap: 'Frontend',
+  greensock: 'Frontend',
+  rxjs: 'Frontend',
+  alphinejs: 'Frontend',
+  htmx: 'Frontend',
+  datastar: 'Frontend',
+  gridsome: 'Frontend',
   // Backend
-  nodejs: "Backend",
-  bun: "Backend",
-  express: "Backend",
-  flask: "Backend",
-  graphene: "Backend",
-  graphql: "Backend",
-  trpc: "Backend",
-  websocket: "Backend",
-  "socket-io": "Backend",
-  zod: "Backend",
+  nodejs: 'Backend',
+  bun: 'Backend',
+  express: 'Backend',
+  flask: 'Backend',
+  graphene: 'Backend',
+  graphql: 'Backend',
+  trpc: 'Backend',
+  websocket: 'Backend',
+  'socket-io': 'Backend',
+  zod: 'Backend',
   // Data
-  postgres: "Data",
-  mongodb: "Data",
-  mysql: "Data",
-  dynamodb: "Data",
-  sqlite: "Data",
-  firebase: "Data",
-  supabase: "Data",
-  neo4j: "Data",
+  postgres: 'Data',
+  mongodb: 'Data',
+  mysql: 'Data',
+  dynamodb: 'Data',
+  sqlite: 'Data',
+  firebase: 'Data',
+  supabase: 'Data',
+  neo4j: 'Data',
   // Cloud & infra
-  aws: "Cloud & Infra",
-  s3: "Cloud & Infra",
-  vercel: "Cloud & Infra",
-  heroku: "Cloud & Infra",
-  docker: "Cloud & Infra",
+  aws: 'Cloud & Infra',
+  s3: 'Cloud & Infra',
+  vercel: 'Cloud & Infra',
+  heroku: 'Cloud & Infra',
+  docker: 'Cloud & Infra',
   // Skipped on purpose: shopify, sanity, drupal, salesforce, jest, puppeteer, ramda
 };
 
-const CATEGORY_ORDER: readonly SkillRow["category"][] = [
-  "Languages",
-  "Frontend",
-  "Backend",
-  "Data",
-  "Cloud & Infra",
+const CATEGORY_ORDER: readonly SkillRow['category'][] = [
+  'Languages',
+  'Frontend',
+  'Backend',
+  'Data',
+  'Cloud & Infra',
 ];
 
 function buildSkillRows(topics: readonly string[]): SkillRow[] {
@@ -185,7 +192,10 @@ function buildSkillRows(topics: readonly string[]): SkillRow[] {
   for (const cat of CATEGORY_ORDER) {
     const set = buckets.get(cat);
     if (!set || set.size === 0) continue;
-    rows.push({ category: cat, items: [...set].sort((a, b) => a.localeCompare(b)) });
+    rows.push({
+      category: cat,
+      items: [...set].sort((a, b) => a.localeCompare(b)),
+    });
   }
   return rows;
 }
@@ -194,12 +204,12 @@ function buildSkillRows(topics: readonly string[]): SkillRow[] {
 // Content assembly
 // ---------------------------------------------------------------------------
 
-const stripHtml = (s: string): string => s.replace(/<[^>]*>/g, "").trim();
+const stripHtml = (s: string): string => s.replace(/<[^>]*>/g, '').trim();
 
-const formatDateRange = (start: number, end: number | "Present"): string =>
-  end === "Present" ? `${start} – Present` : `${start} – ${end}`;
+const formatDateRange = (start: number, end: number | 'Present'): string =>
+  end === 'Present' ? `${start} – Present` : `${start} – ${end}`;
 
-const trimSentence = (s: string): string => s.trim().replace(/\.$/, "");
+const trimSentence = (s: string): string => s.trim().replace(/\.$/, '');
 
 function buildResumeContent(): ResumeContent {
   const fullSummary = stripHtml(CONTENT.ABOUT_ME);
@@ -213,7 +223,7 @@ function buildResumeContent(): ResumeContent {
     company: work.name,
     jobTitle: work.jobTitle,
     dateRange: formatDateRange(work.yearStart, work.yearEnd),
-    description: work.jobDescription.replace(/\s+/g, " ").trim(),
+    description: work.jobDescription.replace(/\s+/g, ' ').trim(),
     url: work.infoUrl ?? null,
   }));
 
@@ -226,14 +236,16 @@ function buildResumeContent(): ResumeContent {
   // Everything else is sorted by priority desc (default 0), declaration order
   // tie-breaks. WORK_PROJECTS get a default boost so side projects without an
   // explicit pin don't displace them.
-  const workCompanyNames = new Set(CONTENT.WORK.map((w) => w.name.toLowerCase()));
+  const workCompanyNames = new Set(
+    CONTENT.WORK.map((w) => w.name.toLowerCase())
+  );
   const visibleOnResume = (p: PortfolioProject): boolean =>
     p.resume?.include !== false &&
     projectToLinkHref(p) !== null &&
     !workCompanyNames.has(p.title.toLowerCase());
 
   const resumePriority = (p: PortfolioProject): number =>
-    p.resume?.priority ?? (p.setting === "work" ? 1 : 0);
+    p.resume?.priority ?? (p.setting === 'work' ? 1 : 0);
 
   const orderedProjects = CONTENT.PROJECTS.filter(visibleOnResume)
     .slice() // don't mutate the readonly source array
@@ -264,9 +276,9 @@ function buildResumeContent(): ResumeContent {
 
   const tidyHost = (url: string): string =>
     url
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .replace(/\/$/, "");
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/$/, '');
 
   const identity: Identity = {
     name: CONTENT.PAGE_TITLE,
@@ -281,16 +293,23 @@ function buildResumeContent(): ResumeContent {
     linkedinUrl: CONTENT.LINKEDIN_URL,
   };
 
-  return { identity, summary: summarySentences, experience, projects, skills, education };
+  return {
+    identity,
+    summary: summarySentences,
+    experience,
+    projects,
+    skills,
+    education,
+  };
 }
 
 /** Trim project descriptions to one tight line at body width. */
 function shortenDescription(s: string): string {
   const max = 105;
-  const cleaned = s.replace(/\s+/g, " ").trim();
+  const cleaned = s.replace(/\s+/g, ' ').trim();
   if (cleaned.length <= max) return cleaned;
   const truncated = cleaned.slice(0, max - 1);
-  const lastSpace = truncated.lastIndexOf(" ");
+  const lastSpace = truncated.lastIndexOf(' ');
   return `${truncated.slice(0, lastSpace > 60 ? lastSpace : truncated.length)}…`;
 }
 
@@ -300,21 +319,26 @@ function shortenDescription(s: string): string {
 
 const escapeHtml = (s: string): string =>
   s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-const linkOrText = (text: string, url: string | null, className?: string): string => {
-  const cls = className ? ` class="${className}"` : "";
+const linkOrText = (
+  text: string,
+  url: string | null,
+  className?: string
+): string => {
+  const cls = className ? ` class="${className}"` : '';
   return url
     ? `<a${cls} href="${escapeHtml(url)}">${escapeHtml(text)}</a>`
     : `<span${cls}>${escapeHtml(text)}</span>`;
 };
 
 function renderHtml(content: ResumeContent): string {
-  const { identity, summary, experience, projects, skills, education } = content;
+  const { identity, summary, experience, projects, skills, education } =
+    content;
 
   const contactItems = [
     `<a href="mailto:${escapeHtml(identity.email)}">${escapeHtml(identity.email)}</a>`,
@@ -326,8 +350,8 @@ function renderHtml(content: ResumeContent): string {
 
   const summaryHtml =
     summary.length > 0
-      ? `<section class="summary">${escapeHtml(summary.join(". "))}.</section>`
-      : "";
+      ? `<section class="summary">${escapeHtml(summary.join('. '))}.</section>`
+      : '';
 
   const experienceHtml = `
     <section>
@@ -340,14 +364,14 @@ function renderHtml(content: ResumeContent): string {
             <div class="entry-headline">
               <span class="entry-title">${escapeHtml(e.jobTitle)}</span>
               <span class="dot">·</span>
-              ${linkOrText(e.company, e.url, "entry-company")}
+              ${linkOrText(e.company, e.url, 'entry-company')}
             </div>
             <span class="entry-date">${escapeHtml(e.dateRange)}</span>
           </div>
           <p class="entry-desc">${escapeHtml(e.description)}</p>
-        </div>`,
+        </div>`
         )
-        .join("")}
+        .join('')}
     </section>`;
 
   const projectsHtml =
@@ -361,16 +385,16 @@ function renderHtml(content: ResumeContent): string {
         <div class="entry">
           <div class="entry-row">
             <div class="entry-headline">
-              ${linkOrText(p.title, p.url, "entry-title")}
-              ${p.topics.length > 0 ? `<span class="tech">${p.topics.map(escapeHtml).join(" · ")}</span>` : ""}
+              ${linkOrText(p.title, p.url, 'entry-title')}
+              ${p.topics.length > 0 ? `<span class="tech">${p.topics.map(escapeHtml).join(' · ')}</span>` : ''}
             </div>
           </div>
-          ${p.description ? `<p class="entry-desc">${escapeHtml(p.description)}</p>` : ""}
-        </div>`,
+          ${p.description ? `<p class="entry-desc">${escapeHtml(p.description)}</p>` : ''}
+        </div>`
         )
-        .join("")}
+        .join('')}
     </section>`
-      : "";
+      : '';
 
   const skillsHtml =
     skills.length > 0
@@ -383,13 +407,13 @@ function renderHtml(content: ResumeContent): string {
             (s) => `
           <div class="skill-row">
             <div class="skill-category">${escapeHtml(s.category)}</div>
-            <div class="skill-items">${s.items.map(escapeHtml).join(" · ")}</div>
-          </div>`,
+            <div class="skill-items">${s.items.map(escapeHtml).join(' · ')}</div>
+          </div>`
           )
-          .join("")}
+          .join('')}
       </div>
     </section>`
-      : "";
+      : '';
 
   const educationHtml = `
     <section>
@@ -406,9 +430,9 @@ function renderHtml(content: ResumeContent): string {
             </div>
             <span class="entry-date">${escapeHtml(e.dateRange)}</span>
           </div>
-        </div>`,
+        </div>`
         )
-        .join("")}
+        .join('')}
     </section>`;
 
   return `<!DOCTYPE html>
@@ -604,7 +628,7 @@ function renderHtml(content: ResumeContent): string {
       </div>
     </div>
     <div class="contact">
-      ${contactItems.map((c) => `<span class="item">${c}</span>`).join("")}
+      ${contactItems.map((c) => `<span class="item">${c}</span>`).join('')}
     </div>
   </header>
 
@@ -632,47 +656,81 @@ type DropStrategy = {
  */
 const DROP_STRATEGIES: readonly DropStrategy[] = [
   {
-    name: "drop project descriptions",
-    apply: (c) => ({ ...c, projects: c.projects.map((p) => ({ ...p, description: null })) }),
+    name: 'drop project descriptions',
+    apply: (c) => ({
+      ...c,
+      projects: c.projects.map((p) => ({ ...p, description: null })),
+    }),
   },
-  { name: "drop last project", apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }) },
-  { name: "drop last project", apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }) },
-  { name: "drop last project", apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }) },
   {
-    name: "drop last summary sentence",
+    name: 'drop last project',
+    apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }),
+  },
+  {
+    name: 'drop last project',
+    apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }),
+  },
+  {
+    name: 'drop last project',
+    apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }),
+  },
+  {
+    name: 'drop last summary sentence',
     apply: (c) => ({ ...c, summary: c.summary.slice(0, -1) }),
   },
-  { name: "drop last project", apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }) },
   {
-    name: "drop last skill row",
+    name: 'drop last project',
+    apply: (c) => ({ ...c, projects: c.projects.slice(0, -1) }),
+  },
+  {
+    name: 'drop last skill row',
     apply: (c) => ({ ...c, skills: c.skills.slice(0, -1) }),
   },
-  { name: "drop all projects", apply: (c) => ({ ...c, projects: [] }) },
-  { name: "drop summary entirely", apply: (c) => ({ ...c, summary: [] }) },
+  { name: 'drop all projects', apply: (c) => ({ ...c, projects: [] }) },
+  { name: 'drop summary entirely', apply: (c) => ({ ...c, summary: [] }) },
 ];
 
-async function measureOverflow(page: Page, html: string): Promise<{ scrollHeight: number; fits: boolean }> {
-  await page.setContent(html, { waitUntil: "networkidle" });
+async function measureOverflow(
+  page: Page,
+  html: string
+): Promise<{ scrollHeight: number; fits: boolean }> {
+  await page.setContent(html, { waitUntil: 'networkidle' });
   // Wait briefly for fonts to load so measurement is accurate.
   try {
-    await page.evaluate(() => (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready);
+    await page.evaluate(
+      () =>
+        (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts
+          ?.ready
+    );
   } catch {
     // older Chromium without document.fonts — fall through
   }
-  const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  const scrollHeight = await page.evaluate(
+    () => document.documentElement.scrollHeight
+  );
   return { scrollHeight, fits: scrollHeight <= CONTENT_HEIGHT_PX };
 }
 
 async function fitToOnePage(
   page: Page,
-  initial: ResumeContent,
-): Promise<{ content: ResumeContent; html: string; reductionsApplied: string[]; finalHeightPx: number }> {
+  initial: ResumeContent
+): Promise<{
+  content: ResumeContent;
+  html: string;
+  reductionsApplied: string[];
+  finalHeightPx: number;
+}> {
   const reductionsApplied: string[] = [];
   let content = initial;
   let html = renderHtml(content);
   let measurement = await measureOverflow(page, html);
   if (measurement.fits) {
-    return { content, html, reductionsApplied, finalHeightPx: measurement.scrollHeight };
+    return {
+      content,
+      html,
+      reductionsApplied,
+      finalHeightPx: measurement.scrollHeight,
+    };
   }
 
   for (const strategy of DROP_STRATEGIES) {
@@ -683,14 +741,19 @@ async function fitToOnePage(
     html = renderHtml(content);
     measurement = await measureOverflow(page, html);
     if (measurement.fits) {
-      return { content, html, reductionsApplied, finalHeightPx: measurement.scrollHeight };
+      return {
+        content,
+        html,
+        reductionsApplied,
+        finalHeightPx: measurement.scrollHeight,
+      };
     }
   }
 
   throw new Error(
     `Resume content does not fit on a single page even after applying every drop strategy ` +
       `(content ${measurement.scrollHeight}px > available ${CONTENT_HEIGHT_PX}px). ` +
-      `Reduce content in src/content/* or tighten generate-resume.ts typography.`,
+      `Reduce content in src/content/* or tighten generate-resume.ts typography.`
   );
 }
 
@@ -705,7 +768,7 @@ async function assertOnePagePdf(pdfPath: string): Promise<void> {
   if (pageCount !== 1) {
     throw new Error(
       `Generated resume has ${pageCount} pages, expected exactly 1. ` +
-        `Hint: tighten the typography in generate-resume.ts or trim content.`,
+        `Hint: tighten the typography in generate-resume.ts or trim content.`
     );
   }
 }
@@ -723,7 +786,7 @@ const generateResume = async (): Promise<string> => {
     if (fitted.reductionsApplied.length > 0) {
       console.warn(
         `[resume] applied ${fitted.reductionsApplied.length} reduction(s) to fit on 1 page: ` +
-          fitted.reductionsApplied.join(" → "),
+          fitted.reductionsApplied.join(' → ')
       );
     }
 
@@ -734,10 +797,12 @@ const generateResume = async (): Promise<string> => {
     // Render the FINAL HTML as the PDF source. We use printBackground so the
     // accent rule under the name is preserved, and explicit format/margins so
     // the printable area exactly matches what the fit-loop measured against.
-    await page.setContent(fitted.html, { waitUntil: "networkidle" });
+    await page.setContent(fitted.html, { waitUntil: 'networkidle' });
     try {
-      await page.evaluate(() =>
-        (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready,
+      await page.evaluate(
+        () =>
+          (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts
+            ?.ready
       );
     } catch {
       /* old Chromium */
@@ -745,7 +810,7 @@ const generateResume = async (): Promise<string> => {
 
     await page.pdf({
       path: pdfPath,
-      format: "Letter",
+      format: 'Letter',
       margin: {
         top: `${MARGIN_TOP_IN}in`,
         bottom: `${MARGIN_BOTTOM_IN}in`,
@@ -774,9 +839,11 @@ export { generateResume };
 
 if (import.meta.main) {
   generateResume()
-    .then((pdfPath) => console.log(`Resume generated successfully at: ${pdfPath}`))
+    .then((pdfPath) =>
+      console.log(`Resume generated successfully at: ${pdfPath}`)
+    )
     .catch((err) => {
-      console.error("Error generating resume:", err);
+      console.error('Error generating resume:', err);
       process.exit(1);
     });
 }

@@ -1,22 +1,22 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
 
-const LINK_SECTION_IDS = new Set(["work", "projects", "about", "education"]);
+const LINK_SECTION_IDS = new Set(['work', 'projects', 'about', 'education']);
 
 export const viewNavLinks: View = () => {
   const links = CONTENT.SECTIONS.filter((s) => LINK_SECTION_IDS.has(s.id));
   return tag(
-    "nav",
-    { class: "nav-links", "aria-label": "Section navigation" },
+    'nav',
+    { class: 'nav-links', 'aria-label': 'Section navigation' },
     links.map((s) =>
       tag(
-        "a",
+        'a',
         {
-          class: "nav-link",
+          class: 'nav-link',
           href: `#${s.id}`,
-          "data-nav-target": s.id,
+          'data-nav-target': s.id,
         },
         [text(s.navLabel)]
       )
@@ -25,7 +25,7 @@ export const viewNavLinks: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .nav-links {
         display: none;

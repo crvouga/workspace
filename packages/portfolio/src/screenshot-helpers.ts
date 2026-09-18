@@ -1,25 +1,31 @@
-import os from "node:os";
-import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
-import pLimit from "p-limit";
+import os from 'node:os';
+import path from 'node:path';
+import { chromium, type Browser, type Page } from 'playwright';
+import pLimit from 'p-limit';
 
 export const VIEWPORT = { width: 1920, height: 1080 } as const;
-export const PUBLIC_DIR = path.resolve("./public");
+export const PUBLIC_DIR = path.resolve('./public');
 
 /** Nav timeout for external sites (env: SCREENSHOT_TIMEOUT_MS). */
-const DEFAULT_NAV_TIMEOUT_MS = readPositiveEnv("SCREENSHOT_TIMEOUT_MS", 45_000);
+const DEFAULT_NAV_TIMEOUT_MS = readPositiveEnv('SCREENSHOT_TIMEOUT_MS', 45_000);
 /** Nav timeout for chrisvouga.dev-hosted URLs (env: SCREENSHOT_HOSTED_TIMEOUT_MS). */
-const HOSTED_NAV_TIMEOUT_MS = readPositiveEnv("SCREENSHOT_HOSTED_TIMEOUT_MS", 45_000);
+const HOSTED_NAV_TIMEOUT_MS = readPositiveEnv(
+  'SCREENSHOT_HOSTED_TIMEOUT_MS',
+  45_000
+);
 const DEFAULT_MAX_RETRIES = 1;
 const HOSTED_MAX_RETRIES = 1;
-const RETRY_DELAY_MS = readPositiveEnv("SCREENSHOT_RETRY_DELAY_MS", 2_000);
-const WARMUP_TIMEOUT_MS = readPositiveEnv("SCREENSHOT_WARMUP_TIMEOUT_MS", 25_000);
+const RETRY_DELAY_MS = readPositiveEnv('SCREENSHOT_RETRY_DELAY_MS', 2_000);
+const WARMUP_TIMEOUT_MS = readPositiveEnv(
+  'SCREENSHOT_WARMUP_TIMEOUT_MS',
+  25_000
+);
 /** Hard cap on total time per screenshot job (env: SCREENSHOT_MAX_JOB_MS). */
-const MAX_JOB_MS = readPositiveEnv("SCREENSHOT_MAX_JOB_MS", 90_000);
+const MAX_JOB_MS = readPositiveEnv('SCREENSHOT_MAX_JOB_MS', 90_000);
 const SETTLE_MS = 2_000;
-const WARMUP_CONCURRENCY = readPositiveEnv("SCREENSHOT_WARMUP_CONCURRENCY", 8);
+const WARMUP_CONCURRENCY = readPositiveEnv('SCREENSHOT_WARMUP_CONCURRENCY', 8);
 
-const CHRISVOUGA_DEV_ZONE = "chrisvouga.dev";
+const CHRISVOUGA_DEV_ZONE = 'chrisvouga.dev';
 
 export type ScreenshotJob = {
   /** Human-readable identifier used in logs (e.g. project title). */
@@ -61,11 +67,15 @@ export function isHostedOnChrisvougaDev(url: string): boolean {
 }
 
 function navTimeoutForUrl(url: string): number {
-  return isHostedOnChrisvougaDev(url) ? HOSTED_NAV_TIMEOUT_MS : DEFAULT_NAV_TIMEOUT_MS;
+  return isHostedOnChrisvougaDev(url)
+    ? HOSTED_NAV_TIMEOUT_MS
+    : DEFAULT_NAV_TIMEOUT_MS;
 }
 
 function maxRetriesForUrl(url: string): number {
-  return isHostedOnChrisvougaDev(url) ? HOSTED_MAX_RETRIES : DEFAULT_MAX_RETRIES;
+  return isHostedOnChrisvougaDev(url)
+    ? HOSTED_MAX_RETRIES
+    : DEFAULT_MAX_RETRIES;
 }
 
 function isRetriableStatus(status: number): boolean {
@@ -84,10 +94,10 @@ function isRetriableError(message: string): boolean {
 
 async function navigateAndSettle(page: Page, url: string, timeoutMs: number) {
   const response = await page.goto(url, {
-    waitUntil: "load",
+    waitUntil: 'load',
     timeout: timeoutMs,
   });
-  if (!response) throw new Error("No response received from server");
+  if (!response) throw new Error('No response received from server');
   const status = response.status();
   if (status < 200 || status >= 300) {
     throw new Error(`HTTP ${status}: server returned non-success status code`);
@@ -100,15 +110,21 @@ async function navigateAndSettle(page: Page, url: string, timeoutMs: number) {
  * Sequential GETs to warm chrisvouga.dev-hosted URLs before Playwright runs.
  * Skipped when SCREENSHOT_SKIP_WARMUP=1.
  */
-export async function warmupScreenshotJobs(jobs: readonly ScreenshotJob[]): Promise<void> {
-  if (process.env["SCREENSHOT_SKIP_WARMUP"] === "1") return;
+export async function warmupScreenshotJobs(
+  jobs: readonly ScreenshotJob[]
+): Promise<void> {
+  if (process.env['SCREENSHOT_SKIP_WARMUP'] === '1') return;
 
-  const urls = [...new Set(jobs.filter((j) => isHostedOnChrisvougaDev(j.url)).map((j) => j.url))];
+  const urls = [
+    ...new Set(
+      jobs.filter((j) => isHostedOnChrisvougaDev(j.url)).map((j) => j.url)
+    ),
+  ];
   if (urls.length === 0) return;
 
   console.log(
     `\nWarmup: pre-fetching ${urls.length} chrisvouga.dev site(s) ` +
-      `(timeout=${WARMUP_TIMEOUT_MS}ms, concurrency=${WARMUP_CONCURRENCY})…`,
+      `(timeout=${WARMUP_TIMEOUT_MS}ms, concurrency=${WARMUP_CONCURRENCY})…`
   );
   const limit = pLimit(WARMUP_CONCURRENCY);
   await Promise.all(
@@ -118,24 +134,28 @@ export async function warmupScreenshotJobs(jobs: readonly ScreenshotJob[]): Prom
         const start = Date.now();
         try {
           const res = await fetch(url, {
-            method: "GET",
-            redirect: "follow",
+            method: 'GET',
+            redirect: 'follow',
             signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS),
           });
-          console.log(`  warmup ${host} ${res.status} in ${Date.now() - start}ms`);
+          console.log(
+            `  warmup ${host} ${res.status} in ${Date.now() - start}ms`
+          );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.log(`  warmup ${host} still waking (${msg}) in ${Date.now() - start}ms`);
+          console.log(
+            `  warmup ${host} still waking (${msg}) in ${Date.now() - start}ms`
+          );
         }
-      }),
-    ),
+      })
+    )
   );
-  console.log("");
+  console.log('');
 }
 
 /** Default screenshot concurrency: capped at 12, never exceeds available cores. */
 export function defaultScreenshotConcurrency(): number {
-  const fromEnv = Number(process.env["SCREENSHOT_CONCURRENCY"]);
+  const fromEnv = Number(process.env['SCREENSHOT_CONCURRENCY']);
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
   return Math.max(2, Math.min(12, os.cpus().length));
 }
@@ -146,7 +166,9 @@ export async function launchSharedBrowser(): Promise<Browser> {
 }
 
 /** Close a Browser without throwing — logs cleanup failures and moves on. */
-export async function closeSharedBrowser(browser: Browser | undefined): Promise<void> {
+export async function closeSharedBrowser(
+  browser: Browser | undefined
+): Promise<void> {
   if (!browser) return;
   try {
     await browser.close();
@@ -166,31 +188,39 @@ export async function closeSharedBrowser(browser: Browser | undefined): Promise<
  */
 export async function captureScreenshot(
   browser: Browser,
-  job: { url: string; filename: string },
+  job: { url: string; filename: string }
 ): Promise<CaptureResult> {
   const t0 = performance.now();
   const timeoutMs = navTimeoutForUrl(job.url);
   const maxAttempts = maxRetriesForUrl(job.url) + 1;
-  let lastError = "unknown error";
+  let lastError = 'unknown error';
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const elapsed = performance.now() - t0;
     if (elapsed >= MAX_JOB_MS) {
-      throw new Error(`Job timed out after ${Math.round(elapsed)}ms (cap=${MAX_JOB_MS}ms)`);
+      throw new Error(
+        `Job timed out after ${Math.round(elapsed)}ms (cap=${MAX_JOB_MS}ms)`
+      );
     }
 
     const context = await browser.newContext({
       viewport: VIEWPORT,
-      colorScheme: "dark",
+      colorScheme: 'dark',
     });
     try {
       const page = await context.newPage();
-      await page.emulateMedia({ colorScheme: "dark" });
+      await page.emulateMedia({ colorScheme: 'dark' });
 
-      const remainingMs = Math.max(5_000, MAX_JOB_MS - (performance.now() - t0));
+      const remainingMs = Math.max(
+        5_000,
+        MAX_JOB_MS - (performance.now() - t0)
+      );
       await navigateAndSettle(page, job.url, Math.min(timeoutMs, remainingMs));
 
-      const screenshotPath = path.join(PUBLIC_DIR, `${job.filename}-screenshot.png`);
+      const screenshotPath = path.join(
+        PUBLIC_DIR,
+        `${job.filename}-screenshot.png`
+      );
       await page.screenshot({ path: screenshotPath, fullPage: false });
       return { screenshotPath, elapsedMs: performance.now() - t0 };
     } catch (error) {
@@ -205,13 +235,14 @@ export async function captureScreenshot(
         continue;
       }
       throw new Error(
-        maxAttempts > 1 ? `${message} (after ${attempt} attempt(s))` : message,
+        maxAttempts > 1 ? `${message} (after ${attempt} attempt(s))` : message
       );
     } finally {
       try {
         await context.close();
       } catch (closeErr) {
-        const msg = closeErr instanceof Error ? closeErr.message : String(closeErr);
+        const msg =
+          closeErr instanceof Error ? closeErr.message : String(closeErr);
         console.warn(`  (cleanup) context.close() failed: ${msg}`);
       }
     }
@@ -222,7 +253,11 @@ export async function captureScreenshot(
 
 export type RunResult = {
   readonly ok: number;
-  readonly failed: readonly { readonly name: string; readonly url: string; readonly error: string }[];
+  readonly failed: readonly {
+    readonly name: string;
+    readonly url: string;
+    readonly error: string;
+  }[];
   readonly elapsedMs: number;
 };
 
@@ -241,7 +276,7 @@ export type RunOptions = {
 export async function runScreenshotJobs(
   label: string,
   jobs: readonly ScreenshotJob[],
-  options: RunOptions = {},
+  options: RunOptions = {}
 ): Promise<RunResult> {
   if (jobs.length === 0) return { ok: 0, failed: [], elapsedMs: 0 };
 
@@ -257,12 +292,17 @@ export async function runScreenshotJobs(
     try {
       browser = await launchSharedBrowser();
     } catch (launchErr) {
-      const msg = launchErr instanceof Error ? launchErr.message : String(launchErr);
+      const msg =
+        launchErr instanceof Error ? launchErr.message : String(launchErr);
       console.error(`✗ Failed to launch Chromium: ${msg}`);
-      console.error("  Hint: try `bunx playwright install chromium`");
+      console.error('  Hint: try `bunx playwright install chromium`');
       return {
         ok: 0,
-        failed: jobs.map((j) => ({ name: j.name, url: j.url, error: `chromium launch failed: ${msg}` })),
+        failed: jobs.map((j) => ({
+          name: j.name,
+          url: j.url,
+          error: `chromium launch failed: ${msg}`,
+        })),
         elapsedMs: performance.now() - t0,
       };
     }
@@ -271,7 +311,9 @@ export async function runScreenshotJobs(
   const failed: { name: string; url: string; error: string }[] = [];
   let ok = 0;
 
-  console.log(`[${label}] running ${jobs.length} job(s) with concurrency=${concurrency}…`);
+  console.log(
+    `[${label}] running ${jobs.length} job(s) with concurrency=${concurrency}…`
+  );
 
   const limit = pLimit(concurrency);
   try {
@@ -281,24 +323,30 @@ export async function runScreenshotJobs(
           try {
             const r = await captureScreenshot(browser!, job);
             ok += 1;
-            console.log(`  ✓ ${job.name}  (${(r.elapsedMs / 1000).toFixed(1)}s)`);
+            console.log(
+              `  ✓ ${job.name}  (${(r.elapsedMs / 1000).toFixed(1)}s)`
+            );
           } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
+            const message =
+              error instanceof Error ? error.message : String(error);
             failed.push({ name: job.name, url: job.url, error: message });
             console.error(`  ✗ ${job.name}: ${message}`);
           }
-        }),
-      ),
+        })
+      )
     );
   } finally {
     if (ownsBrowser) await closeSharedBrowser(browser);
   }
 
   const elapsedMs = performance.now() - t0;
-  console.log(`[${label}] done. ok=${ok}, failed=${failed.length}, elapsed=${(elapsedMs / 1000).toFixed(1)}s`);
+  console.log(
+    `[${label}] done. ok=${ok}, failed=${failed.length}, elapsed=${(elapsedMs / 1000).toFixed(1)}s`
+  );
   if (failed.length > 0) {
-    console.log("Failed jobs:");
-    for (const f of failed) console.log(`  • ${f.name} (${f.url}) — ${f.error}`);
+    console.log('Failed jobs:');
+    for (const f of failed)
+      console.log(`  • ${f.name} (${f.url}) — ${f.error}`);
   }
   return { ok, failed, elapsedMs };
 }

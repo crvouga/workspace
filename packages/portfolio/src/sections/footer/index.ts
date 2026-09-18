@@ -1,13 +1,13 @@
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewFooterBrand } from "./brand";
-import { viewFooterCredit } from "./credit";
-import { viewFooterLinks } from "./links";
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewFooterBrand } from './brand';
+import { viewFooterCredit } from './credit';
+import { viewFooterLinks } from './links';
 
 export const viewFooterSection: View = () => {
-  return tag("footer", { class: "footer", role: "contentinfo" }, [
-    tag("div", { class: "footer-inner" }, [
+  return tag('footer', { class: 'footer', role: 'contentinfo' }, [
+    tag('div', { class: 'footer-inner' }, [
       viewFooterBrand(),
       viewFooterCredit(),
       viewFooterLinks(),
@@ -16,7 +16,7 @@ export const viewFooterSection: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .footer {
         width: 100%;

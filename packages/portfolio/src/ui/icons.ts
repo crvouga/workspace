@@ -1,13 +1,15 @@
-import type { Attrs, Html, View } from "../library/html/index";
-import { text } from "../library/html/index";
-import { renderAttrs } from "../library/html/render";
+import type { Attrs, Html, View } from '../library/html/index';
+import { text } from '../library/html/index';
+import { renderAttrs } from '../library/html/render';
 
 const icon = (attrs: Attrs | undefined, svg: string): Html => {
   const usesStroke = /stroke\s*=\s*["']currentColor/.test(svg);
   const hasFill = /fill\s*=/.test(svg);
   const normalized =
-    usesStroke || hasFill ? svg : svg.replace("<svg ", '<svg fill="currentColor" ');
-  return text(normalized.replace("<svg ", `<svg ${renderAttrs(attrs ?? {})} `));
+    usesStroke || hasFill
+      ? svg
+      : svg.replace('<svg ', '<svg fill="currentColor" ');
+  return text(normalized.replace('<svg ', `<svg ${renderAttrs(attrs ?? {})} `));
 };
 
 export const linkedIn: View = (a, _) => {

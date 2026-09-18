@@ -1,17 +1,17 @@
-import type { View, ViewWithProps } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { View, ViewWithProps } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 type ChipProps = {
-  size: "sm";
+  size: 'sm';
   startDecorator?: View;
-  variant: "outlined" | "basic";
+  variant: 'outlined' | 'basic';
   text: string;
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .chip {
         font-size: 12px;
@@ -55,7 +55,7 @@ HEAD.push(
 );
 
 HEAD.push(
-  tag("script", {}, [
+  tag('script', {}, [
     text(`
       function onChipImageError(e) {
         // Prevent the broken image icon from showing
@@ -126,31 +126,32 @@ HEAD.push(
   ])
 );
 
-export const viewChip: ViewWithProps<ChipProps> = (props) => (attr, _children) => {
-  const variantClass =
-    props.variant === "outlined" ? "chip-outlined" : "chip-basic";
+export const viewChip: ViewWithProps<ChipProps> =
+  (props) => (attr, _children) => {
+    const variantClass =
+      props.variant === 'outlined' ? 'chip-outlined' : 'chip-basic';
 
-  return tag(
-    "div",
-    {
-      ...attr,
-      class: `chip ${variantClass}`,
-    },
-    [
-      ...(props.startDecorator
-        ? [
-            props.startDecorator({
-              class: "chip-decorator",
-            }),
-          ]
-        : []),
-      tag(
-        "span",
-        {
-          class: "chip-text",
-        },
-        [text(props.text)]
-      ),
-    ]
-  );
-};
+    return tag(
+      'div',
+      {
+        ...attr,
+        class: `chip ${variantClass}`,
+      },
+      [
+        ...(props.startDecorator
+          ? [
+              props.startDecorator({
+                class: 'chip-decorator',
+              }),
+            ]
+          : []),
+        tag(
+          'span',
+          {
+            class: 'chip-text',
+          },
+          [text(props.text)]
+        ),
+      ]
+    );
+  };

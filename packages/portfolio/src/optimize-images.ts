@@ -8,16 +8,16 @@
  * already multi-threaded internally, so saturating with one sharp pipeline
  * per core thrashes; cores/2 keeps all cores busy without contention.
  */
-import os from "node:os";
-import path from "node:path";
-import { stat } from "node:fs/promises";
-import sharp from "sharp";
-import pLimit from "p-limit";
-import { getAllFiles } from "./library/file-system";
+import os from 'node:os';
+import path from 'node:path';
+import { stat } from 'node:fs/promises';
+import sharp from 'sharp';
+import pLimit from 'p-limit';
+import { getAllFiles } from './library/file-system';
 
-export const PUBLIC_DIR = "./public";
+export const PUBLIC_DIR = './public';
 export const OPTIMIZED_WIDTH = 600;
-const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
 export type OptimizeJob = {
   /** Absolute or repo-relative path to the source image. */
@@ -45,16 +45,23 @@ export type OptimizeError = {
 };
 
 /** True when output exists and is at least as new as the input. */
-async function isCached(inputPath: string, outputPath: string): Promise<boolean> {
+async function isCached(
+  inputPath: string,
+  outputPath: string
+): Promise<boolean> {
   try {
-    const [inStat, outStat] = await Promise.all([stat(inputPath), stat(outputPath)]);
+    const [inStat, outStat] = await Promise.all([
+      stat(inputPath),
+      stat(outputPath),
+    ]);
     return outStat.mtimeMs >= inStat.mtimeMs && outStat.size > 0;
   } catch {
     return false; // output missing or unreadable — needs (re)build
   }
 }
 
-const isOptimizedFilename = (file: string): boolean => file.includes(".optimized");
+const isOptimizedFilename = (file: string): boolean =>
+  file.includes('.optimized');
 
 /** Walk ./public and return one OptimizeJob per source image. */
 export function buildOptimizeJobs(rootDir: string = PUBLIC_DIR): OptimizeJob[] {
@@ -65,7 +72,10 @@ export function buildOptimizeJobs(rootDir: string = PUBLIC_DIR): OptimizeJob[] {
     if (!IMAGE_EXTENSIONS.has(ext)) continue;
     if (isOptimizedFilename(file)) continue;
     const baseName = path.basename(file, ext);
-    const outputPath = path.join(path.dirname(file), `${baseName}.optimized.webp`);
+    const outputPath = path.join(
+      path.dirname(file),
+      `${baseName}.optimized.webp`
+    );
     jobs.push({
       inputPath: file,
       outputPath,
@@ -77,7 +87,7 @@ export function buildOptimizeJobs(rootDir: string = PUBLIC_DIR): OptimizeJob[] {
 
 /** Default optimize concurrency: cores/2, capped at [2, 8]. */
 export function defaultOptimizeConcurrency(): number {
-  const fromEnv = Number(process.env["OPTIMIZE_CONCURRENCY"]);
+  const fromEnv = Number(process.env['OPTIMIZE_CONCURRENCY']);
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
   return Math.max(2, Math.min(8, Math.floor(os.cpus().length / 2)));
 }
@@ -102,7 +112,10 @@ export async function optimizeOne(job: OptimizeJob): Promise<OptimizeResult> {
     .webp({ quality: 80 })
     .toFile(job.outputPath);
 
-  const [inStat, outStat] = await Promise.all([stat(job.inputPath), stat(job.outputPath)]);
+  const [inStat, outStat] = await Promise.all([
+    stat(job.inputPath),
+    stat(job.outputPath),
+  ]);
   return {
     job,
     inputBytes: inStat.size,
@@ -124,7 +137,7 @@ export type OptimizeBatchResult = {
  */
 export async function optimizeImages(
   jobs: readonly OptimizeJob[] = buildOptimizeJobs(),
-  concurrency: number = defaultOptimizeConcurrency(),
+  concurrency: number = defaultOptimizeConcurrency()
 ): Promise<OptimizeBatchResult> {
   const t0 = performance.now();
   const ok: OptimizeResult[] = [];
@@ -137,10 +150,13 @@ export async function optimizeImages(
         try {
           ok.push(await optimizeOne(job));
         } catch (err) {
-          failed.push({ job, error: err instanceof Error ? err.message : String(err) });
+          failed.push({
+            job,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
-      }),
-    ),
+      })
+    )
   );
 
   return { ok, failed, elapsedMs: performance.now() - t0 };
@@ -151,26 +167,27 @@ if (import.meta.main) {
   (async () => {
     const jobs = buildOptimizeJobs();
     if (jobs.length === 0) {
-      console.log("No source images found.");
+      console.log('No source images found.');
       return;
     }
     const concurrency = defaultOptimizeConcurrency();
     console.log(
-      `Optimizing ${jobs.length} image(s) with concurrency=${concurrency}…`,
+      `Optimizing ${jobs.length} image(s) with concurrency=${concurrency}…`
     );
     const result = await optimizeImages(jobs, concurrency);
     const reused = result.ok.filter((r) => r.skipped).length;
     const built = result.ok.length - reused;
     console.log(
       `Done in ${(result.elapsedMs / 1000).toFixed(1)}s. ` +
-        `built=${built}, cached=${reused}, failed=${result.failed.length}.`,
+        `built=${built}, cached=${reused}, failed=${result.failed.length}.`
     );
     if (result.failed.length > 0) {
-      for (const f of result.failed) console.error(`  ✗ ${f.job.name} — ${f.error}`);
+      for (const f of result.failed)
+        console.error(`  ✗ ${f.job.name} — ${f.error}`);
       process.exit(1);
     }
   })().catch((err) => {
-    console.error("Fatal error:", err);
+    console.error('Fatal error:', err);
     process.exit(1);
   });
 }

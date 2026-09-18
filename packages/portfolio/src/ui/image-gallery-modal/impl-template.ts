@@ -1,30 +1,36 @@
-import type { OpenImageGalleryModalJsFunction, ViewImageGalleryModalFunction } from "./interface";
-import { fragment, tag, text } from "../../library/html/index";
-import { HEAD } from "../head";
-import { THEME, unit } from "../theme";
+import type {
+  OpenImageGalleryModalJsFunction,
+  ViewImageGalleryModalFunction,
+} from './interface';
+import { fragment, tag, text } from '../../library/html/index';
+import { HEAD } from '../head';
+import { THEME, unit } from '../theme';
 
-export const openImageGalleryModalJs: OpenImageGalleryModalJsFunction = (props) => {
+export const openImageGalleryModalJs: OpenImageGalleryModalJsFunction = (
+  props
+) => {
   const namespace = `${props.jsVarSafeNamespace}ImageGalleryModal`;
   const openModalFunctionName = `${namespace}openModal`;
 
   return `${openModalFunctionName}(0);`;
 };
 
-export const viewImageGalleryModal: ViewImageGalleryModalFunction = (props) => () => {
-  const namespace = `${props.jsVarSafeNamespace}ImageGalleryModal`;
-  const modalId = `${namespace}modal`;
-  const imageContainerId = `${namespace}image-container`;
-  const currentIndexVarName = `${namespace}currentIndex`;
-  const totalImagesVarName = `${namespace}totalImages`;
-  const openModalFunctionName = `${namespace}openModal`;
-  const closeModalFunctionName = `${namespace}closeModal`;
-  const nextImageFunctionName = `${namespace}nextImage`;
-  const prevImageFunctionName = `${namespace}prevImage`;
-  const updateImageFunctionName = `${namespace}updateImage`;
+export const viewImageGalleryModal: ViewImageGalleryModalFunction =
+  (props) => () => {
+    const namespace = `${props.jsVarSafeNamespace}ImageGalleryModal`;
+    const modalId = `${namespace}modal`;
+    const imageContainerId = `${namespace}image-container`;
+    const currentIndexVarName = `${namespace}currentIndex`;
+    const totalImagesVarName = `${namespace}totalImages`;
+    const openModalFunctionName = `${namespace}openModal`;
+    const closeModalFunctionName = `${namespace}closeModal`;
+    const nextImageFunctionName = `${namespace}nextImage`;
+    const prevImageFunctionName = `${namespace}prevImage`;
+    const updateImageFunctionName = `${namespace}updateImage`;
 
-  return fragment([
-    tag("script", {}, [
-      text(`
+    return fragment([
+      tag('script', {}, [
+        text(`
         let ${currentIndexVarName} = 0;
         const ${totalImagesVarName} = ${JSON.stringify(props.imageSrc)}.length;
         
@@ -55,7 +61,7 @@ export const viewImageGalleryModal: ViewImageGalleryModalFunction = (props) => (
         function ${updateImageFunctionName}() {
           const container = document.getElementById('${imageContainerId}');
           const imageSrcs = ${JSON.stringify(props.imageSrc)};
-          const imageAlt = ${JSON.stringify(props.imageAlt || "Gallery image")};
+          const imageAlt = ${JSON.stringify(props.imageAlt || 'Gallery image')};
           
           container.innerHTML = '';
           const img = document.createElement('img');
@@ -94,75 +100,78 @@ export const viewImageGalleryModal: ViewImageGalleryModalFunction = (props) => (
           }
         });
       `),
-    ]),
+      ]),
 
-    // Modal
-    tag(
-      "div",
-      {
-        id: modalId,
-        class: "gallery-modal",
-      },
-      [
-        // Close button
-        tag(
-          "button",
-          {
-            class: "gallery-modal-close",
-            onclick: `${closeModalFunctionName}()`,
-            "aria-label": "Close gallery",
-          },
-          [text("×")]
-        ),
+      // Modal
+      tag(
+        'div',
+        {
+          id: modalId,
+          class: 'gallery-modal',
+        },
+        [
+          // Close button
+          tag(
+            'button',
+            {
+              class: 'gallery-modal-close',
+              onclick: `${closeModalFunctionName}()`,
+              'aria-label': 'Close gallery',
+            },
+            [text('×')]
+          ),
 
-        // Previous button
-        tag(
-          "button",
-          {
-            class: "gallery-modal-nav gallery-modal-prev",
-            onclick: `${prevImageFunctionName}()`,
-            "aria-label": "Previous image",
-          },
-          [text("❮")]
-        ),
+          // Previous button
+          tag(
+            'button',
+            {
+              class: 'gallery-modal-nav gallery-modal-prev',
+              onclick: `${prevImageFunctionName}()`,
+              'aria-label': 'Previous image',
+            },
+            [text('❮')]
+          ),
 
-        // Image container
-        tag(
-          "div",
-          {
-            class: "gallery-modal-content",
-          },
-          [
-            tag(
-              "div",
-              { id: imageContainerId, class: "gallery-modal-image-container" },
-              []
-            ),
-            tag(
-              "div",
-              { id: `${namespace}counter`, class: "gallery-modal-counter" },
-              [text("1 / 1")]
-            ),
-          ]
-        ),
+          // Image container
+          tag(
+            'div',
+            {
+              class: 'gallery-modal-content',
+            },
+            [
+              tag(
+                'div',
+                {
+                  id: imageContainerId,
+                  class: 'gallery-modal-image-container',
+                },
+                []
+              ),
+              tag(
+                'div',
+                { id: `${namespace}counter`, class: 'gallery-modal-counter' },
+                [text('1 / 1')]
+              ),
+            ]
+          ),
 
-        // Next button
-        tag(
-          "button",
-          {
-            class: "gallery-modal-nav gallery-modal-next",
-            onclick: `${nextImageFunctionName}()`,
-            "aria-label": "Next image",
-          },
-          [text("❯")]
-        ),
-      ]
-    ),
-  ]);
-};
+          // Next button
+          tag(
+            'button',
+            {
+              class: 'gallery-modal-nav gallery-modal-next',
+              onclick: `${nextImageFunctionName}()`,
+              'aria-label': 'Next image',
+            },
+            [text('❯')]
+          ),
+        ]
+      ),
+    ]);
+  };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .gallery-modal {
         display: none;

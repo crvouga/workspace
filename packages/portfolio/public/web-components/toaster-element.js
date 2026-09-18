@@ -3,12 +3,12 @@ class ToasterElement extends HTMLElement {
   constructor() {
     super();
 
-    const shadow = this.attachShadow({ mode: "open" });
+    const shadow = this.attachShadow({ mode: 'open' });
 
-    const container = document.createElement("div");
-    container.className = "toast-container";
+    const container = document.createElement('div');
+    container.className = 'toast-container';
 
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.textContent = `
       .toast-container {
           position: fixed;
@@ -80,31 +80,31 @@ class ToasterElement extends HTMLElement {
    */
   attributeChangedCallback(name, _oldValue, _newValue) {
     if (
-      name === "data-bg-color" ||
-      name === "data-text-color" ||
-      name === "data-border-color"
+      name === 'data-bg-color' ||
+      name === 'data-text-color' ||
+      name === 'data-border-color'
     ) {
       this.updateCSSVariables();
     }
   }
 
   static get observedAttributes() {
-    return ["data-bg-color", "data-text-color", "data-border-color"];
+    return ['data-bg-color', 'data-text-color', 'data-border-color'];
   }
 
   updateCSSVariables() {
-    const bgColor = this.getAttribute("data-bg-color");
-    const textColor = this.getAttribute("data-text-color");
-    const borderColor = this.getAttribute("data-border-color");
+    const bgColor = this.getAttribute('data-bg-color');
+    const textColor = this.getAttribute('data-text-color');
+    const borderColor = this.getAttribute('data-border-color');
 
     if (bgColor) {
-      this.style.setProperty("--toast-bg-color", bgColor);
+      this.style.setProperty('--toast-bg-color', bgColor);
     }
     if (textColor) {
-      this.style.setProperty("--toast-text-color", textColor);
+      this.style.setProperty('--toast-text-color', textColor);
     }
     if (borderColor) {
-      this.style.setProperty("--toast-border-color", borderColor);
+      this.style.setProperty('--toast-border-color', borderColor);
     }
   }
   /**
@@ -112,14 +112,14 @@ class ToasterElement extends HTMLElement {
    * @param {string} message - The message to display in the toast.
    */
   async showToast(message) {
-    if (typeof message !== "string") {
-      throw new Error("Message must be a string");
+    if (typeof message !== 'string') {
+      throw new Error('Message must be a string');
     }
 
     if (this.currentToast) {
-      this.currentToast.style.animation = "slide-out 0.3s forwards";
+      this.currentToast.style.animation = 'slide-out 0.3s forwards';
       await new Promise((resolve) => {
-        this.currentToast?.addEventListener("animationend", resolve, {
+        this.currentToast?.addEventListener('animationend', resolve, {
           once: true,
         });
       });
@@ -127,8 +127,8 @@ class ToasterElement extends HTMLElement {
       this.currentToast = null;
     }
 
-    const toast = document.createElement("div");
-    toast.className = "toast";
+    const toast = document.createElement('div');
+    toast.className = 'toast';
     toast.textContent = message;
 
     this.container.appendChild(toast);
@@ -136,12 +136,12 @@ class ToasterElement extends HTMLElement {
 
     setTimeout(() => {
       if (this.currentToast === toast) {
-        this.currentToast.style.animation = "none";
+        this.currentToast.style.animation = 'none';
         void this.currentToast.offsetHeight;
-        this.currentToast.style.animation = "slide-out 0.3s forwards";
+        this.currentToast.style.animation = 'slide-out 0.3s forwards';
 
         this.currentToast.addEventListener(
-          "animationend",
+          'animationend',
           () => {
             if (this.currentToast === toast) {
               this.currentToast.remove();
@@ -155,4 +155,4 @@ class ToasterElement extends HTMLElement {
   }
 }
 
-customElements.define("toaster-element", ToasterElement);
+customElements.define('toaster-element', ToasterElement);

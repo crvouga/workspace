@@ -1,13 +1,13 @@
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 const FONT_SANS = `"Inter Variable", -apple-system, "system-ui", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"`;
 
 const FONT_MONO = `"JetBrains Mono Variable", "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace`;
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       @font-face {
         font-family: "Inter Variable";

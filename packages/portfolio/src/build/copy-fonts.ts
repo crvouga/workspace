@@ -1,5 +1,5 @@
-import { copyFile, mkdir } from "fs/promises";
-import { dirname, join } from "path";
+import { copyFile, mkdir } from 'fs/promises';
+import { dirname, join } from 'path';
 
 type FontCopy = {
   readonly source: string;
@@ -9,13 +9,13 @@ type FontCopy = {
 const FONTS: readonly FontCopy[] = [
   {
     source:
-      "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
-    destination: "fonts/inter-variable.woff2",
+      'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+    destination: 'fonts/inter-variable.woff2',
   },
   {
     source:
-      "node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
-    destination: "fonts/jetbrains-mono-variable.woff2",
+      'node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2',
+    destination: 'fonts/jetbrains-mono-variable.woff2',
   },
 ];
 

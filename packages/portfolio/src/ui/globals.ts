@@ -1,9 +1,9 @@
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       *,
       *::before,

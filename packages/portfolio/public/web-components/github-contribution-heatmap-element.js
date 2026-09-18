@@ -18,13 +18,13 @@ class GitHubContributionHeatmapElement extends HTMLElement {
       return;
     }
 
-    const styleId = "github-contribution-heatmap-styles";
+    const styleId = 'github-contribution-heatmap-styles';
     if (document.getElementById(styleId)) {
       this.stylesInjected = true;
       return;
     }
 
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
       /* GitHub Contribution Heatmap Styles - Dark Mode */
@@ -160,13 +160,13 @@ class GitHubContributionHeatmapElement extends HTMLElement {
 
     // Initialize DOM structure when connected
     if (!this.container) {
-      const container = document.createElement("div");
-      container.className = "heatmap-container";
+      const container = document.createElement('div');
+      container.className = 'heatmap-container';
 
-      const calendarContainer = document.createElement("div");
-      calendarContainer.className = "calendar";
+      const calendarContainer = document.createElement('div');
+      calendarContainer.className = 'calendar';
       // The library requires this loading text
-      calendarContainer.textContent = "Loading the data just for you.";
+      calendarContainer.textContent = 'Loading the data just for you.';
 
       container.appendChild(calendarContainer);
       this.appendChild(container);
@@ -175,14 +175,14 @@ class GitHubContributionHeatmapElement extends HTMLElement {
       this.calendarContainer = calendarContainer;
     }
 
-    this.username = this.getAttribute("data-username");
+    this.username = this.getAttribute('data-username');
     if (this.username) {
       // Wait a bit to ensure DOM is fully ready
       setTimeout(() => {
         this.initializeCalendar();
       }, 100);
     } else {
-      this.showError("GitHub username is required");
+      this.showError('GitHub username is required');
     }
   }
 
@@ -192,8 +192,8 @@ class GitHubContributionHeatmapElement extends HTMLElement {
    * @param {unknown} _newValue
    */
   attributeChangedCallback(name, _oldValue, _newValue) {
-    if (name === "data-username") {
-      this.username = this.getAttribute("data-username");
+    if (name === 'data-username') {
+      this.username = this.getAttribute('data-username');
       if (this.username && !this.calendarInitialized) {
         this.initializeCalendar();
       }
@@ -201,7 +201,7 @@ class GitHubContributionHeatmapElement extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ["data-username"];
+    return ['data-username'];
   }
 
   /**
@@ -229,8 +229,8 @@ class GitHubContributionHeatmapElement extends HTMLElement {
         return;
       }
 
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
       link.href = href;
       link.onload = () => resolve();
       link.onerror = () =>
@@ -251,19 +251,19 @@ class GitHubContributionHeatmapElement extends HTMLElement {
       // Load the CSS first
       try {
         await this.loadStylesheet(
-          "https://unpkg.com/github-calendar@latest/dist/github-calendar-responsive.css"
+          'https://unpkg.com/github-calendar@latest/dist/github-calendar-responsive.css'
         );
       } catch (cssError) {
-        console.warn("Failed to load github-calendar CSS:", cssError);
+        console.warn('Failed to load github-calendar CSS:', cssError);
       }
 
       // Check if GitHubCalendar is already available
       // @ts-ignore - GitHubCalendar is added by the external library
-      if (typeof window.GitHubCalendar === "undefined") {
-        console.log("Loading github-calendar library...");
+      if (typeof window.GitHubCalendar === 'undefined') {
+        console.log('Loading github-calendar library...');
         // Load the library script
         await this.loadScript(
-          "https://unpkg.com/github-calendar@latest/dist/github-calendar.min.js"
+          'https://unpkg.com/github-calendar@latest/dist/github-calendar.min.js'
         );
       }
 
@@ -271,7 +271,7 @@ class GitHubContributionHeatmapElement extends HTMLElement {
       let retries = 0;
       while (
         // @ts-ignore
-        typeof window.GitHubCalendar === "undefined" &&
+        typeof window.GitHubCalendar === 'undefined' &&
         retries < 20
       ) {
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -280,23 +280,23 @@ class GitHubContributionHeatmapElement extends HTMLElement {
 
       // Check if GitHubCalendar is now available
       // @ts-ignore - GitHubCalendar is added by the external library
-      if (typeof window.GitHubCalendar === "undefined") {
-        throw new Error("Failed to load github-calendar library");
+      if (typeof window.GitHubCalendar === 'undefined') {
+        throw new Error('Failed to load github-calendar library');
       }
 
       // Ensure the container has the correct structure
       // The library expects a div with class "calendar" containing the loading text
-      this.calendarContainer.className = "calendar";
+      this.calendarContainer.className = 'calendar';
       if (
         !this.calendarContainer.textContent ||
-        this.calendarContainer.textContent.trim() === ""
+        this.calendarContainer.textContent.trim() === ''
       ) {
-        this.calendarContainer.textContent = "Loading the data just for you.";
+        this.calendarContainer.textContent = 'Loading the data just for you.';
       }
 
       // Ensure the element is in the DOM
       if (!document.contains(this.calendarContainer)) {
-        throw new Error("Calendar container is not in the DOM");
+        throw new Error('Calendar container is not in the DOM');
       }
 
       // Wait a bit to ensure DOM and CSS are ready
@@ -330,7 +330,7 @@ class GitHubContributionHeatmapElement extends HTMLElement {
           return fetch(proxyUrl, {
             headers: {
               Accept:
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             },
           }).then((response) => {
             if (!response.ok) {
@@ -342,17 +342,17 @@ class GitHubContributionHeatmapElement extends HTMLElement {
       });
 
       // The library returns a promise, wait for it to complete
-      if (result && typeof result.then === "function") {
+      if (result && typeof result.then === 'function') {
         await result;
       }
 
       this.calendarInitialized = true;
-      console.log("Calendar initialized successfully");
+      console.log('Calendar initialized successfully');
     } catch (error) {
-      console.error("Error initializing calendar:", error);
+      console.error('Error initializing calendar:', error);
       this.showError(
         `Failed to load contribution data. ${
-          error instanceof Error ? error.message : "Unknown error"
+          error instanceof Error ? error.message : 'Unknown error'
         }`
       );
     }
@@ -372,7 +372,7 @@ class GitHubContributionHeatmapElement extends HTMLElement {
         return;
       }
 
-      const script = document.createElement("script");
+      const script = document.createElement('script');
       script.src = src;
       script.async = true;
       script.onload = () => resolve();
@@ -383,6 +383,6 @@ class GitHubContributionHeatmapElement extends HTMLElement {
 }
 
 customElements.define(
-  "github-contribution-heatmap",
+  'github-contribution-heatmap',
   GitHubContributionHeatmapElement
 );

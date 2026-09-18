@@ -1,26 +1,32 @@
-import { type ViewWithProps, tag, text } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { THEME } from "../../ui/theme";
-import { toCopyToClipboardOnClick } from "../copy-to-clipboard";
+import { type ViewWithProps, tag, text } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { THEME } from '../../ui/theme';
+import { toCopyToClipboardOnClick } from '../copy-to-clipboard';
 
-export const viewContactLinkButton: ViewWithProps<{ label: string; value: string }> = (props) => (attrs, _children) => {
+export const viewContactLinkButton: ViewWithProps<{
+  label: string;
+  value: string;
+}> = (props) => (attrs, _children) => {
   return tag(
-    "button",
+    'button',
     {
       ...attrs,
-      class: "contact-link-button",
-      title: "Click to copy to clipboard",
-      onclick: toCopyToClipboardOnClick(props.value, `Copied '${props.value}' to clipboard`),
+      class: 'contact-link-button',
+      title: 'Click to copy to clipboard',
+      onclick: toCopyToClipboardOnClick(
+        props.value,
+        `Copied '${props.value}' to clipboard`
+      ),
     },
     [
-      tag("span", { class: "contact-link-button-label" }, [text(props.label)]),
-      tag("span", { class: "contact-link-button-value" }, [text(props.value)]),
+      tag('span', { class: 'contact-link-button-label' }, [text(props.label)]),
+      tag('span', { class: 'contact-link-button-value' }, [text(props.value)]),
     ]
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
         .contact-link-button {
             display: flex;

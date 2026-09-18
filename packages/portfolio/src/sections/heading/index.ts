@@ -1,12 +1,12 @@
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewHeroCtas } from "./ctas";
-import { viewHeroEyebrow } from "./eyebrow";
-import { viewHeroName } from "./name";
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewHeroCtas } from './ctas';
+import { viewHeroEyebrow } from './eyebrow';
+import { viewHeroName } from './name';
 
 export const viewHeadingSection: View = () => {
-  return tag("header", { class: "hero", id: "hero" }, [
+  return tag('header', { class: 'hero', id: 'hero' }, [
     viewHeroEyebrow(),
     viewHeroName(),
     viewHeroCtas(),
@@ -14,7 +14,7 @@ export const viewHeadingSection: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .hero {
         display: flex;

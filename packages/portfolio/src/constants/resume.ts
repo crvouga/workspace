@@ -1,1 +1,1 @@
-export const RESUME_FILENAME = "chris-vouga-resume.pdf";
+export const RESUME_FILENAME = 'chris-vouga-resume.pdf';

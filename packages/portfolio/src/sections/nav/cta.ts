@@ -1,14 +1,14 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
 
 export const viewNavCta: View = () => {
-  const contact = CONTENT.GET_SECTION("contact");
+  const contact = CONTENT.GET_SECTION('contact');
   return tag(
-    "a",
+    'a',
     {
-      class: "nav-cta",
+      class: 'nav-cta',
       href: `#${contact.id}`,
     },
     [text(contact.navLabel.toLowerCase())]
@@ -16,7 +16,7 @@ export const viewNavCta: View = () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .nav-cta {
         font-family: var(--font-mono);

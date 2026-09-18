@@ -1,8 +1,8 @@
-import { tag, text } from "../../library/html/index";
-import type { Html } from "../../library/html/index";
+import { tag, text } from '../../library/html/index';
+import type { Html } from '../../library/html/index';
 
 export const viewNavScrollspyScript = (): Html => {
-  return tag("script", {}, [
+  return tag('script', {}, [
     text(`
 (function () {
   function init() {

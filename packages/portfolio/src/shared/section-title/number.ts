@@ -1,13 +1,14 @@
-import { tag, text } from "../../library/html/index";
-import type { ViewWithProps } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
+import { tag, text } from '../../library/html/index';
+import type { ViewWithProps } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
 
-export const viewSectionNumber: ViewWithProps<{ number: string }> = (props) => () => {
-  return tag("span", { class: "section-num" }, [text(props.number)]);
-};
+export const viewSectionNumber: ViewWithProps<{ number: string }> =
+  (props) => () => {
+    return tag('span', { class: 'section-num' }, [text(props.number)]);
+  };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .section-num {
         font-family: var(--font-mono);

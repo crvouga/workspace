@@ -1,38 +1,38 @@
-import { tag, text } from "../library/html/index";
-import type { ViewWithProps } from "../library/html/index";
-import { HEAD } from "./head";
+import { tag, text } from '../library/html/index';
+import type { ViewWithProps } from '../library/html/index';
+import { HEAD } from './head';
 
 type Props = {
   initials: string;
-  size?: "sm" | "md";
+  size?: 'sm' | 'md';
 };
 
-const sizeToClass = (size: Props["size"]): string => {
+const sizeToClass = (size: Props['size']): string => {
   switch (size) {
-    case "sm":
-      return "monogram-sm";
-    case "md":
+    case 'sm':
+      return 'monogram-sm';
+    case 'md':
     default:
-      return "monogram-md";
+      return 'monogram-md';
   }
 };
 
 export const viewMonogram: ViewWithProps<Props> = (props) => (attrs) => {
   return tag(
-    "span",
+    'span',
     {
       ...attrs,
-      class: ["monogram", sizeToClass(props.size), attrs?.["class"]]
+      class: ['monogram', sizeToClass(props.size), attrs?.['class']]
         .filter(Boolean)
-        .join(" "),
-      "aria-label": `${props.initials} monogram`,
+        .join(' '),
+      'aria-label': `${props.initials} monogram`,
     },
     [text(props.initials)]
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .monogram {
         display: inline-flex;

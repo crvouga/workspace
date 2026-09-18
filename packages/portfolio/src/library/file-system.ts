@@ -1,6 +1,6 @@
-import { readdirSync } from "fs";
-import { copyFile, mkdir, readdir, rm } from "fs/promises";
-import path, { join } from "path";
+import { readdirSync } from 'fs';
+import { copyFile, mkdir, readdir, rm } from 'fs/promises';
+import path, { join } from 'path';
 
 export const deleteDirectory = async (path: string): Promise<void> => {
   await rm(path, { recursive: true, force: true });
@@ -8,7 +8,7 @@ export const deleteDirectory = async (path: string): Promise<void> => {
 
 export const copyDirectory = async (
   src: string,
-  dest: string,
+  dest: string
 ): Promise<void> => {
   await mkdir(dest, { recursive: true });
   const entries = await readdir(src, { withFileTypes: true });

@@ -1,31 +1,31 @@
-import { CONTENT } from "../../content/content";
-import { tag, text } from "../../library/html/index";
-import type { View } from "../../library/html/index";
-import { viewCard, viewCardContent } from "../../ui/card";
-import { HEAD } from "../../ui/head";
-import { viewTypography } from "../../ui/typography";
-import { viewYouTubeVideo } from "../../ui/youtube-video";
+import { CONTENT } from '../../content/content';
+import { tag, text } from '../../library/html/index';
+import type { View } from '../../library/html/index';
+import { viewCard, viewCardContent } from '../../ui/card';
+import { HEAD } from '../../ui/head';
+import { viewTypography } from '../../ui/typography';
+import { viewYouTubeVideo } from '../../ui/youtube-video';
 
 export const viewAboutCursorCard: View = () => {
-  return viewCard({ class: "about-cursor-card" }, [
+  return viewCard({ class: 'about-cursor-card' }, [
     viewYouTubeVideo({
       src: CONTENT.ABOUT_YOUTUBE_EMBED_URL,
       title: CONTENT.ABOUT_YOUTUBE_VIDEO_TITLE,
-    })({ class: "about-cursor-card-video" }),
+    })({ class: 'about-cursor-card-video' }),
     viewCardContent({}, [
-      tag("div", { class: "about-cursor-card-badge" }, [
-        text("Recognized by Cursor"),
+      tag('div', { class: 'about-cursor-card-badge' }, [
+        text('Recognized by Cursor'),
       ]),
       viewTypography({
-        level: "body-md",
+        level: 'body-md',
         text: CONTENT.ABOUT_CURSOR_GIFT_TEXT,
-      })({ style: { "margin-top": "8px" } }),
+      })({ style: { 'margin-top': '8px' } }),
     ]),
   ]);
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .about-cursor-card-badge {
         display: inline-flex;

@@ -1,27 +1,28 @@
-import { type ViewWithProps, tag, text } from "../../library/html/index";
-import type { School } from "../../content/school";
-import { stringToJsVarSafe } from "../../library/js-var";
-import { HEAD } from "../../ui/head";
-import { viewOpenGalleryButtonImageWrapper } from "../../ui/image-gallery-modal/open-gallery-button-image-wrapper";
+import { type ViewWithProps, tag, text } from '../../library/html/index';
+import type { School } from '../../content/school';
+import { stringToJsVarSafe } from '../../library/js-var';
+import { HEAD } from '../../ui/head';
+import { viewOpenGalleryButtonImageWrapper } from '../../ui/image-gallery-modal/open-gallery-button-image-wrapper';
 
-export const viewSchoolCardImage: ViewWithProps<{ school: School }> = (props) => (attr, _) => {
-  const alt = props.school.imageAlt || props.school.institutionName;
-  const src = props.school.imageSrc;
-  const jsVarSafeNamespace = stringToJsVarSafe(props.school.institutionName);
+export const viewSchoolCardImage: ViewWithProps<{ school: School }> =
+  (props) => (attr, _) => {
+    const alt = props.school.imageAlt || props.school.institutionName;
+    const src = props.school.imageSrc;
+    const jsVarSafeNamespace = stringToJsVarSafe(props.school.institutionName);
 
-  return tag("div", { class: "school-card-image-container" }, [
-    viewOpenGalleryButtonImageWrapper({
-      src,
-      alt,
-      galleryImages: props.school.galleryImageSrc,
-      jsVarSafeNamespace,
-      showGalleryIndicator: true,
-    })({ ...attr, class: "school-card-image" }, []),
-  ]);
-};
+    return tag('div', { class: 'school-card-image-container' }, [
+      viewOpenGalleryButtonImageWrapper({
+        src,
+        alt,
+        galleryImages: props.school.galleryImageSrc,
+        jsVarSafeNamespace,
+        showGalleryIndicator: true,
+      })({ ...attr, class: 'school-card-image' }, []),
+    ]);
+  };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .school-card-image-container {
         width: 100%;

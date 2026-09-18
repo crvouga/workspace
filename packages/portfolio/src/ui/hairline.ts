@@ -1,21 +1,21 @@
-import { tag, text } from "../library/html/index";
-import type { View } from "../library/html/index";
-import { HEAD } from "./head";
+import { tag, text } from '../library/html/index';
+import type { View } from '../library/html/index';
+import { HEAD } from './head';
 
 export const viewHairline: View = (attrs) => {
   return tag(
-    "span",
+    'span',
     {
       ...attrs,
-      class: ["hairline", attrs?.["class"]].filter(Boolean).join(" "),
-      "aria-hidden": "true",
+      class: ['hairline', attrs?.['class']].filter(Boolean).join(' '),
+      'aria-hidden': 'true',
     },
     []
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .hairline {
         display: block;

@@ -1,53 +1,53 @@
-import type { ViewWithProps } from "../library/html/index";
-import { tag, text } from "../library/html/index";
-import { HEAD } from "./head";
-import { THEME } from "./theme";
+import type { ViewWithProps } from '../library/html/index';
+import { tag, text } from '../library/html/index';
+import { HEAD } from './head';
+import { THEME } from './theme';
 
 type Props = { src: string; title?: string };
 
 export const viewYouTubeVideo: ViewWithProps<Props> = (props) => (attrs) => {
   const videoId = `youtube-video-${Math.random().toString(36).substr(2, 9)}`;
   return tag(
-    "div",
+    'div',
     {
       ...attrs,
-      class: "youtube-video-container",
+      class: 'youtube-video-container',
       id: videoId,
-      "data-video-src": props.src,
+      'data-video-src': props.src,
     },
     [
       tag(
-        "div",
+        'div',
         {
-          class: "youtube-video-placeholder",
-          "data-container-id": videoId,
-          style: "cursor: pointer;",
+          class: 'youtube-video-placeholder',
+          'data-container-id': videoId,
+          style: 'cursor: pointer;',
         },
         [
-          tag("div", { class: "youtube-video-placeholder-content" }, [
-            tag("div", { class: "youtube-video-placeholder-icon" }, [
-              text("▶"),
+          tag('div', { class: 'youtube-video-placeholder-content' }, [
+            tag('div', { class: 'youtube-video-placeholder-icon' }, [
+              text('▶'),
             ]),
           ]),
         ]
       ),
-      tag("iframe", {
-        "data-src": props.src,
-        class: "youtube-video",
+      tag('iframe', {
+        'data-src': props.src,
+        class: 'youtube-video',
         allow:
-          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-        allowfullscreen: "true",
-        frameborder: "0",
-        title: props.title || "YouTube video",
-        loading: "lazy",
-        style: "display: none;",
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+        allowfullscreen: 'true',
+        frameborder: '0',
+        title: props.title || 'YouTube video',
+        loading: 'lazy',
+        style: 'display: none;',
       }),
     ]
   );
 };
 
 HEAD.push(
-  tag("script", {}, [
+  tag('script', {}, [
     text(`
       function loadYouTubeIframe(containerId, videoSrc) {
         const container = document.getElementById(containerId);
@@ -117,7 +117,7 @@ HEAD.push(
 );
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .youtube-video-container {
         width: 100%;        

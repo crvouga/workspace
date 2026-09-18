@@ -1,16 +1,16 @@
-import { tag, text } from "../library/html/index";
-import type { View } from "../library/html/index";
-import { HEAD } from "./head";
+import { tag, text } from '../library/html/index';
+import type { View } from '../library/html/index';
+import { HEAD } from './head';
 
 export const viewBackdrop: View = () => {
-  return tag("div", { class: "backdrop", "aria-hidden": "true" }, [
-    tag("div", { class: "backdrop-grid" }, []),
-    tag("div", { class: "backdrop-halo" }, []),
+  return tag('div', { class: 'backdrop', 'aria-hidden': 'true' }, [
+    tag('div', { class: 'backdrop-grid' }, []),
+    tag('div', { class: 'backdrop-halo' }, []),
   ]);
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .backdrop {
         position: fixed;

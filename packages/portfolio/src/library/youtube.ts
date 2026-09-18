@@ -10,15 +10,15 @@ export const toYouTubeVideoUrl = ({
   const params = new URLSearchParams();
 
   if (autoplay) {
-    params.append("autoplay", "1");
+    params.append('autoplay', '1');
   }
 
   if (mute) {
-    params.append("mute", "1");
+    params.append('mute', '1');
   }
 
-  params.append("loop", "1");
-  params.append("playlist", youTubeVideoId);
+  params.append('loop', '1');
+  params.append('playlist', youTubeVideoId);
 
   return `https://www.youtube.com/embed/${youTubeVideoId}?${params.toString()}`;
 };

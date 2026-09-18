@@ -1,9 +1,9 @@
-import { tag, text } from "../../library/html/index";
-import type { Html, ViewWithProps } from "../../library/html/index";
-import { HEAD } from "../../ui/head";
-import { viewTypography } from "../../ui/typography";
-import { viewSectionNumber } from "./number";
-import { viewSectionRule } from "./rule";
+import { tag, text } from '../../library/html/index';
+import type { Html, ViewWithProps } from '../../library/html/index';
+import { HEAD } from '../../ui/head';
+import { viewTypography } from '../../ui/typography';
+import { viewSectionNumber } from './number';
+import { viewSectionRule } from './rule';
 
 type Props = {
   title: string;
@@ -16,15 +16,17 @@ export const viewSectionTitle: ViewWithProps<Props> = (p) => () => {
   if (p.number) {
     titleRow.push(viewSectionNumber({ number: p.number })());
   }
-  titleRow.push(viewTypography({ level: "h2", text: p.title })({ class: "section-title-h" }));
+  titleRow.push(
+    viewTypography({ level: 'h2', text: p.title })({ class: 'section-title-h' })
+  );
   titleRow.push(viewSectionRule());
 
-  return tag("div", { class: "section-title" }, [
-    tag("div", { class: "section-title-row" }, titleRow),
+  return tag('div', { class: 'section-title' }, [
+    tag('div', { class: 'section-title-row' }, titleRow),
     ...(p.subtitle
       ? [
-          viewTypography({ level: "body-md", text: p.subtitle })({
-            class: "section-title-sub",
+          viewTypography({ level: 'body-md', text: p.subtitle })({
+            class: 'section-title-sub',
           }),
         ]
       : []),
@@ -32,7 +34,7 @@ export const viewSectionTitle: ViewWithProps<Props> = (p) => () => {
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .section-title {
         display: flex;

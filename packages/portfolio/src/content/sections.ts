@@ -1,9 +1,4 @@
-export type SectionId =
-  | "work"
-  | "projects"
-  | "about"
-  | "education"
-  | "contact";
+export type SectionId = 'work' | 'projects' | 'about' | 'education' | 'contact';
 
 export type Section = {
   readonly id: SectionId;
@@ -13,16 +8,16 @@ export type Section = {
 };
 
 export const SECTIONS: readonly Section[] = [
-  { id: "work", number: "01", title: "Work", navLabel: "Work" },
-  { id: "projects", number: "02", title: "Projects", navLabel: "Projects" },
-  { id: "about", number: "03", title: "About", navLabel: "About" },
+  { id: 'work', number: '01', title: 'Work', navLabel: 'Work' },
+  { id: 'projects', number: '02', title: 'Projects', navLabel: 'Projects' },
+  { id: 'about', number: '03', title: 'About', navLabel: 'About' },
   {
-    id: "education",
-    number: "04",
-    title: "Education",
-    navLabel: "Education",
+    id: 'education',
+    number: '04',
+    title: 'Education',
+    navLabel: 'Education',
   },
-  { id: "contact", number: "05", title: "Contact", navLabel: "Contact" },
+  { id: 'contact', number: '05', title: 'Contact', navLabel: 'Contact' },
 ];
 
 export const getSection = (id: SectionId): Section => {

@@ -1,29 +1,29 @@
-import { tag, text } from "../library/html/index";
-import type { ViewWithProps } from "../library/html/index";
-import { HEAD } from "./head";
+import { tag, text } from '../library/html/index';
+import type { ViewWithProps } from '../library/html/index';
+import { HEAD } from './head';
 
 type Props = {
   yearStart: number;
-  yearEnd: number | "Present";
+  yearEnd: number | 'Present';
 };
 
-const formatRange = (start: number, end: number | "Present"): string => {
+const formatRange = (start: number, end: number | 'Present'): string => {
   return `${start} — ${end}`;
 };
 
 export const viewDatePill: ViewWithProps<Props> = (props) => (attrs) => {
   return tag(
-    "span",
+    'span',
     {
       ...attrs,
-      class: ["date-pill", attrs?.["class"]].filter(Boolean).join(" "),
+      class: ['date-pill', attrs?.['class']].filter(Boolean).join(' '),
     },
     [text(formatRange(props.yearStart, props.yearEnd))]
   );
 };
 
 HEAD.push(
-  tag("style", {}, [
+  tag('style', {}, [
     text(`
       .date-pill {
         display: inline-flex;
