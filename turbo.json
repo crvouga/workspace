@@ -36,6 +36,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**/*.ts", "Dockerfile"],
+      "passThroughEnv": ["PORTFOLIO_GITHUB_TOKEN"],
       "outputLogs": "new-only",
       "outputs": []
     },
