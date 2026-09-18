@@ -35,14 +35,14 @@ Package-only (no Vault): `bun check`
 **On failure:** fix in the order reported, re-run `bun run check:ci && bun run typecheck`,
 repeat until green. Then go to step 2.
 
-| Failure           | Fix                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Lockfile mismatch | `bun install`, then re-check                                                                                        |
-| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                 |
-| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config) |
-| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                        |
-| `test`            | Fix assertion (`bun test`)                                                                                          |
-| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds                                   |
+| Failure           | Fix                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Lockfile mismatch | `bun install`, then re-check                                                                                          |
+| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                   |
+| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config)   |
+| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                          |
+| `test`            | Fix assertion (`bun test`)                                                                                            |
+| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds (`@pkgs/portfolio` renders `dist/`) |
 
 A green local run is **not** done — local `check` does not cover CI `publish` /
 `vault` / `deploy` (Docker, Railway, DNS).
@@ -80,7 +80,7 @@ bun run gh:ci           # open Actions in browser
 ```
 
 Watch the **full** workflow for the push you just made
-(`changes → vault-state → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all`), not only the `check` job.
+(`changes → vault-state → vault? → check → portfolio-health-check? → publish-plan? → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all`), not only the `check` job.
 
 **On failure** (`gh:ci:watch` non-zero):
 
@@ -92,13 +92,13 @@ Watch the **full** workflow for the push you just made
 **Repeat until the watched run is green.** Never declare done after local green
 or push alone.
 
-| Job / area           | Typical cause                       | Where to look                                                  |
-| -------------------- | ----------------------------------- | -------------------------------------------------------------- |
-| `check` (Vault OIDC) | Missing/invalid Vault `dev` secrets | `vault-secrets-registry.ts`, `check:vault-secrets`             |
-| `publish`            | Docker / context / `.dockerignore`  | `packages/turborepo-remote-cache/Dockerfile`, `.dockerignore`  |
-| `vault`              | Image / migrate / unseal            | `packages/vault-service/**`                                    |
-| `deploy-*`           | Reconcile / Railway / DNS / health  | `packages/infra/services.yaml`, deploy logs                    |
-| `smoke` (dispatch)   | Prod mid-redeploy                   | Wait for deploy; smoke waits on `health-check-all` in `ci.yml` |
+| Job / area                 | Typical cause                                                  | Where to look                                                                                      |
+| -------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `check` (Vault OIDC)       | Missing/invalid Vault `dev` secrets                            | `vault-secrets-registry.ts`, `check:vault-secrets`                                                 |
+| `publish-plan` / `publish` | `services.yaml` inventory / Docker / context / `.dockerignore` | `list-publish-service-ids.ts`, `print-publish-inputs.ts`, `packages/*/Dockerfile`, `.dockerignore` |
+| `vault`                    | Image / migrate / unseal                                       | `packages/vault-service/**`                                                                        |
+| `deploy-*`                 | Reconcile / Railway / DNS / health                             | `packages/infra/services.yaml`, deploy logs                                                        |
+| `smoke` (dispatch)         | Prod mid-redeploy                                              | Wait for deploy; smoke waits on `health-check-all` in `ci.yml`                                     |
 
 ### 4. Done
 
@@ -134,7 +134,7 @@ Needs a Vault session. Registry: `packages/turborepo-remote-cache/scripts/vault-
 ## CI workflow shape
 
 ```
-changes → vault-state → vault? → check → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all
+changes → vault-state → vault? → check → portfolio-health-check? → publish-plan? → publish? → deploy-prepare → deploy-reconcile → deploy-railway? → health-check-all
 ```
 
 `.github/workflows/ci.yml` is the **only** workflow. It serves every path:
@@ -142,6 +142,7 @@ changes → vault-state → vault? → check → publish? → deploy-prepare →
 - `push` on `main` and production dispatches — `vault-state` checks readiness first; if Vault is sealed or unavailable, `vault` deploys and unseals it before checks. PRs never mutate production and use the existing Vault.
 - `workflow_dispatch` — manual `check` / `publish` / vault rebuild / fleet redeploy (`service_id`, `image_tag`, `apply_dns`)
 - `workflow_call` — sibling repos publish their GHCR image (`service_id`, `dockerfile`, `context`, `image_prefix`); `notify_deploy: true` dispatches the deploy back to infra
+- monorepo pushes publish every service whose `github_repo` is this repo (`publish-plan` → `publish` matrix; currently `portfolio` + `turborepo`) and redeploy exactly those at the pushed SHA
 - `repository_dispatch deploy-service` — sibling publish notify → single-service fleet deploy
 
 Composite actions under `.github/actions/` (`vault-secrets`, `turborepo-vault-secrets`) load Vault secrets via OIDC.

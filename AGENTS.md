@@ -4,7 +4,8 @@
 
 Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
 
-- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
+- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), deployed as the `turborepo` Railway service; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
+- `packages/portfolio` — `www.chrisvouga.dev` static site + content registry (`@pkgs/portfolio`), deployed as the `portfolio` Railway service
 - `packages/infra` — infra control plane (`@pkgs/infra`): sole desired-state doc [`services.yaml`](packages/infra/services.yaml), `lib/reconcile/`, and ops scripts. Prefer `bun run reconcile` / `bun run infra` over one-off scripts.
 - `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
 - `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
@@ -146,6 +147,21 @@ vault setup --project personal --config dev
 bun run setup
 bun run dev # bun server :8787
 ```
+
+## Portfolio site (`packages/portfolio/`)
+
+Source for `www.chrisvouga.dev` — a Bun static-site generator (`src/` → `dist/`) served by nginx, plus the content registry `projects.ts` (+ `src/content/projects/**`, the source of truth for project listings; append new projects to `entries-part-2.ts`).
+
+Its image `ghcr.io/crvouga/chrisvouga-portfolio` is built by this repo's CI: `publish-plan` derives the publish matrix from `services.yaml` (`list-publish-service-ids.ts` → services whose `github_repo` is this repo, minus standalone), the `publish` matrix builds each using `print-publish-inputs.ts` (dockerfile + repo-root build context), and `deploy-prepare` redeploys exactly those services at the pushed SHA. The `portfolio-health-check` job checks every public URL in content when `packages/portfolio/**` changes.
+
+| Command                                              | Purpose                                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `bun run --filter @pkgs/portfolio build`             | Render `dist/` (package cwd; used by the Docker build and `turbo run build`).              |
+| `bun run --filter @pkgs/portfolio gen`               | Screenshots + resume PDF + image optimization (Playwright/sharp; local only).              |
+| `bun run --filter @pkgs/portfolio health-check-urls` | GET every public URL in content.                                                           |
+| `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI). |
+
+`bun run --filter @pkgs/portfolio test` discovers tests only under `src/`, which is why the Docker E2E never runs in the CI `check` job.
 
 ## Local 9router (`packages/9router/`)
 

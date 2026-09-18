@@ -2,7 +2,7 @@
 
 Railway deployment for all services on the zone defined in [`services.yaml`](services.yaml) (`zone: chrisvouga.dev`).
 
-Each project repo builds and pushes its own public image to `ghcr.io/<image_owner>/<image_prefix>-<id>` (e.g. `ghcr.io/crvouga/chrisvouga-portfolio`). This repo **only consumes those images** — GitHub Actions provisions Railway services via the GraphQL API, syncs DNS/secrets, deploys, and health-checks.
+Project repos build and push their own public image to `ghcr.io/<image_owner>/<image_prefix>-<id>` (e.g. `ghcr.io/crvouga/chrisvouga-todo-app`), while the images for services whose code lives here (`turborepo`, `vault`, `portfolio`) are built and pushed by this repo's CI publish job. This repo otherwise **consumes** those images — GitHub Actions provisions Railway services via the GraphQL API, syncs DNS/secrets, deploys, and health-checks.
 
 Cloudflare DNS points custom domains at Railway (CNAME + TXT verification). Railway terminates TLS on custom domains; Cloudflare SSL mode is **Full (strict)** with DNS-only records.
 
@@ -161,6 +161,7 @@ Single flat Turborepo + Bun workspace. Every package is `@pkgs/*` and lives unde
 ```
 packages/
   turborepo-remote-cache/  # Turborepo remote cache server (@pkgs/turborepo-remote-cache) + support scripts
+  portfolio/               # chrisvouga.dev static site + content registry (@pkgs/portfolio)
   infra/                   # services.yaml + lib/ + infra/fleet ops scripts (@pkgs/infra)
   {assert,logger,object-store,secret-store,secret-string,vault}/  # @pkgs/* libs
   9router/                 # local 9router CLI (@pkgs/9router)
