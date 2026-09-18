@@ -30,7 +30,7 @@ RUN bun run build
 FROM nginx:alpine
 
 LABEL org.opencontainers.image.source=https://github.com/crvouga/workspace
-LABEL org.opencontainers.image.description=chrisvouga.dev portfolio static site
+LABEL org.opencontainers.image.description="chrisvouga.dev portfolio static site"
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY packages/portfolio/nginx.conf /etc/nginx/conf.d/

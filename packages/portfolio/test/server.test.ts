@@ -18,10 +18,11 @@ const MAX_RETRIES = 30;
 const RETRY_DELAY_MS = 1000;
 
 async function runCommand(
-  command: string
+  command: string,
+  cwd?: string
 ): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execAsync(command);
+    return await execAsync(command, cwd ? { cwd } : undefined);
   } catch (error) {
     const message =
       error instanceof Error
@@ -88,8 +89,11 @@ test('Docker container serves HTML on port 80', async () => {
     await cleanup();
 
     writeLine('Building Docker image...');
+    // Docker resolves `-f` relative to the cwd, so the build must run from the
+    // repo root with `.` as the context.
     await runCommand(
-      `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} "${REPO_ROOT}"`
+      `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} .`,
+      REPO_ROOT
     );
 
     writeLine('Starting container...');
@@ -123,4 +127,4 @@ test('Docker container serves HTML on port 80', async () => {
     writeLine('Cleaning up...');
     await cleanup();
   }
-});
+}, 300_000); // cold image build + container start exceed bun's 5s default
