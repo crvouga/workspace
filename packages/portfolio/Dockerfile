@@ -1,30 +1,41 @@
-FROM oven/bun:1 AS build
+# syntax=docker/dockerfile:1
+#
+# Build from the repo root: docker build -f packages/portfolio/Dockerfile .
+FROM oven/bun:1.3.11 AS build
 
 WORKDIR /app
 
-COPY package.json bun.lock* ./
+COPY package.json bun.lock ./
+COPY packages/portfolio/package.json ./packages/portfolio/
+COPY packages/assert/package.json ./packages/assert/
+COPY packages/infra/package.json ./packages/infra/
+COPY packages/logger/package.json ./packages/logger/
+COPY packages/object-store/package.json ./packages/object-store/
+COPY packages/openrouter/package.json ./packages/openrouter/
+COPY packages/secret-store/package.json ./packages/secret-store/
+COPY packages/secret-string/package.json ./packages/secret-string/
+COPY packages/turborepo-remote-cache/package.json ./packages/turborepo-remote-cache/
+COPY packages/vault/package.json ./packages/vault/
+COPY packages/workstation/package.json ./packages/workstation/
+COPY packages/9router/package.json ./packages/9router/
 
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 
-RUN apt-get update && apt-get install -y \
-    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-    libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
-    libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
-    libxfixes3 libx11-xcb1 libxcb1 libx11-6 libxext6 \
-    && rm -rf /var/lib/apt/lists/*
+COPY packages/portfolio ./packages/portfolio
 
-RUN bunx playwright install chromium
-
-COPY . .
+WORKDIR /app/packages/portfolio
 
 RUN bun run build
 
 FROM nginx:alpine
 
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/
+LABEL org.opencontainers.image.source=https://github.com/crvouga/workspace
+LABEL org.opencontainers.image.description=chrisvouga.dev portfolio static site
 
-COPY --from=build /app/dist /usr/share/nginx/html
+RUN rm /etc/nginx/conf.d/default.conf
+COPY packages/portfolio/nginx.conf /etc/nginx/conf.d/
+
+COPY --from=build /app/packages/portfolio/dist /usr/share/nginx/html
 
 EXPOSE 80
 

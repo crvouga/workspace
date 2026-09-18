@@ -1,9 +1,13 @@
 import { test, expect } from "bun:test";
 import { exec } from "child_process";
+import { join } from "path";
 import { promisify } from "util";
 import { setTimeout } from "timers/promises";
 
 const execAsync = promisify(exec);
+
+const PACKAGE_DIR = join(import.meta.dir, "..");
+const REPO_ROOT = join(PACKAGE_DIR, "..", "..");
 
 const IMAGE_NAME = "portfolio-app-test";
 const CONTAINER_NAME = "portfolio-app-test-container";
@@ -81,7 +85,9 @@ test("Docker container serves HTML on port 80", async () => {
     await cleanup();
 
     console.log("Building Docker image...");
-    await runCommand(`docker build -t ${IMAGE_NAME} .`);
+    await runCommand(
+      `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} "${REPO_ROOT}"`
+    );
 
     console.log("Starting container...");
     await runCommand(

@@ -1,63 +1,64 @@
-# portfolio
+# @pkgs/portfolio
 
-Source for [chrisvouga.dev](https://www.chrisvouga.dev) — portfolio content, static site generator, and the portfolio container image.
+Source for [www.chrisvouga.dev](https://www.chrisvouga.dev): the static-site generator, the
+content registry, and the site's container image.
 
-## Architecture
-
-```
-projects.ts (content) ──▶ src/ SSG ──▶ dist/ ──▶ Dockerfile ──▶ ghcr.io/crvouga/chrisvouga-portfolio
-                                                                                    │
-                                                                                    ▼
-                                                                        chrisvouga.dev deploy pipeline
-```
-
-Side projects are hosted separately: each project repo publishes its own image, and
-[chrisvouga.dev](https://github.com/crvouga/chrisvouga.dev) orchestrates the single-node
-Docker stack from `services.yaml`.
-
-- **Content**: [`projects.ts`](projects.ts) is the source of truth for project listings (titles, descriptions, images, public URLs, topics).
-- **Hosting**: runtime deploy config for side projects lives in `chrisvouga.dev/services.yaml`.
-- **This repo's image**: `publish-image.yml` builds the portfolio static site from the root `Dockerfile`.
+It is a Bun workspace package inside the `crvouga/workspace` monorepo. The image
+(`ghcr.io/crvouga/chrisvouga-portfolio`) is built and pushed by the root
+[`ci.yml`](../../.github/workflows/ci.yml) publish job from the **repo-root build context**
+(`docker build -f packages/portfolio/Dockerfile .`), then deployed by the fleet deploy jobs in
+the same workflow. Runtime hosting config lives in
+[`packages/infra/services.yaml`](../infra/services.yaml) (`id: portfolio`).
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | Static site generator (built into `dist/`). |
-| `projects.ts` | Content registry for every project on the portfolio. |
-| `scripts/health-check-urls.ts` | Validates public URLs linked from portfolio content. |
-| `Dockerfile`, `nginx.conf` | Portfolio site container. |
-| `.github/workflows/` | CI (typecheck, link health-check) and image publish. |
+| `src/` | Static-site generator (renders `index.html` into `dist/`). |
+| `projects.ts` | Content registry entry point (types, helpers, `PROJECTS`). |
+| `src/content/projects/` | Project entries (`entries-part-1.ts`, `entries-part-2.ts`), types, shared helpers. |
+| `scripts/health-check-urls.ts` | Validates every public URL referenced by content (also run by CI). |
+| `Dockerfile`, `nginx.conf` | Site container, built from the repo root. |
+| `test/server.test.ts` | Docker E2E smoke test (built from the repo root). |
 
-## Common scripts
+## Scripts
 
-```bash
-bun run typecheck          # tsc across the repo
-bun run build              # generate dist/
-bun run health-check-urls  # GET every public URL in content
-bun run preview            # build and run portfolio container locally
-```
+Run from the repo root with `bun run --filter @pkgs/portfolio <script>`, or from this directory
+with `bun run <script>`.
 
-## GitHub Actions
+| Script | Purpose |
+| --- | --- |
+| `build` | Render the site into `dist/` and copy `public/` + fonts. |
+| `dev`, `start`, `local` | Watch-rebuild and serve `dist/`. |
+| `gen` / `generate-all` | Full content pipeline: screenshots (Playwright) + resume PDF + image optimization. |
+| `generate-resume` | Regenerate `public/chris-vouga-resume.pdf`. |
+| `optimize-images` | Rebuild `*.optimized.webp` derivatives with `sharp`. |
+| `screenshot-work` / `screenshot-projects` / `screenshot-main` | Per-collection screenshot capture. |
+| `health-check-urls` | GET every public URL in content; exits non-zero on failure. |
+| `preview` | Build the image and run the container on port 80. |
+| `test:docker` | Build the image from the repo root, run it, assert it serves HTML (needs Docker). |
+| `tc` | `tsc --noEmit` against the shared strict config. |
+| `lint` | ESLint with the shared workspace rules. |
 
-| Workflow | Trigger | What it does |
-| --- | --- | --- |
-| `deploy-pipeline.yml` | push to `main`, manual | Typecheck + health-check public URLs. |
-| `publish-image.yml` | push to `main` | Build/push `ghcr.io/crvouga/chrisvouga-portfolio` and notify chrisvouga.dev deploy. |
+`test` intentionally runs only tests under `src/` so the Docker E2E never runs in the CI `check`
+job; run `test:docker` locally instead.
 
-## Add a project to the portfolio
+## Content
 
-1. Append a `Project` entry to [`projects.ts`](projects.ts) with display fields and `deployment.url` (when public).
-2. Push to `main`. CI typechecks and validates linked URLs.
+`projects.ts` is the entry point for project listings (titles, descriptions, images, public URLs,
+topics). Entries are split across `src/content/projects/entries-part-1.ts` and
+`entries-part-2.ts` to stay under the repo's file-size limit: `PROJECTS` is the concatenation of
+part 1 then part 2, and the rendered order follows it — **append new projects to
+`entries-part-2.ts`**.
 
-## Add or change hosting for a side project
-
-Edit [chrisvouga.dev/services.yaml](https://github.com/crvouga/chrisvouga.dev/blob/main/services.yaml) and the project repo's Dockerfile / `publish-image.yml`. Portfolio only needs the public `deployment.url` (and content fields) to match.
+Hosting for a side project is declared in [`packages/infra/services.yaml`](../infra/services.yaml);
+the portfolio only needs the public `deployment.url`.
 
 ## Local development
 
+The workspace install happens at the repo root (`bun install`).
+
 ```bash
-bun install
-bun run dev    # watch build + serve dist/
-bun run build  # one-shot build
+bun run --filter @pkgs/portfolio build
+bun run --filter @pkgs/portfolio dev
 ```

@@ -1,28 +1,32 @@
 {
+  "name": "@pkgs/portfolio",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "start": "bun --watch ./src/main.ts & bunx serve dist",
-    "dev": "bun run start",
-    "local": "bun run start",
     "build": "bun run ./src/main.ts",
-    "test": "bun test",
-    "typecheck": "tsc",
-    "tc": "bun run typecheck",
-    "gh": "open https://github.com/crvouga/portfolio/actions",
-    "optimize-images": "bun run ./src/optimize-images.ts",
-    "screenshot-work": "bun run ./src/screenshot-work-websites.ts",
-    "screenshot-projects": "bun run ./src/screenshot-project-websites.ts",
-    "screenshot-main": "bun run ./src/screenshot-main-site.ts",
+    "dev": "bun run start",
+    "gen": "bun run generate-all",
     "generate-all": "bun run ./src/generate-all.ts",
-    "gen": "bun generate-all",
     "generate-resume": "bun run ./src/generate-resume.ts",
-    "preview": "docker build -t portfolio-app . && docker run -p 80:80 portfolio-app",
-    "health-check-urls": "bun run scripts/health-check-urls.ts"
+    "gh": "open https://github.com/crvouga/workspace/actions",
+    "health-check-urls": "bun run scripts/health-check-urls.ts",
+    "lint": "eslint . --max-warnings 0",
+    "local": "bun run start",
+    "optimize-images": "bun run ./src/optimize-images.ts",
+    "preview": "docker build -f packages/portfolio/Dockerfile -t portfolio-app .. && docker run -p 80:80 portfolio-app",
+    "screenshot-main": "bun run ./src/screenshot-main-site.ts",
+    "screenshot-projects": "bun run ./src/screenshot-project-websites.ts",
+    "screenshot-work": "bun run ./src/screenshot-work-websites.ts",
+    "start": "bun --watch ./src/main.ts & bunx serve dist",
+    "tc": "tsc --noEmit",
+    "test": "bun test src --pass-with-no-tests",
+    "test:docker": "bun test test/server.test.ts"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "@types/bun": "latest",
+    "@types/bun": "catalog:",
     "listr2": "^10.2.1",
     "p-limit": "^7.3.0",
     "pdf-lib": "^1.17.1",
@@ -31,6 +35,6 @@
     "pretty-bytes": "^7.1.0",
     "pretty-ms": "^9.3.0",
     "sharp": "^0.34.5",
-    "typescript": "^5.9.3"
+    "typescript": "catalog:"
   }
 }

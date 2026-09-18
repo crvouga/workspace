@@ -28,7 +28,8 @@ const screenshotBasenameFromProject = (project: Project): string => {
   );
   for (const src of paths) {
     const match = src.match(SCREENSHOT_BASENAME);
-    if (match) return match[1];
+    const basename = match?.[1];
+    if (basename) return basename;
   }
   return titleToFilename(project.title);
 };
