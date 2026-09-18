@@ -22,7 +22,10 @@ async function runCommand(
   cwd?: string
 ): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execAsync(command, cwd ? { cwd } : undefined);
+    return await execAsync(command, {
+      encoding: 'utf8',
+      ...(cwd ? { cwd } : {}),
+    });
   } catch (error) {
     const message =
       error instanceof Error
