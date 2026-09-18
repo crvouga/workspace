@@ -361,6 +361,13 @@ jobs:
 
       - uses: actions/checkout@v5
 
+      # The publish inputs come from services.yaml, so the job needs the workspace
+      # toolchain (sibling workflow_call publishes pass their inputs directly).
+      - uses: oven-sh/setup-bun@v2
+        if: github.event_name != 'workflow_call'
+      - run: bun install --frozen-lockfile
+        if: github.event_name != 'workflow_call'
+
       - name: Resolve build inputs
         id: resolve
         env:
