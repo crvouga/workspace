@@ -153,6 +153,15 @@ section {
   color: var(--accent);
 }
 
+
+/* Experience entries without media should not reserve an empty media column. */
+.job.no-media {
+  display: block;
+}
+
+.job.no-media .body {
+  max-width: 760px;
+}
 .section-heading h2 {
   font-family: var(--font-mono);
   font-size: 24px;

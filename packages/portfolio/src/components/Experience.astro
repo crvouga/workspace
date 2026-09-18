@@ -15,7 +15,7 @@ const years = (job: Work): string =>
     <div class="jobs">
       {
         CONTENT.WORK.map((job) => (
-          <article class="card job">
+          <article class={`card job ${job.imageSrc[0] === undefined ? 'no-media' : ''}`}>
             {job.imageSrc[0] !== undefined && (
               <div class="media">
                 <img
@@ -61,6 +61,12 @@ const years = (job: Work): string =>
     display: grid;
     grid-template-columns: 1fr;
     overflow: hidden;
+  }
+  .job.no-media {
+    display: block;
+  }
+  .job.no-media .body {
+    max-width: 760px;
   }
   @media (min-width: 900px) {
     .job {
