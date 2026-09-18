@@ -1,0 +1,116 @@
+---
+import { CONTENT } from '../content/content';
+---
+
+<section id="agentic">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">//</span>
+      <h2>{CONTENT.AGENTIC_HEADING}</h2>
+    </div>
+    <div class="grid">
+      <div class="card workflow-card">
+        <h3>{CONTENT.AGENTIC_WORKFLOW_TITLE}</h3>
+        <ul>
+          {CONTENT.AGENTIC_WORKFLOW_POINTS.map((point) => <li>{point}</li>)}
+        </ul>
+      </div>
+      <div class="card cursor-card">
+        <div class="frame">
+          <iframe
+            src={CONTENT.ABOUT_YOUTUBE_EMBED_URL}
+            title={CONTENT.ABOUT_YOUTUBE_VIDEO_TITLE}
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen></iframe>
+        </div>
+        <div class="card-body">
+          <span class="badge">{CONTENT.AGENTIC_CURSOR_BADGE}</span>
+          <p>{CONTENT.AGENTIC_CURSOR_TEXT}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .workflow-card {
+    padding: 28px;
+  }
+  .workflow-card h3 {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .workflow-card ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .workflow-card li {
+    position: relative;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+  .workflow-card li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .cursor-card {
+    overflow: hidden;
+  }
+  .frame {
+    aspect-ratio: 16 / 9;
+    background: #000;
+  }
+  .frame :global(iframe) {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 4px 8px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    border-radius: var(--radius-pill);
+    align-self: flex-start;
+  }
+  .card-body p {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+</style>

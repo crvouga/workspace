@@ -4,12 +4,13 @@
   "tasks": {
     "build": {
       "inputs": [
-        "src/**/*.ts",
-        "scripts/**/*.ts",
+        "src/**",
+        "scripts/**",
         "projects.ts",
         "public/**",
         "package.json",
-        "Dockerfile"
+        "Dockerfile",
+        "astro.config.mjs"
       ],
       "outputs": []
     }

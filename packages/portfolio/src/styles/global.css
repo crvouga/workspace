@@ -1,0 +1,243 @@
+/* Design tokens — ported from src/ui/theme.ts before its deletion. */
+
+@font-face {
+  font-family: 'Inter Variable';
+  src: url('/fonts/inter-variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: 'Inter Variable', -apple-system, 'system-ui', 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'SF Mono', 'Menlo', 'Consolas',
+    'Liberation Mono', monospace;
+
+  --bg: #0a0a0b;
+  --paper: #101013;
+  --paper-border: #1f1f25;
+  --paper-border-hover: #2e2e36;
+  --text: #f2f4f8;
+  --text-muted: #a3abba;
+  --text-subtle: #727a88;
+
+  --accent: #7fb3ff;
+  --accent-strong: #4c8de8;
+  --accent-deep: #1e5baf;
+  --accent-soft: rgba(127, 179, 255, 0.12);
+  --accent-glow: rgba(127, 179, 255, 0.18);
+  --success: #3fb950;
+
+  /* GitHub heatmap ramp, darkest → accent */
+  --gh-0: #1f1f25;
+  --gh-1: #1e4e96;
+  --gh-2: #2e6fc4;
+  --gh-3: #4c8de8;
+  --gh-4: #7fb3ff;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --motion-fast: 150ms;
+  --motion-med: 220ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --container: 1100px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #a6cbff;
+}
+
+/* Links embedded in prose must be distinguishable without color. */
+p a,
+li a,
+.caption a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-link:hover {
+  color: #a6cbff;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+@media (min-width: 900px) {
+  .container {
+    padding-inline: 32px;
+  }
+}
+
+section {
+  padding-block: 72px;
+}
+
+@media (min-width: 900px) {
+  section {
+    padding-block: 96px;
+  }
+}
+
+/* Numbered section headings, carried over from the previous design */
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.section-heading .number {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.section-heading h2 {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--motion-fast) var(--motion-ease);
+}
+
+.card:hover {
+  border-color: var(--paper-border-hover);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--paper-border);
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.btn-contained {
+  border-color: var(--accent-deep);
+  background: var(--accent-deep);
+  color: #fff;
+}
+
+.btn-contained:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 3px 9px;
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-pill);
+}
+
+.chip img {
+  width: 12px;
+  height: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

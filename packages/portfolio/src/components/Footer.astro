@@ -1,0 +1,39 @@
+---
+import { CONTENT } from '../content/content';
+
+const year = new Date().getFullYear();
+---
+
+<footer>
+  <div class="container inner">
+    <p>
+      © {year} Chris Vouga · single static HTML page · no trackers
+    </p>
+    <a href={CONTENT.SITE_SOURCE_CODE_URL} rel="noopener" target="_blank">
+      Source on GitHub
+    </a>
+  </div>
+</footer>
+
+<style>
+  footer {
+    border-top: 1px solid var(--paper-border);
+    padding-block: 32px;
+    margin-top: 40px;
+  }
+  .inner {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+  footer a {
+    color: var(--text-muted);
+  }
+  footer a:hover {
+    color: var(--accent);
+  }
+</style>

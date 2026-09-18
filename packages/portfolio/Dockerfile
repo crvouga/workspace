@@ -1,11 +1,16 @@
 # syntax=docker/dockerfile:1
 #
 # Build from the repo root: docker build -f packages/portfolio/Dockerfile .
-FROM oven/bun:1.3.11 AS build
+FROM node:22-alpine AS build
+
+RUN apk add --no-cache libc6-compat
+
+# bun binary for `bun install --frozen-lockfile`; astro build runs via node.
+COPY --from=oven/bun:1.3.11 /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock tsconfig.strict.json ./
 COPY packages/portfolio/package.json ./packages/portfolio/
 COPY packages/assert/package.json ./packages/assert/
 COPY packages/infra/package.json ./packages/infra/
@@ -25,7 +30,9 @@ COPY packages/portfolio ./packages/portfolio
 
 WORKDIR /app/packages/portfolio
 
-RUN bun run build
+RUN --mount=type=secret,id=github_token \
+  GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || true)" \
+  bun run build
 
 FROM nginx:alpine
 

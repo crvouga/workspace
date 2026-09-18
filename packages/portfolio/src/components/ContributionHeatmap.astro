@@ -1,0 +1,66 @@
+---
+import type { ContributionDay } from '../lib/github';
+
+interface Props {
+  calendar: readonly ContributionDay[];
+}
+const { calendar } = Astro.props;
+
+// Chunk into weeks of up to 7 days (GitHub's grid is 53 weeks × 7).
+const weeks: (readonly ContributionDay[])[] = [];
+for (let i = 0; i < calendar.length; i += 7) {
+  weeks.push(calendar.slice(i, i + 7));
+}
+const cell = 11;
+const pitch = 13;
+const width = weeks.length * pitch + (pitch - cell);
+const height = 7 * pitch - (pitch - cell);
+---
+
+<svg
+  class="heatmap"
+  role="img"
+  aria-label="GitHub contribution heatmap, last 12 months"
+  viewBox={`0 0 ${width} ${height}`}
+  width={width}
+  height={height}
+  preserveAspectRatio="xMinYMin meet"
+>
+  {
+    weeks.map((week, x) =>
+      week.map((day, row) => (
+        <rect
+          x={x * pitch}
+          y={row * pitch}
+          width={cell}
+          height={cell}
+          rx="2"
+          class={`c${day.level}`}
+        >
+          <title>{`${day.count} contributions on ${day.date}`}</title>
+        </rect>
+      ))
+    )
+  }
+</svg>
+
+<style>
+  .c0 {
+    fill: var(--gh-0);
+  }
+  .c1 {
+    fill: var(--gh-1);
+  }
+  .c2 {
+    fill: var(--gh-2);
+  }
+  .c3 {
+    fill: var(--gh-3);
+  }
+  .c4 {
+    fill: var(--gh-4);
+  }
+  rect {
+    shape-rendering: crispEdges;
+  }
+</style>

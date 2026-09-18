@@ -1,5 +1,11 @@
 {
   "extends": "../../tsconfig.strict.json",
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts", "projects.ts"],
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "test/**/*.ts",
+    "projects.ts",
+    ".astro/types.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

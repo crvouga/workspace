@@ -443,6 +443,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:latest
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:${{ github.sha }}
+          secrets: |
+            github_token=${{ github.token }}
 
       - name: Make package public
         env:

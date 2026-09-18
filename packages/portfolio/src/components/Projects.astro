@@ -1,0 +1,253 @@
+---
+import { CONTENT } from '../content/content';
+import { TOPIC_TO_IMAGE_SRC, TOPIC_TO_NAME } from '../content/topic';
+import type { Project } from '../content/projects/types';
+
+const VISIBLE = 6;
+
+const projects = CONTENT.PROJECTS.filter(
+  (p) => p.deployment.t === 'public' || p.code.t === 'public'
+);
+const visible = projects.slice(0, VISIBLE);
+const collapsed = projects.slice(VISIBLE);
+
+const TOPIC_IMAGE = TOPIC_TO_IMAGE_SRC;
+const linkFor = (p: Project): string | null =>
+  p.deployment.t === 'public'
+    ? p.deployment.url
+    : p.code.t === 'public'
+      ? p.code.url
+      : null;
+
+// Gallery payloads for the native <dialog> viewer in index.astro.
+const galleries = projects.map((p: Project) =>
+  [...p.imageSrc, ...p.galleryImageSrc].map((src) => ({
+    src,
+    alt: p.title,
+  }))
+);
+const galleriesJson = JSON.stringify(galleries);
+---
+
+<section id="projects">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{CONTENT.GET_SECTION('projects').number}</span>
+      <h2>{CONTENT.PROJECT_SECTION_TITLE}</h2>
+    </div>
+    <div class="grid">
+      {
+        visible.map((p) => (
+          <article class="card project">
+            {p.imageSrc[0] !== undefined && (
+              <img
+                class="cover"
+                src={p.imageSrc[0]}
+                alt={p.imageAlt}
+                loading="lazy"
+                decoding="async"
+                width="600"
+                height="338"
+              />
+            )}
+            <div class="body">
+              <h3>
+                <a href={linkFor(p)} rel="noopener" target="_blank">
+                  {p.title}
+                </a>
+              </h3>
+              <p class="desc" set:html={p.description} />
+              <div class="meta">
+                <div class="chips">
+                  {p.topics.map((t) => (
+                    <span class="chip">
+                      {TOPIC_IMAGE[t] && <img src={TOPIC_IMAGE[t] ?? ''} alt="" loading="lazy" />}
+                      {TOPIC_TO_NAME[t]}
+                    </span>
+                  ))}
+                </div>
+                <div class="links">
+                  {p.deployment.t === 'public' && (
+                    <a href={p.deployment.url} rel="noopener" target="_blank">
+                      Live
+                    </a>
+                  )}
+                  {p.code.t === 'public' && (
+                    <a href={p.code.url} rel="noopener" target="_blank">
+                      Code
+                    </a>
+                  )}
+                  {[...p.imageSrc, ...p.galleryImageSrc].length > 0 && (
+                    <button type="button" class="gallery-btn" data-gallery={projects.indexOf(p)}>
+                      Images
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+    {
+      collapsed.length > 0 && (
+        <details class="more">
+          <summary>Show {collapsed.length} more projects</summary>
+          <div class="grid more-grid">
+            {collapsed.map((p) => (
+              <article class="card project compact">
+                <div class="body">
+                  <h3>
+                    <a href={linkFor(p)} rel="noopener" target="_blank">
+                      {p.title}
+                    </a>
+                  </h3>
+                  <p class="desc" set:html={p.description} />
+                  <div class="chips">
+                    {p.topics.map((t) => (
+                      <span class="chip">{TOPIC_TO_NAME[t]}</span>
+                    ))}
+                  </div>
+                  <div class="links">
+                    {p.deployment.t === 'public' && (
+                      <a href={p.deployment.url} rel="noopener" target="_blank">
+                        Live
+                      </a>
+                    )}
+                    {p.code.t === 'public' && (
+                      <a href={p.code.url} rel="noopener" target="_blank">
+                        Code
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </details>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 700px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1000px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .project {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .project .cover {
+    width: 100%;
+    object-fit: cover;
+    border-bottom: 1px solid var(--paper-border);
+  }
+  .body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+  h3 {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  h3 a {
+    color: var(--text);
+  }
+  h3 a:hover {
+    color: var(--accent);
+  }
+  .desc {
+    color: var(--text-muted);
+    font-size: 14px;
+    flex: 1;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .meta {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .links {
+    display: flex;
+    gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .links a {
+    color: var(--accent);
+  }
+  .gallery-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .gallery-btn:hover {
+    color: #a6cbff;
+  }
+  .more {
+    margin-top: 24px;
+  }
+  .more summary {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 10px 0;
+  }
+  .more-grid {
+    margin-top: 16px;
+  }
+</style>
+
+<script is:inline define:vars={{ galleriesJson }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const galleries = JSON.parse(galleriesJson);
+    const dialog = document.getElementById('gallery-dialog');
+    const dialogImg = dialog ? dialog.querySelector('img') : null;
+    document.querySelectorAll('.gallery-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!dialog || !dialogImg) return;
+        const items = galleries[Number(btn.dataset.gallery)] ?? [];
+        if (items.length === 0) return;
+        dialogImg.src = items[0].src;
+        dialogImg.alt = items[0].alt;
+        if (dialog instanceof HTMLDialogElement) dialog.showModal();
+      });
+    });
+    if (dialog) {
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog && dialog instanceof HTMLDialogElement) {
+          dialog.close();
+        }
+      });
+    }
+  });
+</script>

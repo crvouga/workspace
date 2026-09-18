@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run ./src/main.ts",
-    "dev": "bun run start",
+    "build": "astro build",
+    "dev": "astro dev",
     "gen": "bun run generate-all",
     "generate-all": "bun run ./src/generate-all.ts",
     "generate-resume": "bun run ./src/generate-resume.ts",
@@ -13,28 +13,25 @@
     "health-check-urls": "bun run scripts/health-check-urls.ts",
     "lint": "eslint . --max-warnings 0",
     "local": "bun run start",
-    "optimize-images": "bun run ./src/optimize-images.ts",
     "preview": "docker build -f packages/portfolio/Dockerfile -t portfolio-app .. && docker run -p 80:80 portfolio-app",
     "screenshot-main": "bun run ./src/screenshot-main-site.ts",
     "screenshot-projects": "bun run ./src/screenshot-project-websites.ts",
     "screenshot-work": "bun run ./src/screenshot-work-websites.ts",
-    "start": "bun --watch ./src/main.ts & bunx serve dist",
-    "tc": "tsc --noEmit",
+    "start": "astro dev",
+    "tc": "astro check",
     "test": "bun test src --pass-with-no-tests",
     "test:docker": "bun test test/server.test.ts"
   },
   "devDependencies": {
-    "@fontsource-variable/inter": "^5.2.8",
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@astrojs/check": "^0.9.10",
     "@types/bun": "catalog:",
+    "astro": "^7.3.3",
     "listr2": "^10.2.1",
     "p-limit": "^7.3.0",
     "pdf-lib": "^1.17.1",
     "picocolors": "^1.1.1",
     "playwright": "^1.48.0",
-    "pretty-bytes": "^7.1.0",
     "pretty-ms": "^9.3.0",
-    "sharp": "^0.34.5",
     "typescript": "catalog:"
   }
 }
