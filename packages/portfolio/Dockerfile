@@ -30,8 +30,8 @@ COPY packages/portfolio ./packages/portfolio
 
 WORKDIR /app/packages/portfolio
 
-RUN --mount=type=secret,id=github_token \
-  GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || true)" \
+RUN --mount=type=secret,id=github_token,required=true \
+  PORTFOLIO_GITHUB_TOKEN="$(cat /run/secrets/github_token)" \
   bun run build
 
 FROM nginx:alpine

@@ -3,19 +3,12 @@
  *
  * Runs inside `astro build` under Node: plain fetch only, no Bun APIs.
  *
- * Failure policy: GitHub is a nice-to-have, never a build blocker. Every
- * request has a hard timeout; any failure warns and degrades gracefully:
- *   - GraphQL (needs token) fails or no token → REST fallback (counts only,
- *     empty calendar).
- *   - REST also fails → returns null, the page omits the proof section.
- *
- * Successful payloads are cached for 24h at
- * `node_modules/.cache/portfolio-github.json` so token-less local builds can
- * reuse a previous token-authenticated fetch (the cache stores the full
- * object, calendar included).
+ * Failure policy: deterministic. The proof section is hiring evidence, so a
+ * missing credential or an unusable GitHub response aborts the build with an
+ * actionable error instead of silently rendering a blank map. The credential is
+ * the Vault-owned `PORTFOLIO_GITHUB_TOKEN` (a GitHub user token with
+ * `read:user`); no cache or stale payload ever satisfies a build.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
 
 export type ContributionDay = {
   date: string; // YYYY-MM-DD
@@ -33,45 +26,50 @@ export type GitHubInsights = {
   calendar: ContributionDay[]; // oldest → newest
 };
 
-type CalendarCache = {
-  calendar: ContributionDay[];
-  totalContributions: number;
-  fetchedAt: string;
+export type GitHubFetchOptions = {
+  readonly token?: string;
+  readonly fetchFn?: typeof fetch;
+  readonly now?: Date;
 };
 
-// Resolved from the build working directory (packages/portfolio), since
-// import.meta.url paths break once bundled into dist/.prerender chunks.
-const CACHE_PATH = join(
-  process.cwd(),
-  'node_modules/.cache/portfolio-github.json'
-);
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+/** Reasons the GitHub proof build can fail; every one names its remediation. */
+export type GitHubInsightsErrorCode =
+  | 'missing-token'
+  | 'request-failed'
+  | 'api-error'
+  | 'invalid-response'
+  | 'empty-calendar';
+
+export class GitHubInsightsError extends Error {
+  readonly code: GitHubInsightsErrorCode;
+
+  constructor(code: GitHubInsightsErrorCode, message: string) {
+    super(message);
+    this.name = 'GitHubInsightsError';
+    this.code = code;
+  }
+}
+
+const ENV_TOKEN_KEY = 'PORTFOLIO_GITHUB_TOKEN';
+const VAULT_PATH = 'secret/data/personal/{dev|prd}';
+const GRAPHQL_URL = 'https://api.github.com/graphql';
 const REQUEST_TIMEOUT_MS = 10_000;
+/** A full trailing year; GitHub normally returns 370–371 days. */
+const MIN_CALENDAR_DAYS = 365;
 
-const readToken = (): string | null =>
-  process.env['PORTFOLIO_GITHUB_TOKEN'] ??
-  process.env['GITHUB_TOKEN'] ??
-  process.env['GH_TOKEN'] ??
-  null;
+const MISSING_TOKEN_MESSAGE = `${ENV_TOKEN_KEY} is required. Expected ${VAULT_PATH} → ${ENV_TOKEN_KEY}. Locally run: vault run --config dev -- bun run --filter @pkgs/portfolio build. GitHub contribution access also requires read:user.`;
 
-const readCache = async (): Promise<CalendarCache | null> => {
-  try {
-    const raw = JSON.parse(await readFile(CACHE_PATH, 'utf8')) as CalendarCache;
-    if (Date.now() - Date.parse(raw.fetchedAt) > CACHE_TTL_MS) return null;
-    if (!Array.isArray(raw.calendar)) return null;
-    return raw;
-  } catch {
-    return null;
+const REMEDIATION = `Verify ${ENV_TOKEN_KEY} in ${VAULT_PATH}.`;
+
+const contributionCalendarQuery = `query($login:String!){user(login:$login){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount}}}}}}`;
+
+const resolveToken = (options: GitHubFetchOptions): string => {
+  const raw = options.token ?? process.env[ENV_TOKEN_KEY];
+  const token = raw?.trim() ?? '';
+  if (token.length === 0) {
+    throw new GitHubInsightsError('missing-token', MISSING_TOKEN_MESSAGE);
   }
-};
-
-const writeCache = async (cache: CalendarCache): Promise<void> => {
-  try {
-    await mkdir(dirname(CACHE_PATH), { recursive: true });
-    await writeFile(CACHE_PATH, JSON.stringify(cache), 'utf8');
-  } catch (error) {
-    console.warn('[github] cache write failed', error);
-  }
+  return token;
 };
 
 /** GitHub's own contribution-level buckets. */
@@ -83,101 +81,190 @@ const toLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
   return 4;
 };
 
-const fetchJson = async (
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const toRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+
+const requestJson = async (
+  fetchFn: typeof fetch,
   url: string,
-  init: RequestInit
-): Promise<unknown | null> => {
+  init: RequestInit,
+  context: string
+): Promise<unknown> => {
+  let response: Response;
   try {
-    const response = await fetch(url, {
+    response = await fetchFn(url, {
       ...init,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!response.ok) {
-      console.warn(`[github] ${response.status} from ${url}`);
-      return null;
-    }
+  } catch (error) {
+    throw new GitHubInsightsError(
+      'request-failed',
+      `${context} request failed: ${errorMessage(error)}. ${REMEDIATION}`
+    );
+  }
+  if (!response.ok) {
+    throw new GitHubInsightsError(
+      'api-error',
+      `${context} returned HTTP ${String(response.status)}. ${REMEDIATION}`
+    );
+  }
+  try {
     return (await response.json()) as unknown;
   } catch (error) {
-    console.warn('[github] request failed', url, error);
-    return null;
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned malformed JSON: ${errorMessage(error)}. ${REMEDIATION}`
+    );
   }
 };
 
+type GraphQLDay = {
+  readonly date?: string;
+  readonly contributionCount?: number;
+};
+
+type GraphQLWeek = {
+  readonly contributionDays?: readonly GraphQLDay[];
+};
+
 type GraphQLCalendarResponse = {
-  data?: {
-    user?: {
-      contributionsCollection?: {
-        contributionCalendar?: {
-          totalContributions: number;
-          weeks?: {
-            contributionDays?: { date: string; contributionCount: number }[];
-          }[];
+  readonly errors?: readonly { readonly message?: string }[];
+  readonly data?: {
+    readonly user?: {
+      readonly contributionsCollection?: {
+        readonly contributionCalendar?: {
+          readonly totalContributions?: number;
+          readonly weeks?: readonly GraphQLWeek[];
         };
       };
     };
   };
 };
 
+const toDay = (day: GraphQLDay): ContributionDay => {
+  const count =
+    typeof day.contributionCount === 'number' ? day.contributionCount : 0;
+  return { date: day.date ?? '', count, level: toLevel(count) };
+};
+
+const flattenCalendar = (weeks: readonly GraphQLWeek[]): ContributionDay[] =>
+  weeks.flatMap((week) => week.contributionDays ?? []).map(toDay);
+
+const assertUsableCalendar = (
+  calendar: readonly ContributionDay[],
+  login: string,
+  context: string
+): void => {
+  // A profile with activity set to private yields an empty/all-zero calendar;
+  // that is a credential-scope failure, never valid empty activity.
+  if (calendar.length === 0 || calendar.every((day) => day.count === 0)) {
+    throw new GitHubInsightsError(
+      'empty-calendar',
+      `GitHub returned no visible contributions for ${login}. ${ENV_TOKEN_KEY} must be a user token with read:user access; verify the account's contribution visibility and the ${VAULT_PATH} secret.`
+    );
+  }
+  if (calendar.length < MIN_CALENDAR_DAYS) {
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned ${String(calendar.length)} days, expected at least ${String(MIN_CALENDAR_DAYS)}. ${REMEDIATION}`
+    );
+  }
+};
+
 const fetchCalendar = async (
+  fetchFn: typeof fetch,
   login: string,
   token: string
-): Promise<{ calendar: ContributionDay[]; totalContributions: number } | null> => {
-  const body = {
-    query: `query($login:String!){user(login:$login){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount}}}}}}`,
-    variables: { login },
-  };
-  const json = (await fetchJson('https://api.github.com/graphql', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'portfolio-build',
+): Promise<{
+  calendar: ContributionDay[];
+  totalContributions: number;
+}> => {
+  const context = 'GitHub GraphQL contribution calendar';
+  const json = await requestJson(
+    fetchFn,
+    GRAPHQL_URL,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'portfolio-build',
+      },
+      body: JSON.stringify({
+        query: contributionCalendarQuery,
+        variables: { login },
+      }),
     },
-    body: JSON.stringify(body),
-  })) as GraphQLCalendarResponse | null;
+    context
+  );
+  const typed = json as GraphQLCalendarResponse;
+  if (Array.isArray(typed.errors) && typed.errors.length > 0) {
+    const detail = typed.errors
+      .map((e) => e.message ?? 'unknown error')
+      .join('; ');
+    throw new GitHubInsightsError(
+      'api-error',
+      `${context} returned errors: ${detail}. ${ENV_TOKEN_KEY} must be a user token with read:user access; verify the account's contribution visibility and the ${VAULT_PATH} secret.`
+    );
+  }
   const calendarJson =
-    json?.data?.user?.contributionsCollection?.contributionCalendar;
-  if (!calendarJson || !Array.isArray(calendarJson.weeks)) return null;
-  const calendar: ContributionDay[] = calendarJson.weeks
-    .flatMap((week) => week.contributionDays ?? [])
-    .map((day) => ({
-      date: day.date,
-      count: day.contributionCount,
-      level: toLevel(day.contributionCount),
-    }));
-  if (calendar.length === 0) return null;
-  // A profile with activity set to private yields an all-zero calendar; treat
-  // that as no calendar rather than rendering a blank heatmap.
-  const hasActivity =
-    calendarJson.totalContributions > 0 ||
-    calendar.some((day) => day.count > 0);
-  if (!hasActivity) return null;
+    typed.data?.user?.contributionsCollection?.contributionCalendar;
+  if (!calendarJson || !Array.isArray(calendarJson.weeks)) {
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned no contribution calendar for ${login}. ${REMEDIATION}`
+    );
+  }
+  const calendar = flattenCalendar(calendarJson.weeks);
+  assertUsableCalendar(calendar, login, context);
+  if (typeof calendarJson.totalContributions !== 'number') {
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned no totalContributions for ${login}. ${REMEDIATION}`
+    );
+  }
   return { calendar, totalContributions: calendarJson.totalContributions };
 };
 
 type RestUserResponse = {
-  public_repos?: number;
-  followers?: number;
+  readonly public_repos?: unknown;
+  readonly followers?: unknown;
 };
 
-const fetchUserCounts = async (
+const fetchProfile = async (
+  fetchFn: typeof fetch,
   login: string,
-  token: string | null
-): Promise<{ publicRepos: number; followers: number } | null> => {
-  const json = (await fetchJson(`https://api.github.com/users/${login}`, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'User-Agent': 'portfolio-build',
-      Accept: 'application/vnd.github+json',
+  token: string
+): Promise<{ publicRepos: number; followers: number }> => {
+  const context = `GitHub profile endpoint (GET /users/${login})`;
+  const json = await requestJson(
+    fetchFn,
+    `https://api.github.com/users/${encodeURIComponent(login)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'portfolio-build',
+        Accept: 'application/vnd.github+json',
+      },
     },
-  })) as RestUserResponse | null;
+    context
+  );
+  const profile = toRecord(json) as RestUserResponse | null;
   if (
-    typeof json?.public_repos !== 'number' ||
-    typeof json?.followers !== 'number'
+    typeof profile?.public_repos !== 'number' ||
+    typeof profile.followers !== 'number'
   ) {
-    return null;
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned no public_repos/followers for ${login}. ${REMEDIATION}`
+    );
   }
-  return { publicRepos: json.public_repos, followers: json.followers };
+  return { publicRepos: profile.public_repos, followers: profile.followers };
 };
 
 const computeStreaks = (
@@ -205,65 +292,36 @@ const computeStreaks = (
   return { longestStreak, currentStreak };
 };
 
-const EMPTY_CALENDAR: CalendarCache = {
-  calendar: [],
-  totalContributions: 0,
-  fetchedAt: '',
-};
-
-const resolveCalendar = async (
+/**
+ * Fetch and validate the portfolio proof data, or throw {@link GitHubInsightsError}.
+ *
+ * Both the contribution calendar (GraphQL) and profile stats (REST) are required
+ * data — never fallback alternatives — and every failure names the Vault path and
+ * the token scope needed to fix it.
+ */
+export const fetchGitHubInsights = async (
   login: string,
-  token: string | null,
-  now: string
-): Promise<CalendarCache> => {
-  if (token === null) {
-    console.warn(
-      '[github] no token (GITHUB_TOKEN/GH_TOKEN) — contribution calendar unavailable, REST counts only'
-    );
-    return { ...EMPTY_CALENDAR, fetchedAt: now };
-  }
-  const fetched = await fetchCalendar(login, token);
-  if (fetched === null) {
-    console.warn('[github] contribution calendar unavailable — REST counts only');
-    return { ...EMPTY_CALENDAR, fetchedAt: now };
-  }
-  const calendarData: CalendarCache = {
-    calendar: fetched.calendar,
-    totalContributions: fetched.totalContributions,
-    fetchedAt: now,
-  };
-  await writeCache(calendarData);
-  return calendarData;
-};
+  options: GitHubFetchOptions = {}
+): Promise<GitHubInsights> => {
+  const token = resolveToken(options);
+  const fetchFn = options.fetchFn ?? globalThis.fetch;
+  const fetchedAt = (options.now ?? new Date()).toISOString();
 
-const toInsights = (
-  counts: { publicRepos: number; followers: number },
-  calendarData: CalendarCache
-): GitHubInsights => {
-  const { calendar, totalContributions, fetchedAt } = calendarData;
-  const { longestStreak, currentStreak } = computeStreaks(calendar);
+  const [calendarData, profile] = await Promise.all([
+    fetchCalendar(fetchFn, login, token),
+    fetchProfile(fetchFn, login, token),
+  ]);
+
+  const { longestStreak, currentStreak } = computeStreaks(
+    calendarData.calendar
+  );
   return {
     fetchedAt,
-    totalContributions,
+    totalContributions: calendarData.totalContributions,
     longestStreak,
     currentStreak,
-    publicRepos: counts.publicRepos,
-    followers: counts.followers,
-    calendar,
+    publicRepos: profile.publicRepos,
+    followers: profile.followers,
+    calendar: calendarData.calendar,
   };
-};
-
-export const fetchGitHubInsights = async (
-  login: string
-): Promise<GitHubInsights | null> => {
-  const token = readToken();
-  const now = new Date().toISOString();
-  const cached = await readCache();
-  const counts = await fetchUserCounts(login, token);
-  // Nothing at all (no counts, no cache, no token): GitHub is unreachable.
-  if (counts === null && cached === null && token === null) return null;
-  const calendarData =
-    cached ?? (await resolveCalendar(login, token, now));
-  const countsOrDefault = counts ?? { publicRepos: 0, followers: 0 };
-  return toInsights(countsOrDefault, calendarData);
 };

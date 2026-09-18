@@ -348,6 +348,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -432,7 +433,14 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4.0.0
 
-      - name: Build and push
+      - name: Import Vault secrets (portfolio)
+        if: matrix.service_id == 'portfolio'
+        uses: ./.github/actions/vault-secrets
+        with:
+          vault_addr: ${{ env.VAULT_ADDR }}
+
+      - name: Build and push (portfolio)
+        if: matrix.service_id == 'portfolio'
         uses: docker/build-push-action@v7.2.0
         with:
           context: ${{ steps.resolve.outputs.context }}
@@ -443,8 +451,21 @@ jobs:
           tags: |
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:latest
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:${{ github.sha }}
-          secrets: |
-            github_token=${{ github.token }}
+          secret-envs: |
+            github_token=PORTFOLIO_GITHUB_TOKEN
+
+      - name: Build and push
+        if: matrix.service_id != 'portfolio'
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: ${{ steps.resolve.outputs.context }}
+          file: ${{ steps.resolve.outputs.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:latest
+            ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:${{ github.sha }}
 
       - name: Make package public
         env:

@@ -3,74 +3,57 @@ import { CONTENT } from '../content/content';
 import { fetchGitHubInsights } from '../lib/github';
 import ContributionHeatmap from './ContributionHeatmap.astro';
 
+// Strict: a missing credential or unusable GitHub response aborts the build with
+// an actionable error (see lib/github.ts) rather than rendering a blank map.
 const insights = await fetchGitHubInsights('crvouga');
+const fetchedDate = insights.fetchedAt.slice(0, 10);
 
-// No data at all (GitHub unreachable at build): omit the section entirely.
-const hasCalendar = insights !== null && insights.calendar.length > 0;
-const hasCounts = insights !== null;
-
-const tiles = insights
-  ? [
-      ...(hasCalendar
-        ? [
-            { value: String(insights.totalContributions), label: 'contributions · last 12 months' },
-            { value: String(insights.longestStreak), label: 'longest streak (days)' },
-            { value: String(insights.currentStreak), label: 'current streak (days)' },
-          ]
-        : []),
-      ...(insights.publicRepos > 0
-        ? [{ value: String(insights.publicRepos), label: 'public repos' }]
-        : []),
-      ...(insights.followers > 0
-        ? [{ value: String(insights.followers), label: 'followers' }]
-        : []),
-    ]
-  : [];
+const tiles = [
+  { value: String(insights.totalContributions), label: 'contributions · last 12 months' },
+  { value: String(insights.longestStreak), label: 'longest streak (days)' },
+  { value: String(insights.currentStreak), label: 'current streak (days)' },
+  { value: String(insights.publicRepos), label: 'public repos' },
+  { value: String(insights.followers), label: 'followers' },
+];
 ---
 
-{
-  hasCounts && (
-    <section id="proof">
-      <div class="container">
-        <div class="section-heading">
-          <span class="number">//</span>
-          <h2>Proof, not promises</h2>
-        </div>
-        {hasCalendar && (
-          <div class="card heatmap-card">
-            <ContributionHeatmap calendar={insights.calendar} />
-            <div class="legend" aria-hidden="true">
-              <span>Less</span>
-              {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
-                <span class={`swatch ${c}`} />
-              ))}
-              <span>More</span>
-            </div>
-          </div>
-        )}
-        <div class="tiles">
-          {tiles.map((tile) => (
-            <div class="card tile">
-              <span class="value">{tile.value}</span>
-              <span class="label">{tile.label}</span>
-            </div>
-          ))}
-        </div>
-        <p class="caption">
-          Live data fetched from the GitHub API at build time ·{' '}
-          <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
-            verify on GitHub
-          </a>
-        </p>
+<section id="proof">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">//</span>
+      <h2>Proof, not promises</h2>
+    </div>
+    <div class="card heatmap-card">
+      <ContributionHeatmap calendar={insights.calendar} />
+      <div class="legend" aria-hidden="true">
+        <span>Less</span>
+        {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
+          <span class={`swatch ${c}`} />
+        ))}
+        <span>More</span>
       </div>
-    </section>
-  )
-}
+    </div>
+    <div class="tiles">
+      {tiles.map((tile) => (
+        <div class="card tile">
+          <span class="value">{tile.value}</span>
+          <span class="label">{tile.label}</span>
+        </div>
+      ))}
+    </div>
+    <p class="caption">
+      Live data fetched from the GitHub API at build time ·
+      <span class="freshness">Data fetched {fetchedDate}</span> ·{' '}
+      <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
+        verify on GitHub
+      </a>
+    </p>
+  </div>
+</section>
 
 <style>
   .heatmap-card {
     padding: 24px;
-    overflow-x: auto;
   }
   .heatmap-card :global(svg.heatmap) {
     max-width: 100%;
@@ -134,5 +117,8 @@ const tiles = insights
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--text-subtle);
+  }
+  .freshness {
+    color: var(--text-muted);
   }
 </style>

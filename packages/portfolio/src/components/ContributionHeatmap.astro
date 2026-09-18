@@ -6,6 +6,12 @@ interface Props {
 }
 const { calendar } = Astro.props;
 
+// fetchGitHubInsights validates a complete trailing year (≥365 days) before the
+// build reaches here; guard the component contract against a malformed call.
+if (calendar.length === 0) {
+  throw new Error('ContributionHeatmap requires a non-empty calendar');
+}
+
 // Chunk into weeks of up to 7 days (GitHub's grid is 53 weeks × 7).
 const weeks: (readonly ContributionDay[])[] = [];
 for (let i = 0; i < calendar.length; i += 7) {
@@ -17,34 +23,39 @@ const width = weeks.length * pitch + (pitch - cell);
 const height = 7 * pitch - (pitch - cell);
 ---
 
-<svg
-  class="heatmap"
-  role="img"
-  aria-label="GitHub contribution heatmap, last 12 months"
-  viewBox={`0 0 ${width} ${height}`}
-  width={width}
-  height={height}
-  preserveAspectRatio="xMinYMin meet"
->
-  {
-    weeks.map((week, x) =>
-      week.map((day, row) => (
-        <rect
-          x={x * pitch}
-          y={row * pitch}
-          width={cell}
-          height={cell}
-          rx="2"
-          class={`c${day.level}`}
-        >
-          <title>{`${day.count} contributions on ${day.date}`}</title>
-        </rect>
-      ))
-    )
-  }
-</svg>
+<div class="heatmap-scroll">
+  <svg
+    class="heatmap"
+    role="img"
+    aria-label="GitHub contribution heatmap, last 12 months"
+    viewBox={`0 0 ${width} ${height}`}
+    width={width}
+    height={height}
+    preserveAspectRatio="xMinYMin meet"
+  >
+    {
+      weeks.map((week, x) =>
+        week.map((day, row) => (
+          <rect
+            x={x * pitch}
+            y={row * pitch}
+            width={cell}
+            height={cell}
+            rx="2"
+            class={`c${day.level}`}
+          >
+            <title>{`${day.count} contributions on ${day.date}`}</title>
+          </rect>
+        ))
+      )
+    }
+  </svg>
+</div>
 
 <style>
+  .heatmap-scroll {
+    overflow-x: auto;
+  }
   .c0 {
     fill: var(--gh-0);
   }

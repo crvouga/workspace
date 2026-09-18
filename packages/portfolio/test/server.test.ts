@@ -11,6 +11,7 @@ const PACKAGE_DIR = join(import.meta.dir, '..');
 const REPO_ROOT = join(PACKAGE_DIR, '..', '..');
 
 const IMAGE_NAME = 'portfolio-app-test';
+const SECRET_ENV = 'PORTFOLIO_GITHUB_TOKEN';
 const CONTAINER_NAME = 'portfolio-app-test-container';
 const PORT = 8080;
 const TEST_URL = `http://localhost:${PORT}`;
@@ -90,15 +91,20 @@ test('Docker container serves HTML on port 80', async () => {
   try {
     writeLine('Cleaning up any existing containers/images...');
     await cleanup();
+    if (!process.env[SECRET_ENV]) {
+      throw new Error(
+        `${SECRET_ENV} is required to build the image. Run: vault run --config dev -- bun run --filter @pkgs/portfolio test:docker`
+      );
+    }
 
     writeLine('Building Docker image...');
     // Docker resolves `-f` relative to the cwd, so the build must run from the
-    // repo root with `.` as the context.
+    // repo root with `.` as the context. The Dockerfile requires the GitHub
+    // token as a BuildKit secret (see packages/portfolio/Dockerfile).
     await runCommand(
-      `docker build -f packages/portfolio/Dockerfile -t ${IMAGE_NAME} .`,
+      `docker build -f packages/portfolio/Dockerfile --secret id=github_token,env=${SECRET_ENV} -t ${IMAGE_NAME} .`,
       REPO_ROOT
     );
-
     writeLine('Starting container...');
     await runCommand(
       `docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 ${IMAGE_NAME}`
@@ -121,6 +127,11 @@ test('Docker container serves HTML on port 80', async () => {
     expect(body.includes('<!DOCTYPE html') || body.includes('<html')).toBe(
       true
     );
+    expect(body.includes('id="proof"')).toBe(true);
+    expect(
+      body.includes('aria-label="GitHub contribution heatmap, last 12 months"')
+    ).toBe(true);
+    expect(body.includes('<rect')).toBe(true);
 
     writeLine('✓ Test passed: Server responds with 200 HTML');
   } catch (error) {
