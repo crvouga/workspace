@@ -128,6 +128,7 @@ jobs:
       vault: ${{ steps.flags.outputs.vault }}
       publish: ${{ steps.flags.outputs.publish }}
       deploy: ${{ steps.flags.outputs.deploy }}
+      portfolio: ${{ steps.flags.outputs.portfolio }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -150,8 +151,11 @@ jobs:
               - '.github/actions/**'
             vault:
               - 'packages/vault-service/**'
+            portfolio:
+              - 'packages/portfolio/**'
             publish:
               - 'packages/turborepo-remote-cache/**'
+              - 'packages/portfolio/**'
               - 'packages/assert/**'
               - 'packages/logger/**'
               - 'packages/object-store/**'
@@ -177,12 +181,14 @@ jobs:
           FILTER_VAULT: ${{ steps.filter.outputs.vault }}
           FILTER_PUBLISH: ${{ steps.filter.outputs.publish }}
           FILTER_DEPLOY: ${{ steps.filter.outputs.deploy }}
+          FILTER_PORTFOLIO: ${{ steps.filter.outputs.portfolio }}
         run: |
           set -euo pipefail
           CHECK=false
           VAULT=false
           PUBLISH=false
           DEPLOY=false
+          PORTFOLIO=false
 
           if [ "${EVENT_NAME}" = "workflow_call" ]; then
             # Sibling repo publishes its image through this workflow; nothing else runs.
@@ -205,11 +211,13 @@ jobs:
             DEPLOY=true
           elif [ "${EVENT_NAME}" = "pull_request" ]; then
             CHECK="${FILTER_CHECK:-false}"
+            PORTFOLIO="${FILTER_PORTFOLIO:-false}"
           else
             # push to main
             CHECK="${FILTER_CHECK:-false}"
             VAULT="${FILTER_VAULT:-false}"
             PUBLISH="${FILTER_PUBLISH:-false}"
+            PORTFOLIO="${FILTER_PORTFOLIO:-false}"
             DEPLOY="${FILTER_DEPLOY:-false}"
             if [ "${VAULT}" = "true" ] || [ "${PUBLISH}" = "true" ]; then
               DEPLOY=true
@@ -221,8 +229,9 @@ jobs:
             echo "vault=${VAULT}"
             echo "publish=${PUBLISH}"
             echo "deploy=${DEPLOY}"
+            echo "portfolio=${PORTFOLIO}"
           } >> "$GITHUB_OUTPUT"
-          echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY}"
+          echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY} portfolio=${PORTFOLIO}"
 
   vault-state:
     if: |
@@ -289,13 +298,60 @@ jobs:
       - name: Turbo CI (format, tc, lint, test, build)
         run: bun run check
 
-  publish:
+  portfolio-health-check:
+    needs: [changes]
+    if: needs.changes.outputs.portfolio == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Health-check portfolio public URLs
+        run: |
+          bun run packages/portfolio/scripts/health-check-urls.ts \
+            --timeout-ms 30000 \
+            --retries 4 \
+            --retry-delay-ms 5000
+
+  publish-plan:
     needs: [changes]
     if: needs.changes.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      service_ids: ${{ steps.plan.outputs.service_ids }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        if: github.event_name != 'workflow_call'
+      - run: bun install --frozen-lockfile
+        if: github.event_name != 'workflow_call'
+      - id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IN_SERVICE_ID: ${{ inputs.service_id }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+            echo "service_ids=[\"${IN_SERVICE_ID}\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo "service_ids=$(bun run packages/infra/scripts/list-publish-service-ids.ts)" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: [changes, publish-plan]
+    if: |
+      always() &&
+      needs.changes.outputs.publish == 'true' &&
+      needs.publish-plan.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service_id: ${{ fromJson(needs.publish-plan.outputs.service_ids) }}
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       service_id: ${{ steps.resolve.outputs.service_id }}
@@ -315,39 +371,32 @@ jobs:
           IN_OWNER: ${{ inputs.image_owner }}
           IN_PREFIX: ${{ inputs.image_prefix }}
           IN_NOTIFY: ${{ inputs.notify_deploy }}
+          MATRIX_SERVICE_ID: ${{ matrix.service_id }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_call" ]; then
             SID="${IN_SERVICE_ID}"
-            DOCKERFILE="${IN_DOCKERFILE}"
-            CONTEXT="${IN_CONTEXT}"
-            OWNER="${IN_OWNER}"
-            PREFIX="${IN_PREFIX}"
-            NOTIFY="${IN_NOTIFY}"
+            for v in "${SID}" "${IN_DOCKERFILE}" "${IN_CONTEXT}" "${IN_OWNER}" "${IN_PREFIX}"; do
+              if [ -z "${v}" ]; then
+                echo "::error::publish inputs must be non-empty" >&2
+                exit 1
+              fi
+            done
+            {
+              echo "service_id=${SID}"
+              echo "dockerfile=${IN_DOCKERFILE}"
+              echo "context=${IN_CONTEXT}"
+              echo "image_owner=${IN_OWNER}"
+              echo "image_prefix=${IN_PREFIX}"
+              echo "notify_deploy=${IN_NOTIFY}"
+            } >> "$GITHUB_OUTPUT"
           else
-            # Monorepo path: the turborepo remote cache image.
-            SID=turborepo
-            DOCKERFILE=packages/turborepo-remote-cache/Dockerfile
-            CONTEXT=.
-            OWNER=crvouga
-            PREFIX=chrisvouga
-            NOTIFY=false
+            SID="${MATRIX_SERVICE_ID}"
+            bun run packages/infra/scripts/print-publish-inputs.ts --id "${SID}" >> "$GITHUB_OUTPUT"
+            echo "service_id=${SID}" >> "$GITHUB_OUTPUT"
+            echo "notify_deploy=false" >> "$GITHUB_OUTPUT"
           fi
-          for v in "${SID}" "${DOCKERFILE}" "${CONTEXT}" "${OWNER}" "${PREFIX}"; do
-            if [ -z "${v}" ]; then
-              echo "::error::publish inputs must be non-empty" >&2
-              exit 1
-            fi
-          done
-          {
-            echo "service_id=${SID}"
-            echo "dockerfile=${DOCKERFILE}"
-            echo "context=${CONTEXT}"
-            echo "image_owner=${OWNER}"
-            echo "image_prefix=${PREFIX}"
-            echo "notify_deploy=${NOTIFY}"
-          } >> "$GITHUB_OUTPUT"
-          echo "publish ${OWNER}/${PREFIX}-${SID} dockerfile=${DOCKERFILE} context=${CONTEXT} notify=${NOTIFY}"
+          echo "publish service=${SID}"
 
       - name: Resolve GHCR credentials
         id: ghcr_auth
@@ -588,7 +637,7 @@ jobs:
 
   # Fleet deploy: resolve → reconcile (--apply --fleet-only) → railway-deploy? → health-check-all
   deploy-prepare:
-    needs: [changes, check, vault, publish]
+    needs: [changes, check, vault, publish, publish-plan]
     if: |
       always() &&
       needs.changes.outputs.deploy == 'true' &&
@@ -597,7 +646,6 @@ jobs:
       (needs.publish.result == 'success' || needs.publish.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
-      service_id: ${{ steps.resolve.outputs.service_id }}
       service_ids: ${{ steps.resolve.outputs.service_ids }}
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       redeploy: ${{ steps.resolve.outputs.redeploy }}
@@ -614,48 +662,42 @@ jobs:
           INPUT_SERVICE_ID: ${{ inputs.service_id }}
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
           INPUT_APPLY_DNS: ${{ inputs.apply_dns }}
-          PUBLISH_SERVICE_ID: ${{ needs.publish.outputs.service_id }}
-          PUBLISH_IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          PUBLISH_TARGETS: ${{ needs.publish-plan.outputs.service_ids }}
         run: |
           set -euo pipefail
-          # A publish in this run (monorepo turborepo image) wins; else dispatch payload.
-          if [ -n "${PUBLISH_SERVICE_ID}" ]; then
-            SID="${PUBLISH_SERVICE_ID}"
-          else
-            SID="${CLIENT_ID:-${INPUT_SERVICE_ID:-}}"
-          fi
-          if [ -n "${PUBLISH_IMAGE_TAG}" ]; then
-            TAG="${PUBLISH_IMAGE_TAG}"
-          else
-            TAG="${CLIENT_IMAGE_TAG:-${INPUT_IMAGE_TAG:-latest}}"
-          fi
-
-          if [ -n "${SID}" ]; then
-            SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts --id "${SID}")"
-          else
-            SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts)"
-          fi
-
-          REDEPLOY=false
-          if [ "${EVENT_NAME}" = "repository_dispatch" ] || \
-             [ "${EVENT_NAME}" = "workflow_dispatch" ] || \
-             [ -n "${PUBLISH_IMAGE_TAG}" ]; then
-            REDEPLOY=true
-          fi
-
           APPLY_DNS=true
           if [ "${INPUT_APPLY_DNS}" = "false" ]; then
             APPLY_DNS=false
           fi
 
+          # A monorepo publish in this run redeploys exactly the services it built.
+          if [ "${PUBLISH_RESULT}" = "success" ] && [ "${EVENT_NAME}" != "workflow_call" ]; then
+            SERVICE_IDS="${PUBLISH_TARGETS}"
+            TAG="${GITHUB_SHA}"
+            REDEPLOY=true
+          else
+            SID="${CLIENT_ID:-${INPUT_SERVICE_ID:-}}"
+            if [ -n "${SID}" ]; then
+              SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts --id "${SID}")"
+            else
+              SERVICE_IDS="$(bun run packages/infra/scripts/list-deploy-service-ids.ts)"
+            fi
+            TAG="${CLIENT_IMAGE_TAG:-${INPUT_IMAGE_TAG:-latest}}"
+            REDEPLOY=false
+            if [ "${EVENT_NAME}" = "repository_dispatch" ] || \
+               [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+              REDEPLOY=true
+            fi
+          fi
+
           {
-            echo "service_id=${SID}"
             echo "service_ids=${SERVICE_IDS}"
             echo "image_tag=${TAG}"
             echo "redeploy=${REDEPLOY}"
             echo "apply_dns=${APPLY_DNS}"
           } >> "$GITHUB_OUTPUT"
-          echo "Deploy: service_id='${SID:-all}' services=${SERVICE_IDS} image_tag='${TAG}' redeploy=${REDEPLOY}"
+          echo "Deploy: services=${SERVICE_IDS} image_tag='${TAG}' redeploy=${REDEPLOY}"
 
   deploy-reconcile:
     runs-on: ubuntu-latest
