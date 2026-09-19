@@ -18,6 +18,6 @@ export const SCHOOL: School[] = [
     infoUrl: 'https://www.asu.edu/',
     imageAlt: 'Diploma',
     imageSrc: '/diploma.optimized.webp',
-    galleryImageSrc: ['/diploma.jpg'],
+    galleryImageSrc: ['/diploma.optimized.webp'],
   },
 ];

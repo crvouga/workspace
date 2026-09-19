@@ -6,6 +6,10 @@
  *     concurrency. Live per-job spinner via listr2.
  *   - Resume PDF — runs concurrently in its own process slot.
  *
+ * Stage 2:
+ *   - Image derivatives: every raster in `assets/` is re-encoded into the
+ *     `public/**\/*.optimized.webp` files the site actually serves.
+ *
  * Each parallel job is rendered as its own listr2 task so the user sees the
  * live state of everything at once.
  */
@@ -15,8 +19,9 @@ import pretty from 'pretty-ms';
 import pc from 'picocolors';
 
 import { writeLine } from './library/cli-output';
+import { optimizeImages } from '../scripts/optimize-images';
 import {
-  PUBLIC_DIR as SCREENSHOT_PUBLIC_DIR,
+  ASSETS_DIR,
   captureScreenshot,
   closeSharedBrowser,
   defaultScreenshotConcurrency,
@@ -35,6 +40,7 @@ type Ctx = {
   totals: {
     screenshots: { ok: number; failed: number };
     resume: 'ok' | 'failed' | 'skipped';
+    images: 'ok' | 'failed' | 'skipped';
   };
 };
 
@@ -49,6 +55,7 @@ const ctx: Ctx = {
   totals: {
     screenshots: { ok: 0, failed: 0 },
     resume: 'skipped',
+    images: 'skipped',
   },
 };
 
@@ -57,7 +64,7 @@ const tasks = new Listr<Ctx>(
     {
       title: pc.dim('Boot Chromium'),
       task: async (ctx, t) => {
-        await mkdir(SCREENSHOT_PUBLIC_DIR, { recursive: true });
+        await mkdir(ASSETS_DIR, { recursive: true });
         const t0 = performance.now();
         ctx.browser = await launchSharedBrowser();
         t.title = `${pc.dim('Boot Chromium')}  ${fmtElapsed(performance.now() - t0)}`;
@@ -142,6 +149,33 @@ const tasks = new Listr<Ctx>(
         ),
     },
     {
+      title: pc.bold('Stage 2 — image derivatives'),
+      task: async (ctx, t) => {
+        const t0 = performance.now();
+        try {
+          const result = await optimizeImages();
+          if (result.failed.length > 0) {
+            ctx.totals.images = 'failed';
+            for (const failure of result.failed) {
+              ctx.failures.push({
+                stage: 'images',
+                name: 'Optimize images',
+                error: failure,
+              });
+            }
+            throw new Error(`${result.failed.length} image(s) failed`);
+          }
+          ctx.totals.images = 'ok';
+          t.title = `${pc.bold('Stage 2 — image derivatives')}  ${pc.dim(
+            `${result.ok} file(s)`
+          )} ${fmtElapsed(performance.now() - t0)}`;
+        } catch (err) {
+          ctx.totals.images = 'failed';
+          throw err instanceof Error ? err : new Error(String(err));
+        }
+      },
+    },
+    {
       title: pc.dim('Tear down Chromium'),
       task: async (ctx, t) => {
         await closeSharedBrowser(ctx.browser);
@@ -174,7 +208,14 @@ try {
 }
 
 const elapsed = performance.now() - t0;
-const { screenshots, resume } = ctx.totals;
+const { screenshots, resume, images } = ctx.totals;
+
+const status = (value: 'ok' | 'failed' | 'skipped'): string =>
+  value === 'ok'
+    ? pc.green('ok')
+    : value === 'failed'
+      ? pc.red('failed')
+      : pc.dim('skipped');
 
 writeLine('');
 writeLine(pc.bold('Summary'));
@@ -183,15 +224,8 @@ writeLine(
     `${screenshots.failed} failed`
   )} (out of ${screenshotJobs.length})`
 );
-writeLine(
-  `  ${pc.cyan('Resume PDF')}:  ${
-    resume === 'ok'
-      ? pc.green('ok')
-      : resume === 'failed'
-        ? pc.red('failed')
-        : pc.dim('skipped')
-  }`
-);
+writeLine(`  ${pc.cyan('Resume PDF')}:  ${status(resume)}`);
+writeLine(`  ${pc.cyan('Images')}:      ${status(images)}`);
 writeLine(`  ${pc.cyan('Total')}:       ${pretty(elapsed)}`);
 
 if (ctx.failures.length > 0) {
@@ -201,7 +235,7 @@ if (ctx.failures.length > 0) {
     writeLine(`  ${pc.red('✗')} [${f.stage}] ${f.name} — ${f.error}`);
   }
   // Treat non-trivial failures as a non-zero exit so CI catches them.
-  if (resume === 'failed') exitCode = 1;
+  if (resume === 'failed' || images === 'failed') exitCode = 1;
 }
 
 process.exit(exitCode);

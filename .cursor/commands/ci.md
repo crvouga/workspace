@@ -22,33 +22,35 @@ Runs, in order:
 1. `bun install --frozen-lockfile` — lockfile in sync with `package.json`
 2. `check:vault-secrets` — Vault `dev` config
 3. `check:smoke:secrets` — smoke every registered secret
-4. `bun check` — prettier + `turbo run tc lint test build`
+4. `vault run --config dev -- bun check` — prettier + `turbo run tc lint test build` with Vault `dev` secrets (needed for `@pkgs/portfolio` `PORTFOLIO_GITHUB_TOKEN`)
 5. `bun run typecheck` — root `tsc` (includes `packages/workstation`)
 
-Package-only (no Vault): `bun check`  
-(`bun check` = `bun install --frozen-lockfile` + prettier + turbo tc/lint/test/build.)
+`bun check` alone does not inject Vault secrets. Portfolio production builds require
+`PORTFOLIO_GITHUB_TOKEN`, so prefer `bun run check:ci` (or
+`vault run --config dev -- bun check`). CI injects the same key via OIDC before turbo.
 
 > Turbo caches locally (`.turbo/`). CI is always fresh. If a fix seems ignored:
 > `bun run check -- --force` and `bun run typecheck`. Vault session required for
-> secret gates (`vault run --config dev -- …` / logged-in vault).
+> secret gates and portfolio build (`vault run --config dev -- …` / logged-in vault).
 
 **On failure:** fix in the order reported, re-run `bun run check:ci && bun run typecheck`,
 repeat until green. Then go to step 2.
 
-| Failure           | Fix                                                                                                                   |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Lockfile mismatch | `bun install`, then re-check                                                                                          |
-| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                   |
-| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config)   |
-| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                          |
-| `test`            | Fix assertion (`bun test`)                                                                                            |
-| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; others are package builds (`@pkgs/portfolio` renders `dist/`) |
+| Failure           | Fix                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Lockfile mismatch | `bun install`, then re-check                                                                                        |
+| Prettier          | `bun run format` (or `bunx prettier --write <file>`), then re-check                                                 |
+| `tc`              | Fix TS in the named package (`tsconfig.strict.json` for turborepo + `@pkgs/*` libs; `@pkgs/infra` uses root config) |
+| `lint`            | Package eslint (`--max-warnings 0`); shared rules in `packages/eslint-rules`                                        |
+| `test`            | Fix assertion (`bun test`)                                                                                          |
+| `build`           | `@pkgs/turborepo-remote-cache` is `test -f Dockerfile`; `@pkgs/portfolio` needs `PORTFOLIO_GITHUB_TOKEN` via Vault  |
 
 A green local run is **not** done — local `check` does not cover CI `publish` /
 `vault` / `deploy` (Docker, Railway, DNS).
 
-If Vault is down locally, you may still green `bun check`; say clearly that the
-Vault gate was skipped locally and must pass via CI OIDC — then continue the loop.
+If Vault is down locally, skip `check:ci` and say clearly that Vault-dependent
+gates (secret smoke + portfolio build token) must pass via CI OIDC — then continue
+the loop only for non-secret surfaces you can still exercise.
 
 ### 2. Commit & push
 

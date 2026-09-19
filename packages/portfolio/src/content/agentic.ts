@@ -5,8 +5,6 @@
  * as hype. The claims must still be true if a specific tool disappears.
  */
 
-export const AGENTIC_HEADING = 'How I build';
-
 export const AGENTIC_CURSOR_BADGE = 'Recognized by Cursor';
 export const AGENTIC_CURSOR_TEXT =
   'Recognized by Cursor as one of their top tab users, with a custom tab button shipped as a gift.';

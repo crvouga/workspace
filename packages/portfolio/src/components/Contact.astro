@@ -4,28 +4,39 @@ import IconEmail from './icons/IconEmail.astro';
 import IconGitHub from './icons/IconGitHub.astro';
 import IconLinkedIn from './icons/IconLinkedIn.astro';
 
+const section = CONTENT.GET_SECTION('contact');
 const email = CONTENT.EMAIL_ADDRESS;
 ---
+
 <section id="contact">
   <div class="container">
     <div class="section-heading">
-      <span class="number">{CONTENT.GET_SECTION('contact').number}</span>
-      <h2>{CONTENT.CONTACT_SECTION_TITLE}</h2>
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
     </div>
     <p class="headline">{CONTENT.CONTACT_COPY.headline}</p>
     <p class="sub">{CONTENT.CONTACT_COPY.sub}</p>
+    <p class="meta">
+      {CONTENT.LOCATION} · {CONTENT.HERO.availability}
+    </p>
+    <a class="email" href={`mailto:${email}`} data-copy={email}>{email}</a>
     <div class="ctas">
       <a class="btn btn-contained" href={`mailto:${email}`} data-copy={email}>
-        <IconEmail />Email
+        <IconEmail /><span class="btn-label">{CONTENT.CONTACT_COPY.ctaPrimary.label}</span>
       </a>
       <a class="btn" href="/chris-vouga-resume.pdf" download>
-        Résumé
+        <span class="btn-label">Résumé</span>
       </a>
       <a class="btn" href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
-        <IconGitHub />GitHub
+        <IconGitHub /><span class="btn-label">GitHub</span>
       </a>
-      <a class="btn" href={CONTENT.LINKEDIN_URL} rel="me noopener" target="_blank">
-        <IconLinkedIn />LinkedIn
+      <a
+        class="btn"
+        href={CONTENT.LINKEDIN_URL}
+        rel="me noopener"
+        target="_blank"
+      >
+        <IconLinkedIn /><span class="btn-label">LinkedIn</span>
       </a>
     </div>
   </div>
@@ -34,17 +45,32 @@ const email = CONTENT.EMAIL_ADDRESS;
 <style>
   .headline {
     font-family: var(--font-mono);
-    font-size: 28px;
+    font-size: var(--text-2xl);
     font-weight: 600;
   }
   .sub {
     color: var(--text-muted);
-    margin-top: 8px;
+    margin-top: var(--space-2);
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    margin-top: var(--space-2);
+  }
+  .email {
+    display: inline-block;
+    margin-top: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .ctas {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 24px;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
   }
 </style>

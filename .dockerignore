@@ -18,3 +18,4 @@ packages/workstation/*
 !packages/workstation/package.json
 packages/vault-service
 packages/eslint-rules
+packages/portfolio/assets

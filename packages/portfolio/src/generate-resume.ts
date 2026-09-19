@@ -20,7 +20,9 @@ import { chromium, type Page } from 'playwright';
 import { PDFDocument } from 'pdf-lib';
 
 import { CONTENT } from './content/content';
+import { LOCATION } from './content/hero';
 import { TOPIC_TO_NAME, type Topic } from './content/topic';
+import { buildSkillRows } from './content/skills';
 import {
   projectToLinkHref,
   type Project as PortfolioProject,
@@ -36,7 +38,6 @@ import {
   type Identity,
   type Project,
   type ResumeContent,
-  type SkillRow,
 } from './resume/html';
 
 // ---------------------------------------------------------------------------
@@ -54,101 +55,6 @@ const CONTENT_WIDTH_PX = Math.round((PAGE_WIDTH_IN - MARGIN_SIDE_IN * 2) * DPI);
 const CONTENT_HEIGHT_PX = Math.round(
   (PAGE_HEIGHT_IN - MARGIN_TOP_IN - MARGIN_BOTTOM_IN) * DPI
 );
-
-const LOCATION = 'Phoenix, AZ';
-
-// ---------------------------------------------------------------------------
-// Topic → Skill category
-// ---------------------------------------------------------------------------
-
-const TOPIC_CATEGORY: Partial<
-  Record<Topic, 'Languages' | 'Frontend' | 'Backend' | 'Data' | 'Cloud & Infra'>
-> = {
-  // Languages
-  typescript: 'Languages',
-  javascript: 'Languages',
-  python: 'Languages',
-  rust: 'Languages',
-  go: 'Languages',
-  php: 'Languages',
-  html: 'Languages',
-  css: 'Languages',
-  elm: 'Languages',
-  roc: 'Languages',
-  // Frontend
-  react: 'Frontend',
-  nextjs: 'Frontend',
-  vue: 'Frontend',
-  nuxt: 'Frontend',
-  tailwind: 'Frontend',
-  redux: 'Frontend',
-  'redux-saga': 'Frontend',
-  'react-query': 'Frontend',
-  'material-ui': 'Frontend',
-  bootstrap: 'Frontend',
-  greensock: 'Frontend',
-  rxjs: 'Frontend',
-  alphinejs: 'Frontend',
-  htmx: 'Frontend',
-  datastar: 'Frontend',
-  gridsome: 'Frontend',
-  // Backend
-  nodejs: 'Backend',
-  bun: 'Backend',
-  express: 'Backend',
-  flask: 'Backend',
-  graphene: 'Backend',
-  graphql: 'Backend',
-  trpc: 'Backend',
-  websocket: 'Backend',
-  'socket-io': 'Backend',
-  zod: 'Backend',
-  // Data
-  postgres: 'Data',
-  mongodb: 'Data',
-  mysql: 'Data',
-  dynamodb: 'Data',
-  sqlite: 'Data',
-  firebase: 'Data',
-  supabase: 'Data',
-  neo4j: 'Data',
-  // Cloud & infra
-  aws: 'Cloud & Infra',
-  s3: 'Cloud & Infra',
-  vercel: 'Cloud & Infra',
-  heroku: 'Cloud & Infra',
-  docker: 'Cloud & Infra',
-  // Skipped on purpose: shopify, sanity, drupal, salesforce, jest, puppeteer, ramda
-};
-
-const CATEGORY_ORDER: readonly SkillRow['category'][] = [
-  'Languages',
-  'Frontend',
-  'Backend',
-  'Data',
-  'Cloud & Infra',
-];
-
-function buildSkillRows(topics: readonly string[]): SkillRow[] {
-  const buckets = new Map<string, Set<string>>();
-  for (const topic of topics) {
-    const cat = TOPIC_CATEGORY[topic as Topic];
-    if (!cat) continue;
-    const display = TOPIC_TO_NAME[topic as Topic] ?? topic;
-    if (!buckets.has(cat)) buckets.set(cat, new Set());
-    buckets.get(cat)!.add(display);
-  }
-  const rows: SkillRow[] = [];
-  for (const cat of CATEGORY_ORDER) {
-    const set = buckets.get(cat);
-    if (!set || set.size === 0) continue;
-    rows.push({
-      category: cat,
-      items: [...set].sort((a, b) => a.localeCompare(b)),
-    });
-  }
-  return rows;
-}
 
 // ---------------------------------------------------------------------------
 // Content assembly

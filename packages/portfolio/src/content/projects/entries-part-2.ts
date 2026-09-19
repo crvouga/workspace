@@ -22,14 +22,14 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       '/airr/6.optimized.webp',
     ],
     galleryImageSrc: [
-      '/airr-product-demo-screenshot.png',
-      '/airr/1.png',
-      '/airr/2.png',
-      '/airr/3.png',
-      '/airr/4.png',
-      '/airr/5.png',
-      '/airr/6.png',
-      '/airr/7.png',
+      '/airr-product-demo-screenshot.optimized.webp',
+      '/airr/1.optimized.webp',
+      '/airr/2.optimized.webp',
+      '/airr/3.optimized.webp',
+      '/airr/4.optimized.webp',
+      '/airr/5.optimized.webp',
+      '/airr/6.optimized.webp',
+      '/airr/7.optimized.webp',
     ],
     topics: [
       'typescript',
@@ -56,13 +56,13 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       '/screenshot-service.optimized.webp',
     ],
     galleryImageSrc: [
-      '/screenshots-as-a-service-screenshot.png',
+      '/screenshots-as-a-service-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: 'lCEzYGJ0rN8',
         autoplay: true,
         mute: true,
       }),
-      '/screenshot-service.png',
+      '/screenshot-service.optimized.webp',
     ],
     topics: [
       'css',
@@ -87,7 +87,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       "Educational platform developed by ASU that empowers instructors to create highly customizable assignments. Architected and implemented the LTI 1.3 integration with ASU's Learning Management System, enabling seamless single sign-on and grade passback functionality.",
     imageAlt: IMAGE_ALT,
     imageSrc: ['/orchard.optimized.webp'],
-    galleryImageSrc: ['/orchard.png'],
+    galleryImageSrc: ['/orchard.optimized.webp'],
     topics: ['php', 'mysql', 'drupal', 'bootstrap', 'javascript'],
     resume: { include: false },
   },
@@ -121,13 +121,13 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       '/courier.optimized.webp',
     ],
     galleryImageSrc: [
-      '/courier-company-website-screenshot.png',
+      '/courier-company-website-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: 'kFwPTJcM6I0',
         autoplay: true,
         mute: true,
       }),
-      '/courier.png',
+      '/courier.optimized.webp',
     ],
     topics: ['css', 'material-ui', 'nextjs', 'react', 'typescript'],
     resume: { include: false },
@@ -145,7 +145,10 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       '/anime-blog-screenshot.optimized.webp',
       '/anime.optimized.webp',
     ],
-    galleryImageSrc: ['/anime-blog-screenshot.png', '/anime.png'],
+    galleryImageSrc: [
+      '/anime-blog-screenshot.optimized.webp',
+      '/anime.optimized.webp',
+    ],
     topics: [
       'css',
       'javascript',
@@ -170,13 +173,13 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       '/snake.optimized.webp',
     ],
     galleryImageSrc: [
-      '/smooth-snake-game-screenshot.png',
+      '/smooth-snake-game-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: '7El3RdkzlHs',
         autoplay: true,
         mute: true,
       }),
-      '/snake.png',
+      '/snake.optimized.webp',
     ],
     topics: ['css', 'javascript', 'ramda', 'react'],
   },
@@ -191,7 +194,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
     imageAlt: IMAGE_ALT,
     imageSrc: ['/match-three-screenshot.optimized.webp'],
     galleryImageSrc: [
-      '/match-three-screenshot.png',
+      '/match-three-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: 'VBrlDgmXSoA',
         autoplay: true,
@@ -217,7 +220,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       'React implementation of the moviefinder.app movie discovery platform.',
     imageAlt: IMAGE_ALT,
     imageSrc: ['/moviefinder-app-react-screenshot.optimized.webp'],
-    galleryImageSrc: ['/moviefinder-app-react-screenshot.png'],
+    galleryImageSrc: ['/moviefinder-app-react-screenshot.optimized.webp'],
     topics: ['react', 'typescript'],
   },
   {
@@ -236,7 +239,9 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       'ClojureScript implementation of the moviefinder.app movie discovery platform.',
     imageAlt: IMAGE_ALT,
     imageSrc: ['/moviefinder-app-clojurescript-screenshot.optimized.webp'],
-    galleryImageSrc: ['/moviefinder-app-clojurescript-screenshot.png'],
+    galleryImageSrc: [
+      '/moviefinder-app-clojurescript-screenshot.optimized.webp',
+    ],
     topics: ['clojurescript'],
   },
   {
@@ -250,7 +255,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
     imageAlt: IMAGE_ALT,
     imageSrc: ['/simon-says-screenshot.optimized.webp'],
     galleryImageSrc: [
-      '/simon-says-screenshot.png',
+      '/simon-says-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: 'WrUFzlKL0E0',
         autoplay: true,
@@ -275,7 +280,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
         autoplay: true,
         mute: true,
       }),
-      '/cheese.png',
+      '/cheese.optimized.webp',
     ],
     topics: ['css', 'typescript', 'material-ui', 'react', 'firebase'],
   },
@@ -290,7 +295,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
     imageAlt: IMAGE_ALT,
     imageSrc: ['/pickflix-screenshot.optimized.webp'],
     galleryImageSrc: [
-      '/pickflix-screenshot.png',
+      '/pickflix-screenshot.optimized.webp',
       toYouTubeVideoUrl({
         youTubeVideoId: '-atthbuMFIM',
         autoplay: true,
@@ -323,7 +328,7 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
       'Go implementation of the moviefinder.app movie discovery platform.',
     imageAlt: IMAGE_ALT,
     imageSrc: ['/moviefinder-app-go-screenshot.optimized.webp'],
-    galleryImageSrc: ['/moviefinder-app-go-screenshot.png'],
+    galleryImageSrc: ['/moviefinder-app-go-screenshot.optimized.webp'],
     topics: ['go'],
   },
 ];

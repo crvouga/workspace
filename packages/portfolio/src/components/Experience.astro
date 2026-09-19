@@ -2,15 +2,16 @@
 import { CONTENT } from '../content/content';
 import type { Work } from '../content/work';
 
+const section = CONTENT.GET_SECTION('work');
 const years = (job: Work): string =>
-  `${job.yearStart}–${job.yearEnd === 'Present' ? 'Present' : job.yearEnd}`;
+  `${job.yearStart}\u2013${job.yearEnd === 'Present' ? 'Present' : job.yearEnd}`;
 ---
 
 <section id="work">
   <div class="container">
     <div class="section-heading">
-      <span class="number">{CONTENT.GET_SECTION('work').number}</span>
-      <h2>{CONTENT.WORK_SECTION_TITLE}</h2>
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
     </div>
     <div class="jobs">
       {
@@ -23,8 +24,8 @@ const years = (job: Work): string =>
                   alt={job.imageAlt}
                   loading="lazy"
                   decoding="async"
-                  width="600"
-                  height="338"
+                  width="1400"
+                  height="788"
                 />
               </div>
             )}
@@ -42,7 +43,11 @@ const years = (job: Work): string =>
                 <span class="years">{years(job)}</span>
               </div>
               <p class="role">{job.jobTitle}</p>
-              <p class="desc">{job.jobDescription}</p>
+              <ul class="highlights">
+                {job.highlights.map((highlight) => (
+                  <li>{highlight}</li>
+                ))}
+              </ul>
             </div>
           </article>
         ))
@@ -55,7 +60,7 @@ const years = (job: Work): string =>
   .jobs {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-5);
   }
   .job {
     display: grid;
@@ -73,42 +78,64 @@ const years = (job: Work): string =>
       grid-template-columns: 340px 1fr;
     }
   }
+  .media {
+    align-self: stretch;
+  }
   .media img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* Keep the top of each site screenshot (its nav/hero) inside the crop. */
+    object-position: top center;
   }
   .body {
-    padding: 24px;
+    padding: var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-3);
   }
   .head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--space-3);
     flex-wrap: wrap;
   }
   .years {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     white-space: nowrap;
   }
   h3 {
     font-family: var(--font-mono);
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 600;
   }
   .role {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--accent);
   }
-  .desc {
+  .highlights {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .highlights li {
+    position: relative;
+    padding-left: 20px;
     color: var(--text-muted);
-    font-size: 15px;
+    font-size: var(--text-base);
+  }
+  .highlights li::before {
+    content: '\203A';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: var(--font-mono);
   }
 </style>

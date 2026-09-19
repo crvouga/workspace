@@ -2,29 +2,46 @@
 import Base from '../layouts/Base.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
-import ProofOfWork from '../components/ProofOfWork.astro';
-import Agentic from '../components/Agentic.astro';
 import Experience from '../components/Experience.astro';
 import Projects from '../components/Projects.astro';
+import ProofOfWork from '../components/ProofOfWork.astro';
+import Agentic from '../components/Agentic.astro';
+import About from '../components/About.astro';
 import Education from '../components/Education.astro';
 import Contact from '../components/Contact.astro';
 import Footer from '../components/Footer.astro';
+import { VISIBLE_GALLERIES } from '../lib/projects-view';
+
+const galleriesJson = JSON.stringify(VISIBLE_GALLERIES);
 ---
 
 <Base>
   <Nav />
-  <main>
+  <main id="main">
     <Hero />
-    <ProofOfWork />
-    <Agentic />
     <Experience />
     <Projects />
+    <ProofOfWork />
+    <Agentic />
+    <About />
     <Education />
     <Contact />
   </main>
   <Footer />
-  <dialog id="gallery-dialog" class="gallery">
-    <img src="" alt="" loading="lazy" />
+  <dialog id="gallery-dialog" class="gallery" aria-label="Project images">
+    <div class="stage"></div>
+    <div class="bar">
+      <button type="button" class="icon-btn" data-step="-1" aria-label="Previous image">
+        ‹
+      </button>
+      <span class="counter" aria-live="polite"></span>
+      <button type="button" class="icon-btn" data-step="1" aria-label="Next image">
+        ›
+      </button>
+      <button type="button" class="icon-btn close" data-close aria-label="Close gallery">
+        ✕
+      </button>
+    </div>
   </dialog>
 </Base>
 
@@ -33,15 +50,152 @@ import Footer from '../components/Footer.astro';
     border: 1px solid var(--paper-border);
     border-radius: var(--radius-lg);
     background: var(--paper);
-    padding: 16px;
-    max-width: min(90vw, 900px);
+    padding: var(--space-4);
+    max-width: min(92vw, 1100px);
   }
   dialog.gallery::backdrop {
     background: rgba(10, 10, 11, 0.8);
   }
-  dialog.gallery img {
+  .stage img,
+  .stage iframe {
+    display: block;
     max-width: 100%;
-    max-height: 80vh;
+    max-height: 78vh;
     border-radius: var(--radius-md);
   }
+  .stage iframe {
+    width: min(92vw, 1100px);
+    aspect-ratio: 16 / 9;
+    border: 0;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .counter {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    min-width: 56px;
+    text-align: center;
+  }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tap);
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--paper-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  .icon-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .icon-btn.close {
+    margin-left: auto;
+  }
+  .icon-btn[hidden] {
+    display: none;
+  }
 </style>
+
+<script is:inline define:vars={{ galleriesJson }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const galleries = JSON.parse(galleriesJson);
+    const dialog = document.getElementById('gallery-dialog');
+    if (!(dialog instanceof HTMLDialogElement)) return;
+
+    const stage = dialog.querySelector('.stage');
+    const counter = dialog.querySelector('.counter');
+    const steps = dialog.querySelectorAll('[data-step]');
+    const closeBtn = dialog.querySelector('[data-close]');
+    let items = [];
+    let index = 0;
+
+    const render = () => {
+      const item = items[index];
+      if (!item || !stage) return;
+      stage.replaceChildren();
+      if (item.kind === 'video') {
+        const frame = document.createElement('iframe');
+        frame.src = item.src;
+        frame.title = 'Project video';
+        frame.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
+        frame.setAttribute('allowfullscreen', '');
+        stage.append(frame);
+      } else {
+        const img = document.createElement('img');
+        img.src = item.src;
+        img.alt = item.alt;
+        img.loading = 'lazy';
+        stage.append(img);
+      }
+      if (counter) {
+        counter.textContent = `${index + 1} / ${items.length}`;
+        counter.hidden = items.length < 2;
+      }
+      steps.forEach((button) => {
+        button.hidden = items.length < 2;
+      });
+    };
+
+    const step = (delta) => {
+      if (items.length === 0) return;
+      index = (index + delta + items.length) % items.length;
+      render();
+    };
+
+    document.querySelectorAll('.gallery-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        const gallery = galleries[Number(button.dataset.gallery)] ?? [];
+        if (gallery.length === 0) return;
+        items = gallery;
+        index = 0;
+        render();
+        dialog.showModal();
+      });
+    });
+
+    steps.forEach((button) => {
+      button.addEventListener('click', () => step(Number(button.dataset.step)));
+    });
+
+    closeBtn?.addEventListener('click', () => dialog.close());
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        step(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        step(-1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        index = 0;
+        render();
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        index = Math.max(0, items.length - 1);
+        render();
+      }
+    });
+
+    dialog.addEventListener('close', () => {
+      stage?.replaceChildren();
+      items = [];
+    });
+  });
+</script>

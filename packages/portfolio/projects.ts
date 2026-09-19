@@ -34,11 +34,3 @@ export const PROJECTS: readonly Project[] = [
   ...PROJECT_ENTRIES_PART_1,
   ...PROJECT_ENTRIES_PART_2,
 ];
-
-export const WORK_PROJECTS: readonly Project[] = PROJECTS.filter(
-  (p) => p.setting === 'work'
-);
-
-export const SIDE_PROJECTS: readonly Project[] = PROJECTS.filter(
-  (p) => p.setting === 'side'
-);

@@ -1,14 +1,20 @@
 ---
 import { CONTENT } from '../content/content';
 
-const links = CONTENT.SECTIONS.filter((s) => s.navLabel !== 'Education');
+const links = CONTENT.SECTIONS.filter((section) => section.nav);
 ---
 
 <header class="nav">
   <div class="container inner">
-    <a href="#top" class="monogram" aria-label="CV — back to top">CV</a>
-    <nav aria-label="Site">
-      {links.map((s) => <a href={`#${s.id}`}>{s.navLabel}</a>)}
+    <a
+      href="#top"
+      class="monogram"
+      aria-label={`${CONTENT.MONOGRAM_INITIALS} — back to top`}
+    >
+      {CONTENT.MONOGRAM_INITIALS}
+    </a>
+    <nav aria-label="Site sections">
+      {links.map((section) => <a href={`#${section.id}`}>{section.navLabel}</a>)}
     </nav>
     <a href="/chris-vouga-resume.pdf" class="resume" download>Résumé</a>
   </div>
@@ -26,13 +32,16 @@ const links = CONTENT.SECTIONS.filter((s) => s.navLabel !== 'Education');
   .inner {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: var(--space-5);
     height: 64px;
   }
   .monogram {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
     font-family: var(--font-mono);
     font-weight: 700;
-    font-size: 16px;
+    font-size: var(--text-md);
     color: var(--accent);
   }
   .monogram:hover {
@@ -40,21 +49,27 @@ const links = CONTENT.SECTIONS.filter((s) => s.navLabel !== 'Education');
   }
   nav {
     display: flex;
-    gap: 20px;
+    gap: var(--space-5);
     margin-left: auto;
   }
   nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
   nav a:hover {
     color: var(--accent);
   }
   .resume {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
     font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 8px 14px;
+    font-size: var(--text-sm);
+    padding: var(--space-2) var(--space-4);
     border: 1px solid var(--paper-border);
     border-radius: var(--radius-md);
     color: var(--text);
@@ -64,12 +79,31 @@ const links = CONTENT.SECTIONS.filter((s) => s.navLabel !== 'Education');
     background: var(--accent-soft);
     color: var(--accent);
   }
+  /* Two rows on phones: identity + résumé, then a scrollable section row. */
   @media (max-width: 599px) {
-    nav {
-      display: none;
+    .inner {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      height: auto;
+      padding-block: var(--space-2);
+      row-gap: var(--space-1);
+    }
+    .monogram {
+      grid-column: 1;
     }
     .resume {
-      margin-left: auto;
+      grid-column: 2;
+      justify-self: end;
+    }
+    nav {
+      grid-column: 1 / -1;
+      margin-left: 0;
+      gap: var(--space-4);
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-block: var(--space-1);
     }
   }
 </style>

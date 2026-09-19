@@ -20,7 +20,7 @@ export const toYouTubeVideoUrl = ({
 };
 
 export const htmlLink = (href: string, text: string): string =>
-  `<a style="color: white;" target="_blank" rel="noreferrer noopener" href="${href}">${text}</a>`;
+  `<a class="inline-link" target="_blank" rel="noreferrer noopener" href="${href}">${text}</a>`;
 
 export const externalLink = (href: string, text: string): string =>
   htmlLink(
