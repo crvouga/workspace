@@ -1,72 +1,121 @@
 ---
 import { CONTENT } from '../content/content';
-import { fetchGitHubInsights } from '../lib/github';
+import {
+  GitHubInsightsError,
+  fetchGitHubInsights,
+  type GitHubInsights,
+} from '../lib/github';
 import ContributionHeatmap from './ContributionHeatmap.astro';
 
-// Strict: a missing credential or unusable GitHub response aborts the build with
-// an actionable error (see lib/github.ts) rather than rendering a blank map.
-const insights = await fetchGitHubInsights('crvouga');
-const fetchedDate = insights.fetchedAt.slice(0, 10);
+// Strict in production: a missing credential or unusable GitHub response aborts
+// the build with an actionable error (see lib/github.ts) rather than rendering a
+// blank map. `astro dev` degrades to a notice card instead, so the page stays
+// workable without Vault or a local .env token.
+const envToken = import.meta.env.PORTFOLIO_GITHUB_TOKEN;
 
-const tiles = [
-  { value: String(insights.totalContributions), label: 'contributions · last 12 months' },
-  { value: String(insights.longestStreak), label: 'longest streak (days)' },
-  { value: String(insights.currentStreak), label: 'current streak (days)' },
-  { value: String(insights.publicRepos), label: 'public repos' },
-  { value: String(insights.followers), label: 'followers' },
-];
+let insights: GitHubInsights | null = null;
+try {
+  insights = await fetchGitHubInsights(
+    'crvouga',
+    envToken ? { token: envToken } : {}
+  );
+} catch (error) {
+  if (!import.meta.env.DEV || !(error instanceof GitHubInsightsError)) {
+    throw error;
+  }
+  console.warn(`[portfolio] ${error.message}`);
+}
+
+const section = CONTENT.GET_SECTION('proof');
+const fetchedDate = insights === null ? '' : insights.fetchedAt.slice(0, 10);
+const totals = insights === null ? '' : insights.totalContributions.toLocaleString('en-US');
+
+const tiles =
+  insights === null
+    ? []
+    : [
+        { value: totals, label: 'Contributions (12mo)' },
+        { value: String(insights.longestStreak), label: 'Longest streak (days)' },
+        { value: String(insights.currentStreak), label: 'Current streak (days)' },
+        { value: String(insights.publicRepos), label: 'Public repos' },
+        { value: String(insights.followers), label: 'Followers' },
+      ];
 ---
 
 <section id="proof">
   <div class="container">
     <div class="section-heading">
-      <span class="number">//</span>
-      <h2>Proof, not promises</h2>
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
     </div>
-    <div class="card heatmap-card">
-      <ContributionHeatmap calendar={insights.calendar} />
-      <div class="legend" aria-hidden="true">
-        <span>Less</span>
-        {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
-          <span class={`swatch ${c}`} />
-        ))}
-        <span>More</span>
-      </div>
-    </div>
-    <div class="tiles">
-      {tiles.map((tile) => (
-        <div class="card tile">
-          <span class="value">{tile.value}</span>
-          <span class="label">{tile.label}</span>
+    {
+      insights === null ? (
+        <div class="card heatmap-card">
+          <p>
+            GitHub proof data unavailable in dev. Set <code>PORTFOLIO_GITHUB_TOKEN</code> in
+            packages/portfolio/.env, or run via <code>bun portfolio</code>.
+          </p>
         </div>
-      ))}
-    </div>
-    <p class="caption">
-      Live data fetched from the GitHub API at build time ·
-      <span class="freshness">Data fetched {fetchedDate}</span> ·{' '}
-      <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
-        verify on GitHub
-      </a>
-    </p>
+      ) : (
+        <>
+          <div class="card heatmap-card">
+            <ContributionHeatmap calendar={insights.calendar} />
+            <div class="legend" aria-hidden="true">
+              <span>Less</span>
+              {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
+                <span class={`swatch ${c}`} />
+              ))}
+              <span>More</span>
+            </div>
+            <p class="visually-hidden">
+              {CONTENT.ABOUT_GITHUB_HEATMAP_TEXT} {totals} contributions in the last 12 months.
+            </p>
+          </div>
+          <div class="tiles">
+            {tiles.map((tile) => (
+              <div class="card tile">
+                <span class="value">{tile.value}</span>
+                <span class="label">{tile.label}</span>
+              </div>
+            ))}
+          </div>
+          <p class="caption">
+            {`Live data fetched from the GitHub API at build time · ${fetchedDate} · `}
+            <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
+              verify on GitHub
+            </a>
+          </p>
+        </>
+      )
+    }
   </div>
 </section>
 
 <style>
   .heatmap-card {
-    padding: 24px;
+    padding: var(--space-5);
   }
   .heatmap-card :global(svg.heatmap) {
     max-width: 100%;
   }
+  .heatmap-card p {
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  .heatmap-card code {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--accent);
+  }
   .legend {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     justify-content: flex-end;
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-subtle);
-    margin-top: 12px;
+    margin-top: var(--space-3);
   }
   .swatch {
     width: 11px;
@@ -92,33 +141,30 @@ const tiles = [
   .tiles {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    margin-top: 24px;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
   }
   .tile {
-    padding: 20px;
+    padding: var(--space-5) var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
   }
   .tile .value {
     font-family: var(--font-mono);
-    font-size: 28px;
+    font-size: var(--text-2xl);
     font-weight: 700;
     color: var(--accent);
   }
   .tile .label {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--text-xs);
     color: var(--text-muted);
   }
   .caption {
-    margin-top: 20px;
+    margin-top: var(--space-5);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--text-xs);
     color: var(--text-subtle);
-  }
-  .freshness {
-    color: var(--text-muted);
   }
 </style>

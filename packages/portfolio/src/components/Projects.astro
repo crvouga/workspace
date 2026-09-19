@@ -1,84 +1,87 @@
 ---
 import { CONTENT } from '../content/content';
 import { TOPIC_TO_IMAGE_SRC, TOPIC_TO_NAME } from '../content/topic';
-import type { Project } from '../content/projects/types';
+import type { Project } from '../content/project';
+import {
+  COLLAPSED_PROJECTS,
+  VISIBLE_PROJECTS,
+  galleryFor,
+  projectHref,
+} from '../lib/projects-view';
 
-const VISIBLE = 6;
+const section = CONTENT.GET_SECTION('projects');
+const MAX_CHIPS = 6;
 
-const projects = CONTENT.PROJECTS.filter(
-  (p) => p.deployment.t === 'public' || p.code.t === 'public'
-);
-const visible = projects.slice(0, VISIBLE);
-const collapsed = projects.slice(VISIBLE);
-
-const TOPIC_IMAGE = TOPIC_TO_IMAGE_SRC;
-const linkFor = (p: Project): string | null =>
-  p.deployment.t === 'public'
-    ? p.deployment.url
-    : p.code.t === 'public'
-      ? p.code.url
-      : null;
-
-// Gallery payloads for the native <dialog> viewer in index.astro.
-const galleries = projects.map((p: Project) =>
-  [...p.imageSrc, ...p.galleryImageSrc].map((src) => ({
-    src,
-    alt: p.title,
-  }))
-);
-const galleriesJson = JSON.stringify(galleries);
+const chipsFor = (project: Project): string[] => project.topics.slice(0, MAX_CHIPS);
+const extraTopicCount = (project: Project): number =>
+  Math.max(0, project.topics.length - MAX_CHIPS);
 ---
 
 <section id="projects">
   <div class="container">
     <div class="section-heading">
-      <span class="number">{CONTENT.GET_SECTION('projects').number}</span>
-      <h2>{CONTENT.PROJECT_SECTION_TITLE}</h2>
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
     </div>
     <div class="grid">
       {
-        visible.map((p) => (
+        VISIBLE_PROJECTS.map((project, index) => (
           <article class="card project">
-            {p.imageSrc[0] !== undefined && (
-              <img
-                class="cover"
-                src={p.imageSrc[0]}
-                alt={p.imageAlt}
-                loading="lazy"
-                decoding="async"
-                width="600"
-                height="338"
-              />
+            {project.imageSrc[0] !== undefined && (
+              <div class="cover-box">
+                <img
+                  class="cover"
+                  src={project.imageSrc[0]}
+                  alt={project.imageAlt}
+                  loading="lazy"
+                  decoding="async"
+                  width="1400"
+                  height="788"
+                />
+              </div>
             )}
             <div class="body">
               <h3>
-                <a href={linkFor(p)} rel="noopener" target="_blank">
-                  {p.title}
+                <a href={projectHref(project)} rel="noopener" target="_blank">
+                  {project.title}
                 </a>
               </h3>
-              <p class="desc" set:html={p.description} />
+              <p class="desc" set:html={project.description} />
               <div class="meta">
                 <div class="chips">
-                  {p.topics.map((t) => (
+                  {chipsFor(project).map((topic) => (
                     <span class="chip">
-                      {TOPIC_IMAGE[t] && <img src={TOPIC_IMAGE[t] ?? ''} alt="" loading="lazy" />}
-                      {TOPIC_TO_NAME[t]}
+                      {TOPIC_TO_IMAGE_SRC[topic] && (
+                        <img
+                          src={TOPIC_TO_IMAGE_SRC[topic] ?? ''}
+                          alt=""
+                          loading="lazy"
+                        />
+                      )}
+                      {TOPIC_TO_NAME[topic]}
                     </span>
                   ))}
+                  {extraTopicCount(project) > 0 && (
+                    <span class="chip chip-more">+{extraTopicCount(project)}</span>
+                  )}
                 </div>
                 <div class="links">
-                  {p.deployment.t === 'public' && (
-                    <a href={p.deployment.url} rel="noopener" target="_blank">
+                  {project.deployment.t === 'public' && (
+                    <a href={project.deployment.url} rel="noopener" target="_blank">
                       Live
                     </a>
                   )}
-                  {p.code.t === 'public' && (
-                    <a href={p.code.url} rel="noopener" target="_blank">
+                  {project.code.t === 'public' && (
+                    <a href={project.code.url} rel="noopener" target="_blank">
                       Code
                     </a>
                   )}
-                  {[...p.imageSrc, ...p.galleryImageSrc].length > 0 && (
-                    <button type="button" class="gallery-btn" data-gallery={projects.indexOf(p)}>
+                  {galleryFor(project).length > 0 && (
+                    <button
+                      type="button"
+                      class="gallery-btn"
+                      data-gallery={index}
+                    >
                       Images
                     </button>
                   )}
@@ -90,32 +93,36 @@ const galleriesJson = JSON.stringify(galleries);
       }
     </div>
     {
-      collapsed.length > 0 && (
+      COLLAPSED_PROJECTS.length > 0 && (
         <details class="more">
-          <summary>Show {collapsed.length} more projects</summary>
+          <summary>Show {COLLAPSED_PROJECTS.length} more projects</summary>
           <div class="grid more-grid">
-            {collapsed.map((p) => (
+            {COLLAPSED_PROJECTS.map((project) => (
               <article class="card project compact">
                 <div class="body">
                   <h3>
-                    <a href={linkFor(p)} rel="noopener" target="_blank">
-                      {p.title}
+                    <a href={projectHref(project)} rel="noopener" target="_blank">
+                      {project.title}
                     </a>
                   </h3>
-                  <p class="desc" set:html={p.description} />
+                  <p class="desc" set:html={project.description} />
                   <div class="chips">
-                    {p.topics.map((t) => (
-                      <span class="chip">{TOPIC_TO_NAME[t]}</span>
+                    {chipsFor(project).map((topic) => (
+                      <span class="chip">{TOPIC_TO_NAME[topic]}</span>
                     ))}
                   </div>
                   <div class="links">
-                    {p.deployment.t === 'public' && (
-                      <a href={p.deployment.url} rel="noopener" target="_blank">
+                    {project.deployment.t === 'public' && (
+                      <a
+                        href={project.deployment.url}
+                        rel="noopener"
+                        target="_blank"
+                      >
                         Live
                       </a>
                     )}
-                    {p.code.t === 'public' && (
-                      <a href={p.code.url} rel="noopener" target="_blank">
+                    {project.code.t === 'public' && (
+                      <a href={project.code.url} rel="noopener" target="_blank">
                         Code
                       </a>
                     )}
@@ -134,7 +141,7 @@ const galleriesJson = JSON.stringify(galleries);
   .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: var(--space-5);
   }
   @media (min-width: 700px) {
     .grid {
@@ -151,21 +158,27 @@ const galleriesJson = JSON.stringify(galleries);
     flex-direction: column;
     overflow: hidden;
   }
+  /* Fixed aspect keeps every row aligned regardless of the source ratio. */
+  .cover-box {
+    aspect-ratio: 16 / 9;
+    border-bottom: 1px solid var(--paper-border);
+    background: var(--bg);
+  }
   .project .cover {
     width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-bottom: 1px solid var(--paper-border);
   }
   .body {
-    padding: 20px;
+    padding: var(--space-5) var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
     flex: 1;
   }
   h3 {
     font-family: var(--font-mono);
-    font-size: 16px;
+    font-size: var(--text-md);
     font-weight: 600;
     overflow-wrap: anywhere;
   }
@@ -177,7 +190,7 @@ const galleriesJson = JSON.stringify(galleries);
   }
   .desc {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: var(--text-base);
     flex: 1;
   }
   .chips {
@@ -185,19 +198,27 @@ const galleriesJson = JSON.stringify(galleries);
     flex-wrap: wrap;
     gap: 6px;
   }
+  .chip-more {
+    color: var(--text-subtle);
+  }
   .meta {
     margin-top: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-2);
   }
   .links {
     display: flex;
-    gap: 16px;
+    align-items: center;
+    gap: var(--space-5);
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
-  .links a {
+  .links a,
+  .gallery-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
     color: var(--accent);
   }
   .gallery-btn {
@@ -205,49 +226,26 @@ const galleriesJson = JSON.stringify(galleries);
     border: 0;
     padding: 0;
     font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--accent);
+    font-size: var(--text-sm);
     cursor: pointer;
   }
   .gallery-btn:hover {
     color: #a6cbff;
   }
   .more {
-    margin-top: 24px;
+    margin-top: var(--space-5);
   }
   .more summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--accent);
     cursor: pointer;
-    padding: 10px 0;
+    padding: var(--space-2) 0;
   }
   .more-grid {
-    margin-top: 16px;
+    margin-top: var(--space-4);
   }
 </style>
-
-<script is:inline define:vars={{ galleriesJson }}>
-  document.addEventListener('DOMContentLoaded', () => {
-    const galleries = JSON.parse(galleriesJson);
-    const dialog = document.getElementById('gallery-dialog');
-    const dialogImg = dialog ? dialog.querySelector('img') : null;
-    document.querySelectorAll('.gallery-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (!dialog || !dialogImg) return;
-        const items = galleries[Number(btn.dataset.gallery)] ?? [];
-        if (items.length === 0) return;
-        dialogImg.src = items[0].src;
-        dialogImg.alt = items[0].alt;
-        if (dialog instanceof HTMLDialogElement) dialog.showModal();
-      });
-    });
-    if (dialog) {
-      dialog.addEventListener('click', (event) => {
-        if (event.target === dialog && dialog instanceof HTMLDialogElement) {
-          dialog.close();
-        }
-      });
-    }
-  });
-</script>

@@ -30,7 +30,7 @@ export const TOPIC_TO_IMAGE_SRC = {
   redux: '/redux.svg',
   rxjs: '/rxjs.svg',
   elm: '/elm.svg',
-  'react-query': 'react-query-icon.svg',
+  'react-query': '/react-query-icon.svg',
   greensock: '/greensock-icon.svg',
   javascript: '/javascript.svg',
   vue: '/vue.svg',

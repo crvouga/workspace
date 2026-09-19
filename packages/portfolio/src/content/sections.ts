@@ -1,23 +1,53 @@
-export type SectionId = 'work' | 'projects' | 'about' | 'education' | 'contact';
+export type SectionId =
+  'proof' | 'agentic' | 'work' | 'projects' | 'about' | 'education' | 'contact';
 
 export type Section = {
   readonly id: SectionId;
   readonly number: string;
   readonly title: string;
   readonly navLabel: string;
+  /** Primary destinations rendered in the site header. */
+  readonly nav: boolean;
 };
 
 export const SECTIONS: readonly Section[] = [
-  { id: 'work', number: '01', title: 'Work', navLabel: 'Work' },
-  { id: 'projects', number: '02', title: 'Projects', navLabel: 'Projects' },
-  { id: 'about', number: '03', title: 'About', navLabel: 'About' },
+  {
+    id: 'proof',
+    number: '01',
+    title: 'Proof, not promises',
+    navLabel: 'Proof',
+    nav: false,
+  },
+  {
+    id: 'agentic',
+    number: '02',
+    title: 'How I build',
+    navLabel: 'How I build',
+    nav: false,
+  },
+  { id: 'work', number: '03', title: 'Work', navLabel: 'Work', nav: true },
+  {
+    id: 'projects',
+    number: '04',
+    title: 'Projects',
+    navLabel: 'Projects',
+    nav: true,
+  },
+  { id: 'about', number: '05', title: 'About', navLabel: 'About', nav: true },
   {
     id: 'education',
-    number: '04',
+    number: '06',
     title: 'Education',
     navLabel: 'Education',
+    nav: false,
   },
-  { id: 'contact', number: '05', title: 'Contact', navLabel: 'Contact' },
+  {
+    id: 'contact',
+    number: '07',
+    title: 'Contact',
+    navLabel: 'Contact',
+    nav: true,
+  },
 ];
 
 export const getSection = (id: SectionId): Section => {

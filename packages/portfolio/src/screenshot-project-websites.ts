@@ -1,11 +1,11 @@
 import { mkdir } from 'node:fs/promises';
 import { writeLine } from './library/cli-output';
-import { PUBLIC_DIR, runScreenshotJobs } from './screenshot-helpers';
+import { ASSETS_DIR, runScreenshotJobs } from './screenshot-helpers';
 import { buildProjectJobs } from './screenshot-jobs';
 
 const main = async (): Promise<void> => {
   writeLine('Starting screenshot capture for project websites...\n');
-  await mkdir(PUBLIC_DIR, { recursive: true });
+  await mkdir(ASSETS_DIR, { recursive: true });
 
   const jobs = buildProjectJobs();
   if (jobs.length === 0) {

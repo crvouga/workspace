@@ -10,7 +10,7 @@ import pLimit from 'p-limit';
 import { writeLine } from './library/cli-output';
 
 export const VIEWPORT = { width: 1920, height: 1080 } as const;
-export const PUBLIC_DIR = path.resolve('./public');
+export const ASSETS_DIR = path.resolve('./assets');
 
 /** Nav timeout for external sites (env: SCREENSHOT_TIMEOUT_MS). */
 const DEFAULT_NAV_TIMEOUT_MS = readPositiveEnv('SCREENSHOT_TIMEOUT_MS', 45_000);
@@ -210,7 +210,7 @@ async function attemptCapture(
     await navigateAndSettle(page, job.url, Math.min(timeoutMs, remainingMs));
 
     const screenshotPath = path.join(
-      PUBLIC_DIR,
+      ASSETS_DIR,
       `${job.filename}-screenshot.png`
     );
     await page.screenshot({ path: screenshotPath, fullPage: false });

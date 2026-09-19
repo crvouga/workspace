@@ -39,12 +39,30 @@
   --accent-glow: rgba(127, 179, 255, 0.18);
   --success: #3fb950;
 
-  /* GitHub heatmap ramp, darkest → accent */
-  --gh-0: #1f1f25;
-  --gh-1: #1e4e96;
-  --gh-2: #2e6fc4;
-  --gh-3: #4c8de8;
-  --gh-4: #7fb3ff;
+  /* GitHub heatmap ramp: a quiet zero below --paper, then even luminance steps. */
+  --gh-0: #16161c;
+  --gh-1: #143f74;
+  --gh-2: #2361ab;
+  --gh-3: #3f87e2;
+  --gh-4: #86baff;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -54,6 +72,8 @@
   --motion-med: 220ms;
   --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --container: 1100px;
+  /** Minimum comfortable touch target. */
+  --tap: 44px;
 }
 
 *,
@@ -66,17 +86,19 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 96px;
   background: var(--bg);
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--text-md);
   line-height: 1.6;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
+
 a {
   color: var(--accent);
   text-decoration: none;
@@ -84,6 +106,11 @@ a {
 
 a:hover {
   color: #a6cbff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Links embedded in prose must be distinguishable without color. */
@@ -117,54 +144,72 @@ img {
   height: auto;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+}
+
+.skip-link:focus {
+  left: var(--space-4);
+  top: var(--space-4);
+  z-index: 20;
+  background: var(--paper);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+
 .container {
   width: 100%;
   max-width: var(--container);
   margin-inline: auto;
-  padding-inline: 24px;
+  padding-inline: var(--space-5);
 }
 
 @media (min-width: 900px) {
   .container {
-    padding-inline: 32px;
+    padding-inline: var(--space-6);
   }
 }
 
 section {
-  padding-block: 72px;
+  padding-block: var(--space-8);
 }
 
 @media (min-width: 900px) {
   section {
-    padding-block: 96px;
+    padding-block: var(--space-9);
   }
 }
 
-/* Numbered section headings, carried over from the previous design */
+/* Numbered section headings, carried over from the previous design. */
 .section-heading {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  margin-bottom: 32px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
 }
 
 .section-heading .number {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--accent);
 }
 
-/* Experience entries without media should not reserve an empty media column. */
-.job.no-media {
-  display: block;
-}
-
-.job.no-media .body {
-  max-width: 760px;
-}
 .section-heading h2 {
   font-family: var(--font-mono);
-  font-size: 24px;
+  font-size: var(--text-xl);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -183,11 +228,12 @@ section {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
+  min-height: var(--tap);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 500;
-  padding: 10px 16px;
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--paper-border);
   color: var(--text);
