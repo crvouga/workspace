@@ -13,7 +13,7 @@ Single flat Turborepo + Bun workspace at the repo root. Every package is scoped 
 - `packages/vault-service` — standalone OpenBao service (Docker + shell; no package.json)
 - `packages/workstation` — portable local-machine config (no package.json)
 
-Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`.
+Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`, and `INTEGRATING.md` (the guide other repos link to for consuming Vault / Turborepo cache / R2 — keep it in sync when those contracts change).
 
 `bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.agents/commands/ci.md`](.agents/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
