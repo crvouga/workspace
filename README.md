@@ -144,7 +144,31 @@ bun run deploy-railway --id portfolio
 bun run sync-dns --apply
 ```
 
-See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) for the full check/CI reference.
+See [`.agents/commands/ci.md`](.agents/commands/ci.md) for the full check/CI reference.
+
+## Agent commands & `/pr-ready`
+
+`/pr-ready` takes the current branch from uncommitted work to a merged PR:
+commit (commitlint-checked), push, merge `main`, resolve conflicts, open the
+PR, loop CI until the `Required` check is green, then `gh pr merge --merge --auto`.
+The agent only writes commit/PR text, resolves conflicts, and fixes CI root
+causes; all git/GitHub work runs through `bun run pr:ready <command>`
+([`scripts/pr-ready.ts`](scripts/pr-ready.ts)), which prints one JSON object per
+command (`status`, `context`, `commit`, `publish`, `sync`, `pr`, `checks`,
+`logs`, `repo`, `ruleset`, `merge`).
+
+Merge gate (read-only unless `--apply`; writes need repo admin):
+
+```bash
+bun run pr:ready repo       # merge-commit only, auto-merge, delete branch on merge
+bun run pr:ready ruleset    # `main` ruleset: PR required, `Required` check, no force-push/deletion
+```
+
+Commands live once in [`.agents/commands/`](.agents/commands/) and are symlinked
+into `.claude/commands`, `.cursor/commands`, `.opencode/command`,
+`.windsurf/workflows`, `.github/prompts` and `.agents/skills/<name>/SKILL.md`.
+**Edit `.agents/commands/*.md`, never the links.** After adding or renaming one,
+run `bun run agents:sync`; `bun run check:agents` (part of `bun check`) fails on drift.
 
 Desired state lives in [`packages/infra/services.yaml`](packages/infra/services.yaml). Stateful destroy requires `bun run reconcile destroy <kind> --id … --i-understand-stateful`.
 

@@ -18,3 +18,6 @@ init-output.json
 .cursor/debug-*.log
 packages/portfolio/.astro/
 packages/turborepo-remote-cache/.env
+.superset/config.local.json
+.superset/.run-pid
+.superset/.run-port
