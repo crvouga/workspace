@@ -1,15 +1,10 @@
 /**
- * Orchestrate the full content-generation pipeline as fast as possible.
+ * Orchestrate the content-generation pipeline.
  *
  * Stage 1 (parallel):
  *   - All screenshots (work + projects + main) — one shared Chromium, bounded
  *     concurrency. Live per-job spinner via listr2.
  *   - Resume PDF — runs concurrently in its own process slot.
- *
- * Stage 2 (parallel):
- *   - Image optimization with `sharp` in-process; concurrency = cores/2 by
- *     default. Incremental: skips files where the .optimized.webp is newer
- *     than the source.
  *
  * Each parallel job is rendered as its own listr2 task so the user sees the
  * live state of everything at once.
@@ -17,7 +12,6 @@
 import { mkdir } from 'node:fs/promises';
 import { Listr } from 'listr2';
 import pretty from 'pretty-ms';
-import prettyBytes from 'pretty-bytes';
 import pc from 'picocolors';
 
 import { writeLine } from './library/cli-output';
@@ -31,29 +25,15 @@ import {
   type ScreenshotJob,
 } from './screenshot-helpers';
 import { buildAllScreenshotJobs } from './screenshot-jobs';
-import {
-  buildOptimizeJobs,
-  defaultOptimizeConcurrency,
-  optimizeOne,
-  type OptimizeJob,
-} from './optimize-images';
 import { generateResume } from './generate-resume';
 import type { Browser } from 'playwright';
 
 type Ctx = {
   browser?: Browser;
   screenshotConcurrency: number;
-  optimizeConcurrency: number;
   failures: { stage: string; name: string; error: string }[];
   totals: {
     screenshots: { ok: number; failed: number };
-    images: {
-      built: number;
-      cached: number;
-      failed: number;
-      bytesBefore: number;
-      bytesAfter: number;
-    };
     resume: 'ok' | 'failed' | 'skipped';
   };
 };
@@ -63,14 +43,11 @@ function fmtElapsed(ms: number): string {
 }
 
 const screenshotJobs = buildAllScreenshotJobs();
-
 const ctx: Ctx = {
   screenshotConcurrency: defaultScreenshotConcurrency(),
-  optimizeConcurrency: defaultOptimizeConcurrency(),
   failures: [],
   totals: {
     screenshots: { ok: 0, failed: 0 },
-    images: { built: 0, cached: 0, failed: 0, bytesBefore: 0, bytesAfter: 0 },
     resume: 'skipped',
   },
 };
@@ -172,55 +149,6 @@ const tasks = new Listr<Ctx>(
         t.title = pc.dim('Tear down Chromium (closed)');
       },
     },
-    {
-      // Image jobs are computed lazily because Stage 1 may have written new
-      // PNGs that this stage needs to discover.
-      title: pc.bold(
-        `Stage 2 — optimize images ${pc.dim(`[parallel: opt=${ctx.optimizeConcurrency}]`)}`
-      ),
-      task: async (ctx, parent) => {
-        const jobs = buildOptimizeJobs();
-        if (jobs.length === 0) {
-          parent.title = `${pc.bold('Stage 2 — optimize images')} ${pc.dim('(no images found)')}`;
-          return;
-        }
-        return parent.newListr(
-          jobs.map((job: OptimizeJob) => ({
-            title: job.name,
-            task: async (ctx, sub) => {
-              try {
-                const r = await optimizeOne(job);
-                if (r.skipped) {
-                  ctx.totals.images.cached += 1;
-                  sub.title = `${job.name}  ${pc.dim('(cached)')}`;
-                } else {
-                  ctx.totals.images.built += 1;
-                  ctx.totals.images.bytesBefore += r.inputBytes;
-                  ctx.totals.images.bytesAfter += r.outputBytes;
-                  sub.title = `${job.name}  ${pc.dim(
-                    `${prettyBytes(r.inputBytes)} → ${prettyBytes(r.outputBytes)}`
-                  )} ${fmtElapsed(r.elapsedMs)}`;
-                }
-              } catch (err) {
-                ctx.totals.images.failed += 1;
-                const msg = err instanceof Error ? err.message : String(err);
-                ctx.failures.push({
-                  stage: 'optimize',
-                  name: job.name,
-                  error: msg,
-                });
-                throw new Error(msg);
-              }
-            },
-          })),
-          {
-            concurrent: ctx.optimizeConcurrency,
-            exitOnError: false,
-            rendererOptions: { collapseSubtasks: false },
-          }
-        );
-      },
-    },
   ],
   {
     concurrent: false, // stages run sequentially; tasks within stages are concurrent
@@ -246,7 +174,7 @@ try {
 }
 
 const elapsed = performance.now() - t0;
-const { screenshots, images, resume } = ctx.totals;
+const { screenshots, resume } = ctx.totals;
 
 writeLine('');
 writeLine(pc.bold('Summary'));
@@ -264,14 +192,6 @@ writeLine(
         : pc.dim('skipped')
   }`
 );
-writeLine(
-  `  ${pc.cyan('Images')}:      ${pc.green(`${images.built} built`)}, ${pc.dim(
-    `${images.cached} cached`
-  )}, ${pc.red(`${images.failed} failed`)}` +
-    (images.bytesBefore > 0
-      ? `  ${pc.dim(`(${prettyBytes(images.bytesBefore)} → ${prettyBytes(images.bytesAfter)})`)}`
-      : '')
-);
 writeLine(`  ${pc.cyan('Total')}:       ${pretty(elapsed)}`);
 
 if (ctx.failures.length > 0) {
@@ -281,7 +201,7 @@ if (ctx.failures.length > 0) {
     writeLine(`  ${pc.red('✗')} [${f.stage}] ${f.name} — ${f.error}`);
   }
   // Treat non-trivial failures as a non-zero exit so CI catches them.
-  if (resume === 'failed' || images.failed > 0) exitCode = 1;
+  if (resume === 'failed') exitCode = 1;
 }
 
 process.exit(exitCode);

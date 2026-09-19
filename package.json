@@ -53,7 +53,8 @@
     "sync-redirects": "bun run --filter @pkgs/infra sync-redirects",
     "tc": "turbo run tc",
     "typecheck": "tsc --noEmit",
-    "vault:login": "vault login --method=userpass username=crvouga"
+    "vault:login": "vault login --method=userpass username=crvouga",
+    "portfolio": "bun run --filter @pkgs/portfolio dev"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.18.29",

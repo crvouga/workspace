@@ -14,11 +14,16 @@ import { PROJECTS, SIDE_PROJECTS, WORK_PROJECTS } from './project';
 import { SCHOOL } from './school';
 import { SECTIONS, getSection } from './sections';
 import { WORK } from './work';
-
+import {
+  AGENTIC_CURSOR_BADGE,
+  AGENTIC_CURSOR_TEXT,
+  AGENTIC_HEADING,
+  AGENTIC_WORKFLOW_POINTS,
+  AGENTIC_WORKFLOW_TITLE,
+} from './agentic';
 const PAGE_TITLE = 'Chris Vouga';
 
 const PAGE_SUBTITLE = 'Software Engineer';
-
 export const CONTENT = {
   SITE_URL: 'https://www.chrisvouga.dev',
   SITE_SOURCE_CODE_URL:
@@ -28,6 +33,7 @@ export const CONTENT = {
   PAGE_SUBTITLE,
   META_TITLE: `${PAGE_TITLE} • ${PAGE_SUBTITLE}`,
   META_DESCRIPTION: ABOUT_ME_ATTR_SAFE,
+  ABOUT_ME_ATTR_SAFE,
   EMAIL_ADDRESS: 'crvouga@gmail.com',
   GITHUB_URL: 'https://github.com/crvouga',
   LINKEDIN_URL: 'https://www.linkedin.com/in/chris-vouga',
@@ -45,6 +51,11 @@ export const CONTENT = {
   PROJECTS,
   SIDE_PROJECTS,
   WORK_PROJECTS,
+  AGENTIC_HEADING,
+  AGENTIC_CURSOR_BADGE,
+  AGENTIC_CURSOR_TEXT,
+  AGENTIC_WORKFLOW_TITLE,
+  AGENTIC_WORKFLOW_POINTS,
   //
   WORK_SECTION_TITLE: getSection('work').title,
   WORK,

@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import ProofOfWork from '../components/ProofOfWork.astro';
+import Agentic from '../components/Agentic.astro';
+import Experience from '../components/Experience.astro';
+import Projects from '../components/Projects.astro';
+import Education from '../components/Education.astro';
+import Contact from '../components/Contact.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Base>
+  <Nav />
+  <main>
+    <Hero />
+    <ProofOfWork />
+    <Agentic />
+    <Experience />
+    <Projects />
+    <Education />
+    <Contact />
+  </main>
+  <Footer />
+  <dialog id="gallery-dialog" class="gallery">
+    <img src="" alt="" loading="lazy" />
+  </dialog>
+</Base>
+
+<style>
+  dialog.gallery {
+    border: 1px solid var(--paper-border);
+    border-radius: var(--radius-lg);
+    background: var(--paper);
+    padding: 16px;
+    max-width: min(90vw, 900px);
+  }
+  dialog.gallery::backdrop {
+    background: rgba(10, 10, 11, 0.8);
+  }
+  dialog.gallery img {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: var(--radius-md);
+  }
+</style>

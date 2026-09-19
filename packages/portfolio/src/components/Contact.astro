@@ -1,0 +1,50 @@
+---
+import { CONTENT } from '../content/content';
+import IconEmail from './icons/IconEmail.astro';
+import IconGitHub from './icons/IconGitHub.astro';
+import IconLinkedIn from './icons/IconLinkedIn.astro';
+
+const email = CONTENT.EMAIL_ADDRESS;
+---
+<section id="contact">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{CONTENT.GET_SECTION('contact').number}</span>
+      <h2>{CONTENT.CONTACT_SECTION_TITLE}</h2>
+    </div>
+    <p class="headline">{CONTENT.CONTACT_COPY.headline}</p>
+    <p class="sub">{CONTENT.CONTACT_COPY.sub}</p>
+    <div class="ctas">
+      <a class="btn btn-contained" href={`mailto:${email}`} data-copy={email}>
+        <IconEmail />Email
+      </a>
+      <a class="btn" href="/chris-vouga-resume.pdf" download>
+        Résumé
+      </a>
+      <a class="btn" href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
+        <IconGitHub />GitHub
+      </a>
+      <a class="btn" href={CONTENT.LINKEDIN_URL} rel="me noopener" target="_blank">
+        <IconLinkedIn />LinkedIn
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .headline {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 600;
+  }
+  .sub {
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 24px;
+  }
+</style>

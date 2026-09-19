@@ -1,0 +1,124 @@
+---
+import { CONTENT } from '../content/content';
+import { fetchGitHubInsights } from '../lib/github';
+import ContributionHeatmap from './ContributionHeatmap.astro';
+
+// Strict: a missing credential or unusable GitHub response aborts the build with
+// an actionable error (see lib/github.ts) rather than rendering a blank map.
+const insights = await fetchGitHubInsights('crvouga');
+const fetchedDate = insights.fetchedAt.slice(0, 10);
+
+const tiles = [
+  { value: String(insights.totalContributions), label: 'contributions · last 12 months' },
+  { value: String(insights.longestStreak), label: 'longest streak (days)' },
+  { value: String(insights.currentStreak), label: 'current streak (days)' },
+  { value: String(insights.publicRepos), label: 'public repos' },
+  { value: String(insights.followers), label: 'followers' },
+];
+---
+
+<section id="proof">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">//</span>
+      <h2>Proof, not promises</h2>
+    </div>
+    <div class="card heatmap-card">
+      <ContributionHeatmap calendar={insights.calendar} />
+      <div class="legend" aria-hidden="true">
+        <span>Less</span>
+        {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
+          <span class={`swatch ${c}`} />
+        ))}
+        <span>More</span>
+      </div>
+    </div>
+    <div class="tiles">
+      {tiles.map((tile) => (
+        <div class="card tile">
+          <span class="value">{tile.value}</span>
+          <span class="label">{tile.label}</span>
+        </div>
+      ))}
+    </div>
+    <p class="caption">
+      Live data fetched from the GitHub API at build time ·
+      <span class="freshness">Data fetched {fetchedDate}</span> ·{' '}
+      <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
+        verify on GitHub
+      </a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .heatmap-card {
+    padding: 24px;
+  }
+  .heatmap-card :global(svg.heatmap) {
+    max-width: 100%;
+  }
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-end;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 12px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .swatch.c0 {
+    background: var(--gh-0);
+  }
+  .swatch.c1 {
+    background: var(--gh-1);
+  }
+  .swatch.c2 {
+    background: var(--gh-2);
+  }
+  .swatch.c3 {
+    background: var(--gh-3);
+  }
+  .swatch.c4 {
+    background: var(--gh-4);
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .tile {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tile .value {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .tile .label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .caption {
+    margin-top: 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+  .freshness {
+    color: var(--text-muted);
+  }
+</style>

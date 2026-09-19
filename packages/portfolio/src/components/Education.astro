@@ -1,0 +1,80 @@
+---
+import { CONTENT } from '../content/content';
+
+const school = CONTENT.SCHOOL[0];
+if (school === undefined) throw new Error('SCHOOL content is empty');
+const years = `${school.yearStart}–${school.yearEnd}`;
+---
+
+<section id="education">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{CONTENT.GET_SECTION('education').number}</span>
+      <h2>{CONTENT.SCHOOL_SECTION_TITLE}</h2>
+    </div>
+    <article class="card edu">
+      <img
+        src={school.imageSrc}
+        alt={school.imageAlt}
+        loading="lazy"
+        decoding="async"
+        width="600"
+        height="338"
+      />
+      <div class="body">
+        <h3>
+          {
+            school.infoUrl ? (
+              <a href={school.infoUrl} rel="noopener" target="_blank">
+                {school.institutionName}
+              </a>
+            ) : (
+              school.institutionName
+            )
+          }
+        </h3>
+        <p class="degree">{school.degree}</p>
+        <p class="years">{years}</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<style>
+  .edu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    flex-wrap: wrap;
+  }
+  .edu img {
+    width: 180px;
+    border-radius: var(--radius-md);
+  }
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  h3 {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+  }
+  h3 a {
+    color: var(--text);
+  }
+  h3 a:hover {
+    color: var(--accent);
+  }
+  .degree {
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+  .years {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+</style>

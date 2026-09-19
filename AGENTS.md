@@ -150,14 +150,14 @@ bun run dev # bun server :8787
 
 ## Portfolio site (`packages/portfolio/`)
 
-Source for `www.chrisvouga.dev` — a Bun static-site generator (`src/` → `dist/`) served by nginx, plus the content registry `projects.ts` (+ `src/content/projects/**`, the source of truth for project listings; append new projects to `entries-part-2.ts`).
+Source for `www.chrisvouga.dev` — an Astro 7 static site (`astro build` via Node ≥ 22 → one inlined `dist/index.html`) served by nginx, plus the content registry `projects.ts` (+ `src/content/projects/**`, the source of truth for project listings; append new projects to `entries-part-2.ts`). GitHub proof data (heatmap, streaks, counts) is fetched from the GitHub API at build time (`src/lib/github.ts`); GitHub failures never fail the build. The publish job passes `${{ github.token }}` as the `github_token` build secret.
 
 Its image `ghcr.io/crvouga/chrisvouga-portfolio` is built by this repo's CI: `publish-plan` derives the publish matrix from `services.yaml` (`list-publish-service-ids.ts` → services whose `github_repo` is this repo, minus standalone), the `publish` matrix builds each using `print-publish-inputs.ts` (dockerfile + repo-root build context), and `deploy-prepare` redeploys exactly those services at the pushed SHA. The `portfolio-health-check` job checks every public URL in content when `packages/portfolio/**` changes.
 
 | Command                                              | Purpose                                                                                    |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `bun run --filter @pkgs/portfolio build`             | Render `dist/` (package cwd; used by the Docker build and `turbo run build`).              |
-| `bun run --filter @pkgs/portfolio gen`               | Screenshots + resume PDF + image optimization (Playwright/sharp; local only).              |
+| `bun run --filter @pkgs/portfolio build`             | `astro build` → `dist/` (package cwd; used by the Docker build and `turbo run build`).     |
+| `bun run --filter @pkgs/portfolio gen`               | Screenshots + resume PDF (Playwright; local only).                                         |
 | `bun run --filter @pkgs/portfolio health-check-urls` | GET every public URL in content.                                                           |
 | `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI). |
 

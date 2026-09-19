@@ -165,6 +165,10 @@ vault:
     - name: RAILWAY_TOKEN
       configs: [dev, prd]
       used_by: [ci, infra]
+    - name: PORTFOLIO_GITHUB_TOKEN
+      configs: [dev, prd]
+      used_by: [ci, portfolio]
+      required: true
     - name: OPENAI_API_KEY
       configs: [dev, prd]
       used_by: [ci, opencode]

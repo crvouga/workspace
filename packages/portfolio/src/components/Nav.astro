@@ -1,0 +1,75 @@
+---
+import { CONTENT } from '../content/content';
+
+const links = CONTENT.SECTIONS.filter((s) => s.navLabel !== 'Education');
+---
+
+<header class="nav">
+  <div class="container inner">
+    <a href="#top" class="monogram" aria-label="CV — back to top">CV</a>
+    <nav aria-label="Site">
+      {links.map((s) => <a href={`#${s.id}`}>{s.navLabel}</a>)}
+    </nav>
+    <a href="/chris-vouga-resume.pdf" class="resume" download>Résumé</a>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(10, 10, 11, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--paper-border);
+  }
+  .inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 64px;
+  }
+  .monogram {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+  }
+  .monogram:hover {
+    color: #a6cbff;
+  }
+  nav {
+    display: flex;
+    gap: 20px;
+    margin-left: auto;
+  }
+  nav a {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  nav a:hover {
+    color: var(--accent);
+  }
+  .resume {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 14px;
+    border: 1px solid var(--paper-border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+  }
+  .resume:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  @media (max-width: 599px) {
+    nav {
+      display: none;
+    }
+    .resume {
+      margin-left: auto;
+    }
+  }
+</style>

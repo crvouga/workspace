@@ -1,0 +1,114 @@
+---
+import { CONTENT } from '../content/content';
+import type { Work } from '../content/work';
+
+const years = (job: Work): string =>
+  `${job.yearStart}–${job.yearEnd === 'Present' ? 'Present' : job.yearEnd}`;
+---
+
+<section id="work">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{CONTENT.GET_SECTION('work').number}</span>
+      <h2>{CONTENT.WORK_SECTION_TITLE}</h2>
+    </div>
+    <div class="jobs">
+      {
+        CONTENT.WORK.map((job) => (
+          <article class={`card job ${job.imageSrc[0] === undefined ? 'no-media' : ''}`}>
+            {job.imageSrc[0] !== undefined && (
+              <div class="media">
+                <img
+                  src={job.imageSrc[0]}
+                  alt={job.imageAlt}
+                  loading="lazy"
+                  decoding="async"
+                  width="600"
+                  height="338"
+                />
+              </div>
+            )}
+            <div class="body">
+              <div class="head">
+                <h3>
+                  {job.infoUrl ? (
+                    <a href={job.infoUrl} rel="noopener" target="_blank">
+                      {job.name}
+                    </a>
+                  ) : (
+                    job.name
+                  )}
+                </h3>
+                <span class="years">{years(job)}</span>
+              </div>
+              <p class="role">{job.jobTitle}</p>
+              <p class="desc">{job.jobDescription}</p>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .jobs {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .job {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: hidden;
+  }
+  .job.no-media {
+    display: block;
+  }
+  .job.no-media .body {
+    max-width: 760px;
+  }
+  @media (min-width: 900px) {
+    .job {
+      grid-template-columns: 340px 1fr;
+    }
+  }
+  .media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .years {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  h3 {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .role {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .desc {
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+</style>
