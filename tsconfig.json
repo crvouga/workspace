@@ -8,6 +8,6 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["packages/workstation/**/*.ts"],
+  "include": ["packages/workstation/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
