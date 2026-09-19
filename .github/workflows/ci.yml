@@ -22,11 +22,9 @@ on:
       - "**/*.md"
       - ".vscode/**"
       - ".cursor/**"
+  # No paths-ignore on PRs: the `Required` gate must report on every PR (the
+  # `changes` job already skips heavy work for docs-only diffs).
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - ".vscode/**"
-      - ".cursor/**"
   workflow_dispatch:
     inputs:
       publish:
@@ -313,6 +311,71 @@ jobs:
             --timeout-ms 30000 \
             --retries 4 \
             --retry-delay-ms 5000
+
+  commitlint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Lint PR commit messages (Conventional Commits)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bunx commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}" --verbose
+
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Single required status check for the `main` ruleset (scripts/pr-ready).
+  # Path-filtered jobs may be skipped; anything else must succeed.
+  Required:
+    needs: [changes, check, portfolio-health-check, commitlint, pr-title]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify PR branches and needed job results
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          if [ "${BASE_REF}" != "main" ]; then
+            echo "::error::PR base must be main, got ${BASE_REF}"
+            exit 1
+          fi
+          if [ "${HEAD_REF}" = "main" ]; then
+            echo "::error::PR head must not be main"
+            exit 1
+          fi
+          bad="$(jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key)=\(.value.result)"' <<< "${RESULTS}")"
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "${RESULTS}"
+          if [ -n "${bad}" ]; then
+            echo "::error::required jobs did not succeed: ${bad//$'\n'/, }"
+            exit 1
+          fi
+          # changes/commitlint/pr-title always run on PRs; skipping them is a failure.
+          for job in changes commitlint pr-title; do
+            result="$(jq -r --arg job "${job}" '.[$job].result' <<< "${RESULTS}")"
+            if [ "${result}" != "success" ]; then
+              echo "::error::${job} must succeed, got ${result}"
+              exit 1
+            fi
+          done
 
   publish-plan:
     needs: [changes]

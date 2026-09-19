@@ -15,9 +15,9 @@ Single flat Turborepo + Bun workspace at the repo root. Every package is scoped 
 
 Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`.
 
-`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
+`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.agents/commands/ci.md`](.agents/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
-**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
+**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.agents/commands/ci.md`](.agents/commands/ci.md) → **Watch CI & fix failures**.
 
 ## Declarative infra (`packages/infra/services.yaml`)
 
@@ -177,6 +177,10 @@ Portable local-machine configuration; the source of truth for the global OpenCod
 - Setup: `bun run ws:install` installs dependencies, registers the global `ws` CLI (`~/.local/bin/ws`), and converges workstation configuration idempotently; it refuses to overwrite unmanaged files. Day-to-day: run `ws` (interactive dashboard) or `ws sync`.
 - Canonical context: [`packages/workstation/README.md`](packages/workstation/README.md); agent directive: [`packages/workstation/AGENTS.md`](packages/workstation/AGENTS.md)
 - No secrets live here — they come from Vault KV at `secret/data/personal/{dev|prd}`.
+
+## Agent commands
+
+Canonical agent commands live in `.agents/commands/*.md` (`/ci`, `/pr-ready`); every harness copy (`.claude/commands`, `.cursor/commands`, `.opencode/command`, `.windsurf/workflows`, `.github/prompts`, `.agents/skills`) is a symlink managed by `bun run agents:sync`. Edit the canonical file, never a link. `/pr-ready` drives `bun run pr:ready <command>` (`scripts/pr-ready.ts`); PRs to `main` need the single `Required` check (`ci.yml` aggregator over `changes`, `check`, `portfolio-health-check`, `commitlint`, `pr-title`).
 
 ## Hard rules
 
