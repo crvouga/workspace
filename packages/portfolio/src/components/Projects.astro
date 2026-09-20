@@ -5,6 +5,7 @@ import type { Project } from '../content/project';
 import {
   COLLAPSED_PROJECTS,
   VISIBLE_PROJECTS,
+  accessNote,
   galleryFor,
   projectHref,
 } from '../lib/projects-view';
@@ -25,7 +26,10 @@ const extraTopicCount = (project: Project): number =>
     </div>
     <div class="grid">
       {
-        VISIBLE_PROJECTS.map((project, index) => (
+        VISIBLE_PROJECTS.map((project, index) => {
+          const href = projectHref(project);
+          const note = accessNote(project);
+          return (
           <article class="card project">
             {project.imageSrc[0] !== undefined && (
               <div class="cover-box">
@@ -42,9 +46,15 @@ const extraTopicCount = (project: Project): number =>
             )}
             <div class="body">
               <h3>
-                <a href={projectHref(project)} rel="noopener" target="_blank">
-                  {project.title}
-                </a>
+                {/* Client work under NDA has no destination but its gallery;
+                    an <a> without an href would read as a broken link. */}
+                {href === null ? (
+                  project.title
+                ) : (
+                  <a href={href} rel="noopener" target="_blank">
+                    {project.title}
+                  </a>
+                )}
               </h3>
               <p class="desc" set:html={project.description} />
               <div class="meta">
@@ -85,11 +95,13 @@ const extraTopicCount = (project: Project): number =>
                       Images
                     </button>
                   )}
+                  {note !== null && <span class="access-note">{note}</span>}
                 </div>
               </div>
             </div>
           </article>
-        ))
+          );
+        })
       }
     </div>
     {
@@ -97,13 +109,20 @@ const extraTopicCount = (project: Project): number =>
         <details class="more">
           <summary>Show {COLLAPSED_PROJECTS.length} more projects</summary>
           <div class="grid more-grid">
-            {COLLAPSED_PROJECTS.map((project) => (
+            {COLLAPSED_PROJECTS.map((project) => {
+              const href = projectHref(project);
+              const note = accessNote(project);
+              return (
               <article class="card project compact">
                 <div class="body">
                   <h3>
-                    <a href={projectHref(project)} rel="noopener" target="_blank">
-                      {project.title}
-                    </a>
+                    {href === null ? (
+                      project.title
+                    ) : (
+                      <a href={href} rel="noopener" target="_blank">
+                        {project.title}
+                      </a>
+                    )}
                   </h3>
                   <p class="desc" set:html={project.description} />
                   <div class="chips">
@@ -126,10 +145,12 @@ const extraTopicCount = (project: Project): number =>
                         Code
                       </a>
                     )}
+                    {note !== null && <span class="access-note">{note}</span>}
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         </details>
       )
@@ -231,6 +252,14 @@ const extraTopicCount = (project: Project): number =>
   }
   .gallery-btn:hover {
     color: #a6cbff;
+  }
+  .access-note {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
   }
   .more {
     margin-top: var(--space-5);

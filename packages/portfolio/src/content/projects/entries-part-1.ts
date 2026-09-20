@@ -10,46 +10,6 @@ import {
 
 export const PROJECT_ENTRIES_PART_1: readonly Project[] = [
   {
-    id: 'gamezilla',
-    title: 'gamezilla.app',
-    setting: 'side',
-    deployment: { t: 'public', url: GAMEZILLA_HREF },
-    code: { t: 'private' },
-    description: `${externalLink(GAMEZILLA_HREF, 'gamezilla.app')} is a real-time multiplayer gaming platform built with a full-stack TypeScript implementation of the Elm architecture. Successfully migrated from the ${externalLink(LAMDERA_HREF, 'Lamdera')} platform, demonstrating expertise in complex system migrations and real-time application architecture.`,
-    imageAlt: IMAGE_ALT,
-    imageSrc: [
-      '/gamezilla-app-screenshot.optimized.webp',
-      '/gamezilla.optimized.webp',
-    ],
-    galleryImageSrc: [
-      '/gamezilla-app-screenshot.optimized.webp',
-      toYouTubeVideoUrl({ youTubeVideoId: 'VSLpdPvHbD4', autoplay: true }),
-      '/gamezilla.optimized.webp',
-    ],
-    topics: [
-      'typescript',
-      'react',
-      'postgres',
-      'tailwind',
-      'websocket',
-      'bun',
-      'sqlite',
-    ],
-  },
-  {
-    id: 'geviti-app',
-    title: 'Geviti',
-    setting: 'work',
-    deployment: { t: 'public', url: 'https://app.gogeviti.com/' },
-    code: { t: 'private' },
-    description:
-      'Building features for a comprehensive health and longevity platform that combines bloodwork analysis, personalized supplement protocols, prescription therapies, and care team coordination. Developing tools that help users track their health metrics and optimize their well-being through proactive, data-driven care.',
-    imageAlt: IMAGE_ALT,
-    imageSrc: ['/geviti-app-screenshot.optimized.webp'],
-    galleryImageSrc: ['/geviti-app-screenshot.optimized.webp'],
-    topics: ['typescript', 'react', 'postgres', 'bun', 'aws', 'react-native'],
-  },
-  {
     id: 'triangulator',
     title: 'Triangulator',
     setting: 'work',
@@ -101,6 +61,46 @@ export const PROJECT_ENTRIES_PART_1: readonly Project[] = [
       'neo4j',
       's3',
     ],
+  },
+  {
+    id: 'gamezilla',
+    title: 'gamezilla.app',
+    setting: 'side',
+    deployment: { t: 'public', url: GAMEZILLA_HREF },
+    code: { t: 'private' },
+    description: `${externalLink(GAMEZILLA_HREF, 'gamezilla.app')} is a real-time multiplayer gaming platform built with a full-stack TypeScript implementation of the Elm architecture. Successfully migrated from the ${externalLink(LAMDERA_HREF, 'Lamdera')} platform, demonstrating expertise in complex system migrations and real-time application architecture.`,
+    imageAlt: IMAGE_ALT,
+    imageSrc: [
+      '/gamezilla-app-screenshot.optimized.webp',
+      '/gamezilla.optimized.webp',
+    ],
+    galleryImageSrc: [
+      '/gamezilla-app-screenshot.optimized.webp',
+      toYouTubeVideoUrl({ youTubeVideoId: 'VSLpdPvHbD4', autoplay: true }),
+      '/gamezilla.optimized.webp',
+    ],
+    topics: [
+      'typescript',
+      'react',
+      'postgres',
+      'tailwind',
+      'websocket',
+      'bun',
+      'sqlite',
+    ],
+  },
+  {
+    id: 'geviti-app',
+    title: 'Geviti',
+    setting: 'work',
+    deployment: { t: 'public', url: 'https://app.gogeviti.com/' },
+    code: { t: 'private' },
+    description:
+      'Building features for a comprehensive health and longevity platform that combines bloodwork analysis, personalized supplement protocols, prescription therapies, and care team coordination. Developing tools that help users track their health metrics and optimize their well-being through proactive, data-driven care.',
+    imageAlt: IMAGE_ALT,
+    imageSrc: ['/geviti-app-screenshot.optimized.webp'],
+    galleryImageSrc: ['/geviti-app-screenshot.optimized.webp'],
+    topics: ['typescript', 'react', 'postgres', 'bun', 'aws', 'react-native'],
   },
   {
     id: 'study-hall',
