@@ -10,7 +10,8 @@ const ENV_KEY = 'PORTFOLIO_GITHUB_TOKEN';
 const LOGIN = 'crvouga';
 const CALENDAR_DAYS = 371;
 const NOW = new Date('2025-06-01T00:00:00.000Z');
-const WINDOW_COUNT = buildRangeWindows(NOW).length;
+const CREATED_AT = '2019-04-02T03:05:59Z';
+const WINDOW_COUNT = buildRangeWindows(NOW, new Date(CREATED_AT)).length;
 
 let savedToken: string | undefined;
 beforeEach(() => {
@@ -123,7 +124,11 @@ const expectError = async (
   throw new Error(`expected fetchGitHubInsights to reject with ${code}`);
 };
 
-const validProfile = { public_repos: 81, followers: 13 };
+const validProfile = {
+  public_repos: 81,
+  followers: 13,
+  created_at: CREATED_AT,
+};
 
 const fetchOk = async (
   fetchFn: typeof fetch,
@@ -248,7 +253,7 @@ describe('fetchGitHubInsights success', () => {
   test('keeps a legitimate zero follower count', async () => {
     const { fetchFn } = createFetch({
       graphql: calendarPayload(dayCounts(CALENDAR_DAYS)),
-      rest: { public_repos: 4, followers: 0 },
+      rest: { ...validProfile, public_repos: 4, followers: 0 },
     });
     const insights = await fetchOk(fetchFn);
     expect(insights.followers).toBe(0);
@@ -340,7 +345,7 @@ describe('fetchGitHubInsights profile failures', () => {
   test('malformed profile stats name the endpoint and Vault key', async () => {
     const { fetchFn } = createFetch({
       graphql: calendarPayload(dayCounts(CALENDAR_DAYS)),
-      rest: { public_repos: 'many' },
+      rest: { ...validProfile, public_repos: 'many' },
     });
     const error = await expectError(fetchOk(fetchFn), 'invalid-response');
     expect(error.message).toContain(`/users/${LOGIN}`);

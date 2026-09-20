@@ -44,11 +44,18 @@ const resolveToken = (options: GitHubFetchOptions): string => {
   return token;
 };
 
+type Profile = {
+  readonly publicRepos: number;
+  readonly followers: number;
+  /** Bounds how far back the period picker can reach. */
+  readonly createdAt: Date;
+};
+
 const fetchProfile = async (
   config: RequestConfig,
   login: string,
   token: string
-): Promise<{ publicRepos: number; followers: number }> => {
+): Promise<Profile> => {
   const context = `GitHub profile endpoint (GET /users/${login})`;
   const json = await requestJson(
     config,
@@ -71,7 +78,17 @@ const fetchProfile = async (
       `${context} returned no public_repos/followers for ${login}. ${REMEDIATION}`
     );
   }
-  return { publicRepos, followers };
+  const rawCreatedAt = profile?.['created_at'];
+  const createdAt = new Date(
+    typeof rawCreatedAt === 'string' ? rawCreatedAt : 'invalid'
+  );
+  if (Number.isNaN(createdAt.getTime())) {
+    throw new GitHubInsightsError(
+      'invalid-response',
+      `${context} returned no usable created_at for ${login}. ${REMEDIATION}`
+    );
+  }
+  return { publicRepos, followers, createdAt };
 };
 
 /**
@@ -92,12 +109,11 @@ export const fetchGitHubInsights = async (
     attempts: options.attempts,
     sleepFn: options.sleepFn,
   };
-  const windows = buildRangeWindows(now);
-
-  const [ranges, profile] = await Promise.all([
-    fetchRanges(config, login, token, windows),
-    fetchProfile(config, login, token),
-  ]);
+  // Sequential, not parallel: the profile's `created_at` decides how many
+  // calendar years the calendar query asks for.
+  const profile = await fetchProfile(config, login, token);
+  const windows = buildRangeWindows(now, profile.createdAt);
+  const ranges = await fetchRanges(config, login, token, windows);
 
   const trailing = ranges[0];
   if (trailing === undefined) {

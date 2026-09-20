@@ -8,7 +8,7 @@ The package is a Bun workspace inside `crvouga/workspace`. The production image 
 
 Astro static output emits one `dist/index.html` with inlined CSS and no client framework. Runtime JavaScript is limited to copy-to-clipboard feedback, the native project gallery dialog, and the lazy YouTube embed. There is no analytics or runtime API dependency except the embedded video.
 
-GitHub proof data is fetched at build time by [`src/lib/github.ts`](src/lib/github.ts) using `PORTFOLIO_GITHUB_TOKEN` (a user token with `read:user`). The proof section offers a period picker — the trailing twelve months plus recent calendar years — and every period is fetched in one aliased GraphQL document. Shades are quartiles of each period's own active days rather than GitHub's fixed 1/3/6/10 buckets, which would saturate a high-volume account into a single flat colour. The picker itself is pure CSS (`:checked` sibling rules), so it works without JavaScript.
+GitHub proof data is fetched at build time by [`src/lib/github.ts`](src/lib/github.ts) using `PORTFOLIO_GITHUB_TOKEN` (a user token with `read:user`). The proof section offers a period picker — the trailing twelve months plus every calendar year back to the one the account was created in (the profile's `created_at` bounds it; years with no contributions are dropped). All periods are fetched in one aliased GraphQL document, and the picker CSS is index-independent, so adding years needs no CSS change. Shades are quartiles of each period's own active days rather than GitHub's fixed 1/3/6/10 buckets, which would saturate a high-volume account into a single flat colour. The picker itself is pure CSS (`:checked` sibling rules), so it works without JavaScript.
 
 ### Build-time uptime
 

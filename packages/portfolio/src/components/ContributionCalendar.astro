@@ -1,6 +1,5 @@
 ---
 import ContributionHeatmap from './ContributionHeatmap.astro';
-import { MAX_RANGE_WINDOWS } from '../lib/github-ranges';
 import type { ContributionRange } from '../lib/github';
 
 interface Props {
@@ -11,21 +10,27 @@ const { ranges } = Astro.props;
 if (ranges.length === 0) {
   throw new Error('ContributionCalendar requires at least one range');
 }
-// The panel-switching CSS below enumerates one rule per index; more periods than
-// it covers would silently render a blank card.
-if (ranges.length > MAX_RANGE_WINDOWS) {
-  throw new Error(
-    `ContributionCalendar supports at most ${String(MAX_RANGE_WINDOWS)} ranges, got ${String(ranges.length)}`
-  );
-}
 
 const count = (value: number): string => value.toLocaleString('en-US');
+
+/** The account's first year can hold a single contribution; "1 days" is wrong. */
+const plural = (value: number, noun: string): string =>
+  `${count(value)} ${noun}${value === 1 ? '' : 's'}`;
 const inputId = (id: string): string => `gh-range-${id}`;
 const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
 ---
 
 <div class="gh-calendar">
-  <p class="visually-hidden" id="gh-range-legend">Contribution period</p>
+  <p class="visually-hidden">Contribution period</p>
+  {
+    /*
+     * Each period is a radio, its chip label, and its panel in adjacent-sibling
+     * order, so both the active chip and the visible panel are selected by a
+     * single static rule. Flexbox `order` then lifts every chip into one row
+     * above the panel. Nothing here is indexed, so the picker works for any
+     * number of periods.
+     */
+  }
   {
     ranges.map((range, index) => (
       <Fragment>
@@ -40,26 +45,20 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
         <label class="range-option" for={inputId(range.id)}>
           {range.label}
         </label>
-      </Fragment>
-    ))
-  }
-
-  <div class="panels">
-    {
-      ranges.map((range) => (
         <div class="panel" data-range={range.id}>
           <p class="panel-total">
-            <strong>{count(range.totalContributions)}</strong> contributions
+            <strong>{count(range.totalContributions)}</strong>
+            {range.totalContributions === 1 ? 'contribution' : 'contributions'}
             <span class="panel-window">{`${range.from} → ${range.to}`}</span>
           </p>
           <ContributionHeatmap range={range} />
           <p class="panel-meta">
-            {`${count(range.activeDays)} active days · longest streak ${count(range.longestStreak)} days · busiest day ${count(range.busiestCount)}`}
+            {`${plural(range.activeDays, 'active day')} · longest streak ${plural(range.longestStreak, 'day')} · busiest day ${count(range.busiestCount)}`}
           </p>
         </div>
-      ))
-    }
-  </div>
+      </Fragment>
+    ))
+  }
 
   <div class="legend" aria-hidden="true">
     <span>Less</span>
@@ -76,7 +75,7 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
     gap: var(--space-2);
   }
 
-  /* Focusable but invisible: the labels are the visible control surface. */
+  /* Focusable but invisible: the chips are the visible control surface. */
   .gh-radio {
     position: absolute;
     width: 1px;
@@ -87,6 +86,7 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
   }
 
   .range-option {
+    order: 1;
     display: inline-flex;
     align-items: center;
     min-height: 32px;
@@ -120,29 +120,18 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
     outline-offset: 2px;
   }
 
-  .panels {
+  /* Pure-CSS panel switching, so the picker works with JavaScript disabled. */
+  .panel {
+    order: 2;
     flex: 1 0 100%;
     /* Without this a flex item's automatic minimum size is the grid's full
        intrinsic width, so the card overflows its container on phones and the
        heatmap never scrolls. */
     min-width: 0;
-    margin-top: var(--space-4);
-  }
-
-  /* Pure-CSS panel switching: the checked radio's index selects its panel, so
-     the picker works with JavaScript disabled. Index rules are enumerated up to
-     MAX_RANGE_WINDOWS (8), which the frontmatter asserts against. */
-  .panel {
+    margin-top: var(--space-3);
     display: none;
   }
-  .gh-radio:nth-of-type(1):checked ~ .panels > .panel:nth-child(1),
-  .gh-radio:nth-of-type(2):checked ~ .panels > .panel:nth-child(2),
-  .gh-radio:nth-of-type(3):checked ~ .panels > .panel:nth-child(3),
-  .gh-radio:nth-of-type(4):checked ~ .panels > .panel:nth-child(4),
-  .gh-radio:nth-of-type(5):checked ~ .panels > .panel:nth-child(5),
-  .gh-radio:nth-of-type(6):checked ~ .panels > .panel:nth-child(6),
-  .gh-radio:nth-of-type(7):checked ~ .panels > .panel:nth-child(7),
-  .gh-radio:nth-of-type(8):checked ~ .panels > .panel:nth-child(8) {
+  .gh-radio:checked + .range-option + .panel {
     display: block;
   }
 
@@ -174,6 +163,7 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
   }
 
   .legend {
+    order: 3;
     flex: 1 0 100%;
     display: flex;
     align-items: center;

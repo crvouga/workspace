@@ -5,9 +5,11 @@ import { join } from 'node:path';
 import { readSnapshot, writeSnapshot } from './github-cache';
 import { loadGitHubInsights } from './github-insights';
 import { summarizeRange } from './github-calendar';
+import { buildRangeWindows } from './github-ranges';
 import type { GitHubInsights } from './github-types';
 
 const DAY_MS = 86_400_000;
+const CREATED_AT = '2019-04-02T03:05:59Z';
 const TEMP_DIRS: string[] = [];
 
 afterEach(() => {
@@ -157,14 +159,22 @@ describe('loadGitHubInsights uptime policy', () => {
           contributionCalendar: { totalContributions: 4321, weeks },
         };
         const user: Record<string, unknown> = {};
-        for (let i = 0; i < 5; i += 1) user[`r${String(i)}`] = collection;
+        const windows = buildRangeWindows(new Date(), new Date(CREATED_AT));
+        windows.forEach((_, i) => {
+          user[`r${String(i)}`] = collection;
+        });
         return new Response(JSON.stringify({ data: { user } }), {
           status: 200,
         });
       }
-      return new Response(JSON.stringify({ public_repos: 81, followers: 13 }), {
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          public_repos: 81,
+          followers: 13,
+          created_at: CREATED_AT,
+        }),
+        { status: 200 }
+      );
     }) as typeof fetch;
 
     const result = await loadGitHubInsights('crvouga', {

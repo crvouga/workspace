@@ -22,14 +22,14 @@ const DAY_MS = 86_400_000;
 /** GitHub's own trailing window is 371 days once padded to week boundaries. */
 const TRAILING_DAYS = 365;
 
-/** Calendar years offered alongside the trailing window (current year first). */
-const CALENDAR_YEAR_COUNT = 4;
-
 /**
- * Hard cap on selectable periods. The panel-switching CSS enumerates one rule
- * per index, so widening this requires widening that rule set too.
+ * Sanity cap on selectable periods. The picker CSS is index-independent, so this
+ * is purely about page weight and query size: each period embeds its own ~370
+ * day squares. It also stops an implausible `createdAt` (a placeholder date, a
+ * clock skew) from generating decades of empty panels. Excess years are dropped
+ * oldest-first rather than failing the build.
  */
-export const MAX_RANGE_WINDOWS = 8;
+export const MAX_RANGE_WINDOWS = 30;
 
 export const TRAILING_RANGE_ID = 'last-12-months';
 
@@ -52,19 +52,29 @@ const calendarYearWindow = (year: number, today: Date): RangeWindow => {
   };
 };
 
-/**
- * Trailing 12 months first (the default panel), then calendar years newest to
- * oldest. Years the account predates come back empty and are dropped after the
- * fetch rather than guessed at here.
- */
-export const buildRangeWindows = (now: Date): readonly RangeWindow[] => {
-  const today = startOfUtcDay(now);
+/** Current year down to the account's first year, newest first. */
+const calendarYears = (today: Date, accountCreatedAt: Date): number[] => {
   const currentYear = today.getUTCFullYear();
-  const years = Array.from(
-    { length: CALENDAR_YEAR_COUNT },
-    (_, offset) => currentYear - offset
-  );
-  const windows: readonly RangeWindow[] = [
+  const firstYear = Math.min(currentYear, accountCreatedAt.getUTCFullYear());
+  const years: number[] = [];
+  for (let year = currentYear; year >= firstYear; year -= 1) years.push(year);
+  // Oldest years go first if the cap bites; the trailing window keeps its slot.
+  return years.slice(0, MAX_RANGE_WINDOWS - 1);
+};
+
+/**
+ * Trailing 12 months first (the default panel), then every calendar year back
+ * to the one the account was created in, newest to oldest. Years with no
+ * contributions come back empty and are dropped after the fetch — the account's
+ * first year is usually partial, and a blank grid behind a selectable chip is
+ * worse than no chip.
+ */
+export const buildRangeWindows = (
+  now: Date,
+  accountCreatedAt: Date
+): readonly RangeWindow[] => {
+  const today = startOfUtcDay(now);
+  return [
     {
       id: TRAILING_RANGE_ID,
       label: 'Last 12 months',
@@ -72,14 +82,10 @@ export const buildRangeWindows = (now: Date): readonly RangeWindow[] => {
       to: toIsoDay(today),
       kind: 'trailing',
     },
-    ...years.map((year) => calendarYearWindow(year, today)),
+    ...calendarYears(today, accountCreatedAt).map((year) =>
+      calendarYearWindow(year, today)
+    ),
   ];
-  if (windows.length > MAX_RANGE_WINDOWS) {
-    throw new Error(
-      `buildRangeWindows produced ${String(windows.length)} windows, max is ${String(MAX_RANGE_WINDOWS)}`
-    );
-  }
-  return windows;
 };
 
 /** GraphQL `DateTime` bounds covering the window's full inclusive days. */

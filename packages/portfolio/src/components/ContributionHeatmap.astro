@@ -21,7 +21,9 @@ const WEEKDAY_LABELS: Record<number, string> = { 1: 'Mon', 3: 'Wed', 5: 'Fri' };
 const gridWidth = grid.columns * PITCH - (PITCH - CELL);
 const height = TOP_GUTTER + 7 * PITCH - (PITCH - CELL);
 const weekdayRows = Object.entries(WEEKDAY_LABELS);
-const summary = `${range.label}: ${range.totalContributions.toLocaleString('en-US')} contributions across ${range.activeDays.toLocaleString('en-US')} active days.`;
+const plural = (value: number, noun: string): string =>
+  `${value.toLocaleString('en-US')} ${noun}${value === 1 ? '' : 's'}`;
+const summary = `${range.label}: ${plural(range.totalContributions, 'contribution')} across ${plural(range.activeDays, 'active day')}.`;
 ---
 
 <figure class="heatmap-figure">
