@@ -8,27 +8,45 @@ The package is a Bun workspace inside `crvouga/workspace`. The production image 
 
 Astro static output emits one `dist/index.html` with inlined CSS and no client framework. Runtime JavaScript is limited to copy-to-clipboard feedback, the native project gallery dialog, and the lazy YouTube embed. There is no analytics or runtime API dependency except the embedded video.
 
-GitHub proof data is fetched at build time by [`src/lib/github.ts`](src/lib/github.ts). Production builds require `PORTFOLIO_GITHUB_TOKEN` with `read:user` access and fail with an actionable error when GitHub data is unavailable. Development mode renders a notice card without a token. The preferred local entry point is `bun portfolio`, which wraps the dev server in `vault run --config dev` and always starts `astro dev --force`.
+GitHub proof data is fetched at build time by [`src/lib/github.ts`](src/lib/github.ts) using `PORTFOLIO_GITHUB_TOKEN` (a user token with `read:user`). The proof section offers a period picker — the trailing twelve months plus every calendar year back to the one the account was created in (the profile's `created_at` bounds it; years with no contributions are dropped). All periods are fetched in one aliased GraphQL document, and the picker CSS is index-independent, so adding years needs no CSS change. Shades are quartiles of each period's own active days rather than GitHub's fixed 1/3/6/10 buckets, which would saturate a high-volume account into a single flat colour. The picker itself is pure CSS (`:checked` sibling rules), so it works without JavaScript.
+
+### Build-time uptime
+
+A GitHub incident, an expired token, or a rate-limit window must not be able to take the build down. [`src/lib/github-insights.ts`](src/lib/github-insights.ts) applies, in order:
+
+1. live GitHub data, retried with backoff on network errors, 429, and 5xx — a success also rewrites the snapshot;
+2. the committed snapshot [`src/data/github-insights.json`](src/data/github-insights.json), rendered with a visible `Last known snapshot …` caption;
+3. otherwise a notice card in `astro dev`, or a hard build failure in production.
+
+The snapshot is a normal source file so it is present in the Docker build context. Every successful build rewrites it (days are stored as a first-day date plus a flat count array, one number per line, to keep diffs small) — **commit it** to move the offline fallback forward. `astro dev` never writes it.
+
+The preferred local entry point is `bun portfolio`, which wraps the dev server in `vault run --config dev` and always starts `astro dev --force`.
 
 ## Layout
 
-| Path                             | Purpose                                                                     |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `astro.config.mjs`               | Static Astro config and canonical site URL.                                 |
-| `src/pages/index.astro`          | Page composition, recruiter-first section order, gallery dialog.            |
-| `src/components/`                | Nav, Hero, Work, Projects, Proof, About, Toolbox, Contact, and icons.       |
-| `src/lib/github.ts`              | Build-time GitHub GraphQL/REST fetch, validation, streaks, and errors.      |
-| `src/lib/projects-view.ts`       | Shared visible-project ordering and typed gallery payload.                  |
-| `src/layouts/Base.astro`         | Document head, OG/JSON-LD metadata, global copy feedback script.            |
-| `src/styles/global.css`          | Dark design tokens, typography, layout primitives, focus styles.            |
-| `src/content/`                   | Typed content registry, skills, work, education, and project data.          |
-| `assets/`                        | Source screenshots/photos. Not served and excluded from the Docker context. |
-| `public/`                        | Served derivatives, fonts, icons, sitemap, robots.txt, resume PDF.          |
-| `scripts/optimize-images.ts`     | Converts raster sources in `assets/` to 1400px WebP derivatives.            |
-| `scripts/prune-unused-assets.ts` | Dry-run/apply asset reference hygiene.                                      |
-| `scripts/health-check-urls.ts`   | Checks every public URL referenced by content.                              |
-| `Dockerfile`, `nginx.conf`       | Container build and static server.                                          |
-| `test/server.test.ts`            | Local Docker E2E smoke test.                                                |
+| Path                             | Purpose                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `astro.config.mjs`               | Static Astro config and canonical site URL.                                   |
+| `src/pages/index.astro`          | Page composition, recruiter-first section order, gallery dialog.              |
+| `src/components/`                | Nav, Hero, Work, Projects, Proof, About, Toolbox, Contact, sticky CTA, icons. |
+| `src/lib/github.ts`              | Build-time GitHub GraphQL/REST fetch, validation, streaks, and errors.        |
+| `src/lib/github-insights.ts`     | Uptime policy: live data → committed snapshot → notice/failure.               |
+| `src/lib/github-cache.ts`        | Compact snapshot read/write and structural validation.                        |
+| `src/lib/github-ranges.ts`       | The selectable contribution periods and their GraphQL bounds.                 |
+| `src/lib/github-levels.ts`       | Per-period quartile thresholds behind the heatmap shades.                     |
+| `src/lib/heatmap-grid.ts`        | Weekday-accurate column/row geometry and month labels.                        |
+| `src/data/`                      | Committed GitHub snapshot; the offline build fallback.                        |
+| `src/lib/projects-view.ts`       | Shared visible-project ordering and typed gallery payload.                    |
+| `src/layouts/Base.astro`         | Document head, OG/JSON-LD metadata, global copy feedback script.              |
+| `src/styles/global.css`          | Dark design tokens, typography, layout primitives, focus styles.              |
+| `src/content/`                   | Typed content registry, skills, work, education, and project data.            |
+| `assets/`                        | Source screenshots/photos. Not served and excluded from the Docker context.   |
+| `public/`                        | Served derivatives, fonts, icons, sitemap, robots.txt, resume PDF.            |
+| `scripts/optimize-images.ts`     | Converts raster sources in `assets/` to 1400px WebP derivatives.              |
+| `scripts/prune-unused-assets.ts` | Dry-run/apply asset reference hygiene.                                        |
+| `scripts/health-check-urls.ts`   | Checks every public URL referenced by content.                                |
+| `Dockerfile`, `nginx.conf`       | Container build and static server.                                            |
+| `test/server.test.ts`            | Local Docker E2E smoke test.                                                  |
 
 ## Scripts
 

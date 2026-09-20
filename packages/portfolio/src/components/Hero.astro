@@ -45,6 +45,10 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
           <IconLinkedIn /><span class="btn-label">LinkedIn</span>
         </a>
       </div>
+      <p class="cta-note">
+        <a class="inline-link" href={`mailto:${email}`}>{email}</a>
+        <span> · {CONTENT.HERO.ctaNote}</span>
+      </p>
     </div>
 
     <aside class="card now">
@@ -119,6 +123,12 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
     flex-wrap: wrap;
     gap: var(--space-3);
     margin-top: var(--space-6);
+  }
+  .cta-note {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
   }
   .now {
     padding: var(--space-5);

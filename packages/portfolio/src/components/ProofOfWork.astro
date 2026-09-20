@@ -1,45 +1,45 @@
 ---
 import { CONTENT } from '../content/content';
-import {
-  GitHubInsightsError,
-  fetchGitHubInsights,
-  type GitHubInsights,
-} from '../lib/github';
-import ContributionHeatmap from './ContributionHeatmap.astro';
+import { loadGitHubInsights } from '../lib/github-insights';
+import ContributionCalendar from './ContributionCalendar.astro';
 
-// Strict in production: a missing credential or unusable GitHub response aborts
-// the build with an actionable error (see lib/github.ts) rather than rendering a
-// blank map. `astro dev` degrades to a notice card instead, so the page stays
-// workable without Vault or a local .env token.
+// Uptime policy lives in lib/github-insights.ts: live GitHub data first, the
+// committed snapshot when GitHub is unreachable, and only then a failure. In
+// `astro dev` a missing token degrades to a notice card instead of failing.
 const envToken = import.meta.env.PORTFOLIO_GITHUB_TOKEN;
+const isDev = import.meta.env.DEV;
 
-let insights: GitHubInsights | null = null;
-try {
-  insights = await fetchGitHubInsights(
-    'crvouga',
-    envToken ? { token: envToken } : {}
-  );
-} catch (error) {
-  if (!import.meta.env.DEV || !(error instanceof GitHubInsightsError)) {
-    throw error;
-  }
-  console.warn(`[portfolio] ${error.message}`);
-}
+const { insights } = await loadGitHubInsights('crvouga', {
+  ...(envToken ? { token: envToken } : {}),
+  allowMissing: isDev,
+  // A dev server rebuilds on every edit; only real builds move the fallback.
+  persist: !isDev,
+});
 
 const section = CONTENT.GET_SECTION('proof');
-const fetchedDate = insights === null ? '' : insights.fetchedAt.slice(0, 10);
-const totals = insights === null ? '' : insights.totalContributions.toLocaleString('en-US');
+const count = (value: number): string => value.toLocaleString('en-US');
 
 const tiles =
   insights === null
     ? []
     : [
-        { value: totals, label: 'Contributions (12mo)' },
-        { value: String(insights.longestStreak), label: 'Longest streak (days)' },
-        { value: String(insights.currentStreak), label: 'Current streak (days)' },
-        { value: String(insights.publicRepos), label: 'Public repos' },
-        { value: String(insights.followers), label: 'Followers' },
+        {
+          value: count(insights.totalContributions),
+          label: 'Contributions (12mo)',
+        },
+        { value: count(insights.currentStreak), label: 'Current streak (days)' },
+        { value: count(insights.longestStreak), label: 'Longest streak (days)' },
+        { value: count(insights.publicRepos), label: 'Public repos' },
+        { value: count(insights.followers), label: 'Followers' },
       ];
+
+const fetchedDate = insights === null ? '' : insights.fetchedAt.slice(0, 10);
+const provenance =
+  insights === null
+    ? ''
+    : insights.source === 'live'
+      ? `Live data from the GitHub API at build time · ${fetchedDate} · `
+      : `Last known snapshot · ${fetchedDate} · GitHub was unreachable at build time · `;
 ---
 
 <section id="proof">
@@ -48,27 +48,22 @@ const tiles =
       <span class="number">{section.number}</span>
       <h2>{section.title}</h2>
     </div>
+    <p class="lede">{CONTENT.PROOF_LEDE}</p>
     {
       insights === null ? (
         <div class="card heatmap-card">
-          <p>
+          <p class="notice">
             GitHub proof data unavailable in dev. Set <code>PORTFOLIO_GITHUB_TOKEN</code> in
-            packages/portfolio/.env, or run via <code>bun portfolio</code>.
+            packages/portfolio/.env, or run <code>bun portfolio</code>.
           </p>
         </div>
       ) : (
         <>
           <div class="card heatmap-card">
-            <ContributionHeatmap calendar={insights.calendar} />
-            <div class="legend" aria-hidden="true">
-              <span>Less</span>
-              {['c0', 'c1', 'c2', 'c3', 'c4'].map((c) => (
-                <span class={`swatch ${c}`} />
-              ))}
-              <span>More</span>
-            </div>
+            <ContributionCalendar ranges={insights.ranges} />
             <p class="visually-hidden">
-              {CONTENT.ABOUT_GITHUB_HEATMAP_TEXT} {totals} contributions in the last 12 months.
+              {CONTENT.ABOUT_GITHUB_HEATMAP_TEXT} {count(insights.totalContributions)}{' '}
+              contributions in the last 12 months.
             </p>
           </div>
           <div class="tiles">
@@ -80,7 +75,7 @@ const tiles =
             ))}
           </div>
           <p class="caption">
-            {`Live data fetched from the GitHub API at build time · ${fetchedDate} · `}
+            {provenance}
             <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
               verify on GitHub
             </a>
@@ -92,60 +87,31 @@ const tiles =
 </section>
 
 <style>
+  .lede {
+    max-width: 62ch;
+    color: var(--text-muted);
+    margin-bottom: var(--space-5);
+  }
   .heatmap-card {
     padding: var(--space-5);
   }
-  .heatmap-card :global(svg.heatmap) {
-    max-width: 100%;
-  }
-  .heatmap-card p {
+  .notice {
     color: var(--text-muted);
     font-size: var(--text-base);
   }
-  .heatmap-card code {
+  .notice code {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--accent);
   }
-  .legend {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    justify-content: flex-end;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-subtle);
-    margin-top: var(--space-3);
-  }
-  .swatch {
-    width: 11px;
-    height: 11px;
-    border-radius: 2px;
-    display: inline-block;
-  }
-  .swatch.c0 {
-    background: var(--gh-0);
-  }
-  .swatch.c1 {
-    background: var(--gh-1);
-  }
-  .swatch.c2 {
-    background: var(--gh-2);
-  }
-  .swatch.c3 {
-    background: var(--gh-3);
-  }
-  .swatch.c4 {
-    background: var(--gh-4);
-  }
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: var(--space-3);
-    margin-top: var(--space-5);
+    margin-top: var(--space-4);
   }
   .tile {
-    padding: var(--space-5) var(--space-4);
+    padding: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -155,10 +121,11 @@ const tiles =
     font-size: var(--text-2xl);
     font-weight: 700;
     color: var(--accent);
+    line-height: 1.1;
   }
   .tile .label {
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: 11px;
     color: var(--text-muted);
   }
   .caption {
@@ -166,5 +133,21 @@ const tiles =
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--text-subtle);
+  }
+  /* Two tiles per row on phones instead of one tall column. */
+  @media (max-width: 599px) {
+    .heatmap-card {
+      padding: var(--space-4);
+    }
+    .tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    /* An odd tile count would otherwise leave a lone half-width card. */
+    .tile:last-child:nth-child(odd) {
+      grid-column: span 2;
+    }
+    .tile .value {
+      font-size: var(--text-xl);
+    }
   }
 </style>

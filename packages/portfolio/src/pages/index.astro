@@ -10,6 +10,7 @@ import About from '../components/About.astro';
 import Education from '../components/Education.astro';
 import Contact from '../components/Contact.astro';
 import Footer from '../components/Footer.astro';
+import StickyCta from '../components/StickyCta.astro';
 import { VISIBLE_GALLERIES } from '../lib/projects-view';
 
 const galleriesJson = JSON.stringify(VISIBLE_GALLERIES);
@@ -28,6 +29,7 @@ const galleriesJson = JSON.stringify(VISIBLE_GALLERIES);
     <Contact />
   </main>
   <Footer />
+  <StickyCta />
   <dialog id="gallery-dialog" class="gallery" aria-label="Project images">
     <div class="stage"></div>
     <div class="bar">

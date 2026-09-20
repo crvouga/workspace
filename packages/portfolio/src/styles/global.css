@@ -99,6 +99,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Clearance for the phone-only action bar (components/StickyCta.astro) so it
+   never covers the last line of the footer. */
+@media (max-width: 899px) {
+  body {
+    padding-bottom: 76px;
+  }
+}
+
 a {
   color: var(--accent);
   text-decoration: none;
@@ -180,6 +188,14 @@ img {
 @media (min-width: 900px) {
   .container {
     padding-inline: var(--space-6);
+  }
+}
+
+/* The header wraps to two rows below 600px, so anchored sections need more
+   clearance than the single-row desktop height. */
+@media (max-width: 599px) {
+  html {
+    scroll-padding-top: 132px;
   }
 }
 

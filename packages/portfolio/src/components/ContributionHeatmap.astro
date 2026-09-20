@@ -1,60 +1,138 @@
 ---
-import type { ContributionDay } from '../lib/github';
+import { buildHeatmapGrid } from '../lib/heatmap-grid';
+import type { ContributionRange } from '../lib/github';
 
 interface Props {
-  calendar: readonly ContributionDay[];
+  range: ContributionRange;
 }
-const { calendar } = Astro.props;
+const { range } = Astro.props;
 
-// fetchGitHubInsights validates a complete trailing year (≥365 days) before the
-// build reaches here; guard the component contract against a malformed call.
-if (calendar.length === 0) {
-  throw new Error('ContributionHeatmap requires a non-empty calendar');
-}
+const grid = buildHeatmapGrid(range.calendar);
 
-// Chunk into weeks of up to 7 days (GitHub's grid is 53 weeks × 7).
-const weeks: (readonly ContributionDay[])[] = [];
-for (let i = 0; i < calendar.length; i += 7) {
-  weeks.push(calendar.slice(i, i + 7));
-}
-const cell = 11;
-const pitch = 13;
-const width = weeks.length * pitch + (pitch - cell);
-const height = 7 * pitch - (pitch - cell);
+/** Square size and column pitch; the 2px difference is the gap between days. */
+const CELL = 11;
+const PITCH = 13;
+/** Room above the grid for the month row. */
+const TOP_GUTTER = 16;
+const RAIL_WIDTH = 28;
+/** Row index → weekday rail label; GitHub labels alternating rows only. */
+const WEEKDAY_LABELS: Record<number, string> = { 1: 'Mon', 3: 'Wed', 5: 'Fri' };
+
+const gridWidth = grid.columns * PITCH - (PITCH - CELL);
+const height = TOP_GUTTER + 7 * PITCH - (PITCH - CELL);
+const weekdayRows = Object.entries(WEEKDAY_LABELS);
+const plural = (value: number, noun: string): string =>
+  `${value.toLocaleString('en-US')} ${noun}${value === 1 ? '' : 's'}`;
+const summary = `${range.label}: ${plural(range.totalContributions, 'contribution')} across ${plural(range.activeDays, 'active day')}.`;
 ---
 
-<div class="heatmap-scroll">
-  <svg
-    class="heatmap"
-    role="img"
-    aria-label="GitHub contribution heatmap, last 12 months"
-    viewBox={`0 0 ${width} ${height}`}
-    width={width}
-    height={height}
-    preserveAspectRatio="xMinYMin meet"
-  >
-    {
-      weeks.map((week, x) =>
-        week.map((day, row) => (
-          <rect
-            x={x * pitch}
-            y={row * pitch}
-            width={cell}
-            height={cell}
-            rx="2"
-            class={`c${day.level}`}
+<figure class="heatmap-figure">
+  <div class="heatmap-row">
+    {/* The rail lives outside the scroller so Mon/Wed/Fri stay readable while
+        the grid is scrolled on narrow screens. */}
+    <svg
+      class="weekday-rail"
+      width={RAIL_WIDTH}
+      height={height}
+      viewBox={`0 0 ${RAIL_WIDTH} ${height}`}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {
+        weekdayRows.map(([row, label]) => (
+          <text
+            class="axis"
+            x={RAIL_WIDTH - 6}
+            y={TOP_GUTTER + Number(row) * PITCH + 9}
+            text-anchor="end"
           >
-            <title>{`${day.count} contributions on ${day.date}`}</title>
-          </rect>
+            {label}
+          </text>
         ))
-      )
-    }
-  </svg>
-</div>
+      }
+    </svg>
+    <div
+      class="heatmap-scroll"
+      data-heatmap-scroll
+      tabindex="0"
+      role="group"
+      aria-label={summary}
+    >
+      <svg
+        class="heatmap"
+        role="img"
+        aria-label={summary}
+        viewBox={`0 0 ${gridWidth} ${height}`}
+        width={gridWidth}
+        height={height}
+        preserveAspectRatio="xMinYMin meet"
+      >
+        {
+          grid.months.map((month) => (
+            <text class="axis" x={month.column * PITCH} y={TOP_GUTTER - 5}>
+              {month.label}
+            </text>
+          ))
+        }
+        {
+          grid.cells.map((cell) => (
+            <rect
+              x={cell.column * PITCH}
+              y={TOP_GUTTER + cell.row * PITCH}
+              width={CELL}
+              height={CELL}
+              rx="2"
+              class={`c${cell.day.level}`}
+            >
+              <title>{cell.label}</title>
+            </rect>
+          ))
+        }
+      </svg>
+    </div>
+  </div>
+  <figcaption class="visually-hidden">{summary}</figcaption>
+</figure>
 
 <style>
+  .heatmap-figure {
+    margin: 0;
+  }
+  .heatmap-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .weekday-rail {
+    flex: none;
+    display: block;
+  }
+  /* The grid keeps its natural size and scrolls on narrow screens; scaling it
+     down to fit would drop day squares below a legible size on phones. */
   .heatmap-scroll {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: var(--space-2);
+  }
+  .heatmap-scroll:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+  }
+  svg.heatmap {
+    display: block;
+  }
+  .axis {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    fill: var(--text-subtle);
+  }
+  rect {
+    shape-rendering: geometricPrecision;
   }
   .c0 {
     fill: var(--gh-0);
@@ -70,8 +148,5 @@ const height = 7 * pitch - (pitch - cell);
   }
   .c4 {
     fill: var(--gh-4);
-  }
-  rect {
-    shape-rendering: crispEdges;
   }
 </style>
