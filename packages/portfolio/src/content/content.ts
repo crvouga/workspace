@@ -9,6 +9,7 @@ import { CONTACT_COPY } from './contact';
 import { FOOTER_COPY } from './footer';
 import { CORE_STACK, HERO, LOCATION, MONOGRAM_INITIALS } from './hero';
 import { PROJECTS } from './project';
+import { PROOF_LEDE } from './proof';
 import { SCHOOL } from './school';
 import { SECTIONS, getSection } from './sections';
 import { buildSkillRows } from './skills';
@@ -50,6 +51,7 @@ export const CONTENT = {
   CONTACT_COPY,
   FOOTER_COPY,
   //
+  PROOF_LEDE,
   PROJECT_SECTION_TITLE: getSection('projects').title,
   PROJECTS,
   AGENTIC_CURSOR_BADGE,
