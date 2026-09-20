@@ -48,27 +48,40 @@ const galleriesJson = JSON.stringify(VISIBLE_GALLERIES);
 </Base>
 
 <style>
+  /* Fixed width, not max-width: a dialog sizes to its content, so letting each
+     slide set the width moved the pagination controls on every step. */
   dialog.gallery {
     border: 1px solid var(--paper-border);
     border-radius: var(--radius-lg);
     background: var(--paper);
     padding: var(--space-4);
-    max-width: min(92vw, 1100px);
+    width: min(92vw, 1100px);
   }
   dialog.gallery::backdrop {
     background: rgba(10, 10, 11, 0.8);
   }
+  /* One fixed box for every slide. Portrait screenshots, landscape screenshots
+     and 16:9 video all letterbox inside it rather than resizing the dialog. */
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 78vh;
+    background: var(--bg);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
   .stage img,
   .stage iframe {
     display: block;
-    max-width: 100%;
-    max-height: 78vh;
-    border-radius: var(--radius-md);
-  }
-  .stage iframe {
-    width: min(92vw, 1100px);
-    aspect-ratio: 16 / 9;
+    width: 100%;
+    height: 100%;
     border: 0;
+  }
+  .stage img {
+    object-fit: contain;
   }
   .bar {
     display: flex;
