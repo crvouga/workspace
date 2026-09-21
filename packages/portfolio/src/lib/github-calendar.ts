@@ -171,19 +171,45 @@ const assertUsableTrailing = (
   }
 };
 
-const assertNoGraphQLErrors = (json: unknown): Record<string, unknown> => {
-  const typed = toRecord(json);
-  const errors = typed?.['errors'];
-  if (Array.isArray(errors) && errors.length > 0) {
-    const detail = errors
-      .map((e) => toRecord(e)?.['message'] ?? 'unknown error')
-      .join('; ');
-    throw new GitHubInsightsError(
-      'api-error',
-      `${CONTEXT} returned errors: ${detail}. ${SCOPE_REMEDIATION}`
-    );
-  }
-  const user = toRecord(toRecord(typed?.['data'])?.['user']);
+/**
+ * GraphQL reports its own outages with HTTP 200 and an `errors[]` array, so the
+ * status code cannot classify them. These are the transient ones: a secondary
+ * rate limit, and the backend timeout GitHub phrases as "something went wrong".
+ * Everything else — `NOT_FOUND`, `FORBIDDEN`, `INSUFFICIENT_SCOPES` — is a
+ * credential or query problem that will fail identically on every attempt.
+ */
+const TRANSIENT_ERROR_TYPES = new Set(['RATE_LIMITED', 'SERVICE_UNAVAILABLE']);
+const TRANSIENT_MESSAGE = /something went wrong|timeout|timed out|try again/i;
+
+const isTransientGraphQLError = (error: unknown): boolean => {
+  const record = toRecord(error);
+  const type = record?.['type'];
+  if (typeof type === 'string' && TRANSIENT_ERROR_TYPES.has(type)) return true;
+  const message = record?.['message'];
+  return typeof message === 'string' && TRANSIENT_MESSAGE.test(message);
+};
+
+/**
+ * Throws on a GraphQL-level failure. Runs inside the HTTP retry loop (passed as
+ * `validate`), which is the only place a retryable 200 can be retried.
+ */
+const assertNoGraphQLErrors = (json: unknown): void => {
+  const errors = toRecord(json)?.['errors'];
+  if (!Array.isArray(errors) || errors.length === 0) return;
+  const detail = errors
+    .map((e) => toRecord(e)?.['message'] ?? 'unknown error')
+    .join('; ');
+  const retryable = errors.some(isTransientGraphQLError);
+  const suffix = retryable ? '[transient]' : SCOPE_REMEDIATION;
+  throw new GitHubInsightsError(
+    'api-error',
+    `${CONTEXT} returned errors: ${detail}. ${suffix}`,
+    { retryable }
+  );
+};
+
+const readUser = (json: unknown): Record<string, unknown> => {
+  const user = toRecord(toRecord(toRecord(json)?.['data'])?.['user']);
   if (user === null) {
     throw new GitHubInsightsError(
       'invalid-response',
@@ -217,10 +243,9 @@ export const fetchRanges = async (
   token: string,
   windows: readonly RangeWindow[]
 ): Promise<readonly ContributionRange[]> => {
-  const json = await requestJson(
-    config,
-    GRAPHQL_URL,
-    {
+  const json = await requestJson(config, {
+    url: GRAPHQL_URL,
+    init: {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -232,9 +257,10 @@ export const fetchRanges = async (
         variables: buildVariables(login, windows),
       }),
     },
-    CONTEXT
-  );
-  const user = assertNoGraphQLErrors(json);
+    context: CONTEXT,
+    validate: assertNoGraphQLErrors,
+  });
+  const user = readUser(json);
   const ranges = windows.map((window, i) => readRange(user, window, i));
   const trailing = ranges[0];
   if (trailing === undefined) {

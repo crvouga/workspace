@@ -14,6 +14,8 @@
     "health-check-urls": "bun run scripts/health-check-urls.ts",
     "lint": "astro sync && eslint . --max-warnings 0",
     "preview": "docker build -f packages/portfolio/Dockerfile --secret id=github_token,env=PORTFOLIO_GITHUB_TOKEN -t portfolio-app .. && docker run --rm -p 8080:80 portfolio-app",
+    "refresh-github": "bun run scripts/refresh-github-insights.ts",
+    "check-github-freshness": "bun run scripts/refresh-github-insights.ts --check",
     "sync": "astro sync",
     "screenshot-main": "bun run ./src/screenshot-main-site.ts",
     "screenshot-projects": "bun run ./src/screenshot-project-websites.ts",

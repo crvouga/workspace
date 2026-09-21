@@ -125,6 +125,42 @@ describe('loadGitHubInsights uptime policy', () => {
     expect(result.warning).toContain('request failed');
   });
 
+  test('reports how old the served snapshot is, so the caption can say so', async () => {
+    const path = tempSnapshot();
+    const fixture = insightsFixture();
+    writeSnapshot(fixture, path);
+
+    const result = await loadGitHubInsights('crvouga', {
+      token: 'ghp_test_token',
+      fetchFn: failingFetch,
+      sleepFn: noSleep,
+      snapshotPath: path,
+      persist: false,
+      // Ten days after the fixture was captured.
+      now: new Date('2026-09-30T20:29:41.349Z'),
+    });
+
+    const freshness = required(result.freshness, 'freshness');
+    expect(freshness.ageInDays).toBe(10);
+    expect(freshness.level).toBe('very-stale');
+    expect(freshness.label).toBe('10 days old');
+  });
+
+  test('live data is reported as fresh', async () => {
+    const path = tempSnapshot();
+    writeSnapshot(insightsFixture(), path);
+
+    const result = await loadGitHubInsights('crvouga', {
+      token: '',
+      snapshotPath: path,
+      persist: false,
+      now: new Date('2026-09-20T22:00:00.000Z'),
+    });
+
+    // Token missing → snapshot, captured the same day → still fresh.
+    expect(required(result.freshness, 'freshness').level).toBe('fresh');
+  });
+
   test('serves the snapshot when the token is missing entirely', async () => {
     const path = tempSnapshot();
     writeSnapshot(insightsFixture(), path);

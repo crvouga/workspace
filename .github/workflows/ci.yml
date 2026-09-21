@@ -22,6 +22,14 @@ on:
       - '**/*.md'
       - '.vscode/**'
       - '.cursor/**'
+  # Daily portfolio refresh. The site is static, so the GitHub proof data is
+  # frozen at image-build time and would otherwise only move when someone
+  # happens to push. This run refreshes the committed snapshot and rebuilds the
+  # portfolio image (whose build fetches GitHub live), so the heatmap, streak
+  # and contribution totals are never more than a day behind. Nothing else in
+  # the fleet is touched — see publish-plan.
+  schedule:
+    - cron: '0 13 * * *' # 13:00 UTC — early morning in America/Los_Angeles
   # No paths-ignore on PRs: the `Required` gate must report on every PR (the
   # `changes` job already skips heavy work for docs-only diffs).
   pull_request:
@@ -205,6 +213,14 @@ jobs:
               DEPLOY=true
             fi
             # Manual dispatch with no flags: still allow smoke; no gate jobs
+          elif [ "${EVENT_NAME}" = "schedule" ]; then
+            # Data-freshness run: rebuild and redeploy the portfolio image so it
+            # picks up today's GitHub data. No code changed, so `check` is
+            # skipped (deploy-prepare tolerates that) and publish-plan narrows
+            # the matrix to portfolio alone.
+            PUBLISH=true
+            DEPLOY=true
+            PORTFOLIO=true
           elif [ "${EVENT_NAME}" = "repository_dispatch" ]; then
             DEPLOY=true
           elif [ "${EVENT_NAME}" = "pull_request" ]; then
@@ -320,6 +336,71 @@ jobs:
             --retries 4 \
             --retry-delay-ms 5000
 
+  # Moves the *committed* fallback forward. The publish job below independently
+  # rebuilds the image (whose build fetches GitHub live), so the live site is
+  # fresh either way; this job exists so the offline snapshot — the thing that
+  # keeps the site up when GitHub is down — cannot quietly rot to months old.
+  #
+  # It lands through a self-merging PR rather than a push, because the `main`
+  # ruleset requires a pull request and has no bypass actors. The branch is a
+  # fixed one, force-pushed onto current main each day, so a day whose CI failed
+  # is corrected by the next run instead of piling up branches.
+  #
+  # DEPLOY_DISPATCH_TOKEN, not GITHUB_TOKEN: a PR opened with the default token
+  # does not trigger `on: pull_request`, so `Required` would never report and
+  # auto-merge would wait forever.
+  #
+  # Deliberately not a dependency of publish: if the GitHub token expires, this
+  # job goes red while the build carries on serving the last good snapshot.
+  # That is the intended split — a visible alarm, not an outage.
+  refresh-github-insights:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REFRESH_BRANCH: chore/github-insights-refresh
+      SNAPSHOT: packages/portfolio/src/data/github-insights.json
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          token: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Import Vault secrets
+        uses: ./.github/actions/vault-secrets
+        with:
+          vault_addr: ${{ env.VAULT_ADDR }}
+      - name: Refresh GitHub snapshot
+        id: refresh
+        working-directory: packages/portfolio
+        run: bun run refresh-github
+      - name: Open a self-merging PR for the refreshed snapshot
+        if: steps.refresh.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          TITLE: 'chore(portfolio): refresh GitHub insights snapshot'
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "${REFRESH_BRANCH}"
+          git add "${SNAPSHOT}"
+          git commit -m "${TITLE}"
+          git push --force origin "${REFRESH_BRANCH}"
+
+          if [ -z "$(gh pr list --head "${REFRESH_BRANCH}" --state open --json number --jq '.[].number')" ]; then
+            gh pr create \
+              --base main \
+              --head "${REFRESH_BRANCH}" \
+              --title "${TITLE}" \
+              --body 'Automated daily refresh of the committed GitHub proof snapshot, the offline fallback rendered when GitHub is unreachable at build time. Opened by the `refresh-github-insights` job in ci.yml.'
+          fi
+          gh pr merge "${REFRESH_BRANCH}" --auto --merge
+
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -405,6 +486,10 @@ jobs:
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_call" ]; then
             echo "service_ids=[\"${IN_SERVICE_ID}\"]" >> "$GITHUB_OUTPUT"
+          elif [ "${EVENT_NAME}" = "schedule" ]; then
+            # The daily run exists only to refresh portfolio's GitHub data.
+            # Rebuilding the rest of the fleet on a timer would be pure churn.
+            echo 'service_ids=["portfolio"]' >> "$GITHUB_OUTPUT"
           else
             echo "service_ids=$(bun run packages/infra/scripts/list-publish-service-ids.ts)" >> "$GITHUB_OUTPUT"
           fi

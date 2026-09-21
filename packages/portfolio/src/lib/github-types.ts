@@ -55,4 +55,6 @@ export type GitHubFetchOptions = {
   readonly attempts?: number;
   /** Overrides the between-attempt sleep; tests pass a no-op. */
   readonly sleepFn?: (ms: number) => Promise<void>;
+  /** Clock used to interpret rate-limit reset headers; tests pin it. */
+  readonly nowFn?: () => number;
 };

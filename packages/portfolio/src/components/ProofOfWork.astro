@@ -9,7 +9,7 @@ import ContributionCalendar from './ContributionCalendar.astro';
 const envToken = import.meta.env.PORTFOLIO_GITHUB_TOKEN;
 const isDev = import.meta.env.DEV;
 
-const { insights } = await loadGitHubInsights('crvouga', {
+const { insights, freshness } = await loadGitHubInsights('crvouga', {
   ...(envToken ? { token: envToken } : {}),
   allowMissing: isDev,
   // A dev server rebuilds on every edit; only real builds move the fallback.
@@ -40,12 +40,28 @@ const tiles =
       ];
 
 const fetchedDate = insights === null ? '' : insights.fetchedAt.slice(0, 10);
-const provenance =
-  insights === null
-    ? ''
-    : insights.source === 'live'
-      ? `Live data from the GitHub API at build time · ${fetchedDate} · `
-      : `Last known snapshot · ${fetchedDate} · GitHub was unreachable at build time · `;
+
+/**
+ * The caption always states where the numbers came from and how old they are.
+ *
+ * Age is not decoration. A cached render is honest only if it says the account
+ * may have moved since — "Last known snapshot · 2026-03-04" reads as current to
+ * anyone who does not stop to subtract, so the age is spelled out, and once the
+ * data is old enough that "Contributions (12mo)" describes a window that has
+ * already slid out from under it, the caption says so outright.
+ */
+const provenance = ((): string => {
+  if (insights === null) return '';
+  if (insights.source === 'live') {
+    return `Live data from the GitHub API at build time · ${fetchedDate} · `;
+  }
+  const age = freshness === null ? '' : ` (${freshness.label})`;
+  const caveat =
+    freshness?.level === 'very-stale'
+      ? 'these are the figures as of that date · '
+      : '';
+  return `Last known snapshot · ${fetchedDate}${age} · GitHub was unreachable at build time · ${caveat}`;
+})();
 ---
 
 <section id="proof">

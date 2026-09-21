@@ -294,6 +294,114 @@ describe('fetchGitHubInsights retries', () => {
     await expectError(fetchOk(fetchFn), 'api-error');
     expect(graphqlCalls).toBe(1);
   });
+
+  test('waits the Retry-After GitHub asked for instead of the backoff', async () => {
+    let graphqlCalls = 0;
+    const slept: number[] = [];
+    const payload = JSON.stringify(calendarPayload(dayCounts(CALENDAR_DAYS)));
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/graphql')) {
+        graphqlCalls += 1;
+        if (graphqlCalls < 2) {
+          return new Response('slow down', {
+            status: 429,
+            headers: { 'retry-after': '45' },
+          });
+        }
+        return new Response(payload, { status: 200 });
+      }
+      return new Response(JSON.stringify(validProfile), { status: 200 });
+    }) as typeof fetch;
+
+    const insights = await fetchOk(fetchFn, {
+      sleepFn: async (ms: number) => {
+        slept.push(ms);
+      },
+    });
+    // 45s, not the 400ms the exponential curve would have picked.
+    expect(slept).toEqual([45_000]);
+    expect(insights.totalContributions).toBeGreaterThan(0);
+  });
+
+  test('falls straight through when the wait exceeds what a build can spend', async () => {
+    let graphqlCalls = 0;
+    const resetAt = Math.floor(NOW.getTime() / 1000) + 3600;
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/graphql')) {
+        graphqlCalls += 1;
+        return new Response('quota spent', {
+          status: 429,
+          headers: {
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': String(resetAt),
+          },
+        });
+      }
+      return new Response(JSON.stringify(validProfile), { status: 200 });
+    }) as typeof fetch;
+
+    const error = await expectError(
+      fetchOk(fetchFn, { nowFn: () => NOW.getTime() }),
+      'api-error'
+    );
+    // An hour of quota reset is a fallback, not a retry: no attempt is wasted
+    // and the caller reaches the snapshot immediately.
+    expect(graphqlCalls).toBe(1);
+    expect(error.retryable).toBe(false);
+    expect(error.message).toContain('3600s');
+  });
+});
+
+describe('fetchGitHubInsights GraphQL-level failures', () => {
+  const graphqlErrorFetch = (
+    body: unknown
+  ): { calls: () => number; fetchFn: typeof fetch } => {
+    let graphqlCalls = 0;
+    const ok = JSON.stringify(calendarPayload(dayCounts(CALENDAR_DAYS)));
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/graphql')) {
+        graphqlCalls += 1;
+        if (graphqlCalls < 3) {
+          return new Response(JSON.stringify(body), { status: 200 });
+        }
+        return new Response(ok, { status: 200 });
+      }
+      return new Response(JSON.stringify(validProfile), { status: 200 });
+    }) as typeof fetch;
+    return { calls: () => graphqlCalls, fetchFn };
+  };
+
+  test('retries a rate-limited GraphQL body, which arrives as HTTP 200', async () => {
+    const { calls, fetchFn } = graphqlErrorFetch({
+      errors: [{ type: 'RATE_LIMITED', message: 'API rate limit exceeded' }],
+    });
+    const insights = await fetchOk(fetchFn);
+    expect(calls()).toBe(3);
+    expect(insights.totalContributions).toBeGreaterThan(0);
+  });
+
+  test("retries GitHub's backend timeout, which it phrases in prose", async () => {
+    const { calls, fetchFn } = graphqlErrorFetch({
+      errors: [{ message: 'Something went wrong while executing your query.' }],
+    });
+    const insights = await fetchOk(fetchFn);
+    expect(calls()).toBe(3);
+    expect(insights.totalContributions).toBeGreaterThan(0);
+  });
+
+  test('does not retry a scope error, which fails identically every time', async () => {
+    const { calls, fetchFn } = graphqlErrorFetch({
+      errors: [
+        { type: 'INSUFFICIENT_SCOPES', message: 'requires read:user scope' },
+      ],
+    });
+    const error = await expectError(fetchOk(fetchFn), 'api-error');
+    expect(calls()).toBe(1);
+    expect(error.message).toContain('read:user');
+  });
 });
 
 describe('fetchGitHubInsights unusable calendar', () => {
