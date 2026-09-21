@@ -61,16 +61,26 @@ export type GalleryItem =
   | { readonly kind: 'image'; readonly src: string; readonly alt: string }
   | { readonly kind: 'video'; readonly src: string };
 
-/** Cover first, then gallery entries; YouTube embeds become video slides. */
-export const galleryFor = (project: Project): GalleryItem[] =>
-  [...project.imageSrc, ...project.galleryImageSrc].map((src) =>
+/**
+ * YouTube embeds become video slides; everything else is an image. Sources are
+ * de-duplicated because covers are usually repeated inside `galleryImageSrc`,
+ * which otherwise shows the same slide twice.
+ */
+export const toGalleryItems = (
+  sources: readonly string[],
+  label: string
+): GalleryItem[] =>
+  [...new Set(sources)].map((src) =>
     YOUTUBE_EMBED.test(src)
       ? { kind: 'video' as const, src }
-      : {
-          kind: 'image' as const,
-          src,
-          alt: `${project.title} — screenshot`,
-        }
+      : { kind: 'image' as const, src, alt: `${label} — screenshot` }
+  );
+
+/** Cover first, then gallery entries. */
+export const galleryFor = (project: Project): GalleryItem[] =>
+  toGalleryItems(
+    [...project.imageSrc, ...project.galleryImageSrc],
+    project.title
   );
 
 /** Gallery payload for the dialog, indexed by card position. */

@@ -20,16 +20,18 @@ describe('buildRangeWindows', () => {
       '2025',
       '2024',
       '2023',
-      '2022',
-      '2021',
-      '2020',
-      '2019',
     ]);
   });
 
-  test('reaches back to the account creation year, not a fixed depth', () => {
+  test('caps at MAX_RANGE_WINDOWS, keeping the newest years', () => {
+    // An older account does not get more panels: each one costs ~370 rects,
+    // and the oldest years are the ones nobody reads.
     const older = buildRangeWindows(NOW, new Date('2012-11-05T00:00:00.000Z'));
-    expect(older.at(-1)?.id).toBe('2012');
+    expect(older.length).toBe(MAX_RANGE_WINDOWS);
+    expect(older.at(-1)?.id).toBe('2023');
+  });
+
+  test('a young account yields only the years it actually spans', () => {
     const newer = buildRangeWindows(NOW, new Date('2025-01-10T00:00:00.000Z'));
     expect(newer.map((w) => w.id)).toEqual([TRAILING_RANGE_ID, '2026', '2025']);
   });

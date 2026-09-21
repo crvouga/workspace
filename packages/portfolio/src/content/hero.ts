@@ -16,17 +16,22 @@ export const CORE_STACK: readonly Topic[] = [
 
 export const HERO = {
   name: 'Chris Vouga',
-  eyebrow: '// software engineer · phoenix, az',
+  eyebrow: '// senior software engineer · phoenix, az',
+  /**
+   * Ownership, domain and scale first. "I use coding agents" is table stakes in
+   * 2026, so it cannot be the lead claim — and stated as tooling it reads as a
+   * volume claim. The second line makes it an engineering claim instead.
+   */
   statement:
-    'I build and ship production software end-to-end — APIs, infrastructure, and interfaces — with an AI-native, agentic workflow.',
-  availability: 'Open to work · full-time or contract',
+    'I own production systems end-to-end — data model, API, infrastructure, and the interface on top. Six years building enterprise education platforms at ASU scale, now shipping health software at Geviti.',
+  statementSecondary:
+    'I build the review gates, typed contracts, and infrastructure-as-code that make coding agents safe to run — the harness, not just the tooling.',
+  /** A level and a shape screen better than a bare availability signal. */
+  availability:
+    'Available now · senior/staff full-stack or platform · Phoenix or remote',
   ctaPrimary: {
     label: 'Email',
   },
-  /**
-   * The Email button copies rather than opening a mail client (see
-   * layouts/Base.astro). Saying so up front stops the copy from reading as a
-   * dead button.
-   */
-  ctaNote: 'or use the Email button to copy it',
+  /** Label for the secondary copy-to-clipboard control beside the address. */
+  ctaCopyLabel: 'Copy',
 };

@@ -20,6 +20,7 @@ const TOPIC_CATEGORY: Partial<
   roc: 'Languages',
   // Frontend
   react: 'Frontend',
+  'react-native': 'Frontend',
   nextjs: 'Frontend',
   vue: 'Frontend',
   nuxt: 'Frontend',

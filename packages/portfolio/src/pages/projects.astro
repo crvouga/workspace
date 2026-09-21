@@ -1,0 +1,146 @@
+---
+import Page from '../layouts/Page.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import GalleryDialog from '../components/GalleryDialog.astro';
+import { ARCHIVE_PROJECTS } from '../content/project';
+import { LISTED_PROJECTS, galleryFor } from '../lib/projects-view';
+import { seoForIndex } from '../lib/seo';
+
+// One flat array so `data-gallery` indexes stay valid across the fold.
+const galleries = [...LISTED_PROJECTS, ...ARCHIVE_PROJECTS].map(galleryFor);
+const archiveOffset = LISTED_PROJECTS.length;
+const total = LISTED_PROJECTS.length + ARCHIVE_PROJECTS.length;
+
+const seo = seoForIndex({
+  title: `All projects — Chris Vouga`,
+  description: `Every project in the registry: ${total} entries spanning enterprise education platforms, developer tooling, and infrastructure.`,
+  path: '/projects/',
+});
+---
+
+<Page seo={seo}>
+  <section class="container archive">
+    <a class="back" href="/#projects">&#8592; Home</a>
+    <header>
+      <h1>All projects</h1>
+      <p class="lede">
+        The full registry — {total} entries. The six on the homepage are the
+        ones worth your time first.
+      </p>
+    </header>
+    <div class="grid">
+      {
+        LISTED_PROJECTS.map((project, index) => (
+          <ProjectCard
+            project={project}
+            galleryIndex={index}
+          />
+        ))
+      }
+    </div>
+    {/* Everything ever shipped, including the early games and toys. Folded
+        rather than dropped: it is padding for a reader, but it is still the
+        fastest way to find an old project. */}
+    <details class="everything">
+      <summary>
+        <span class="summary-label">
+          Everything else — {ARCHIVE_PROJECTS.length} early and small projects
+        </span>
+        <span class="summary-hint">games, toys, and client sites</span>
+      </summary>
+      <div class="grid">
+        {ARCHIVE_PROJECTS.map((project, index) => (
+          <ProjectCard
+            project={project}
+            galleryIndex={archiveOffset + index}
+          />
+        ))}
+      </div>
+    </details>
+  </section>
+  <GalleryDialog galleries={galleries} />
+</Page>
+
+<style>
+  .archive {
+    padding-block: var(--space-7) var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+  .back {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    align-self: flex-start;
+  }
+  .back:hover {
+    color: var(--accent);
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    margin-top: var(--space-3);
+    max-width: 68ch;
+    color: var(--text-muted);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+  .everything {
+    border-top: 1px solid var(--paper-border);
+    padding-top: var(--space-5);
+  }
+  .everything summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-height: var(--tap);
+    padding: var(--space-2) 0;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--accent);
+  }
+  /* `display: flex` drops the native disclosure triangle, so the open/closed
+     state gets an explicit caret. */
+  .everything summary::marker,
+  .everything summary::-webkit-details-marker {
+    display: none;
+    content: '';
+  }
+  .everything summary::before {
+    content: '\25B8';
+    color: var(--text-subtle);
+  }
+  .everything[open] summary::before {
+    content: '\25BE';
+  }
+  .everything summary:hover .summary-label {
+    text-decoration: underline;
+  }
+  .summary-hint {
+    color: var(--text-subtle);
+  }
+  .everything[open] summary {
+    margin-bottom: var(--space-5);
+  }
+  @media (min-width: 700px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1000px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>

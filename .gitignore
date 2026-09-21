@@ -21,3 +21,6 @@ packages/turborepo-remote-cache/.env
 .superset/config.local.json
 .superset/.run-pid
 .superset/.run-port
+
+# Superset design-feedback attachments (generated, not source)
+.superset/attachments/

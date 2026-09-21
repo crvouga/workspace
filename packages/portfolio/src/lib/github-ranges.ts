@@ -23,13 +23,16 @@ const DAY_MS = 86_400_000;
 const TRAILING_DAYS = 365;
 
 /**
- * Sanity cap on selectable periods. The picker CSS is index-independent, so this
- * is purely about page weight and query size: each period embeds its own ~370
- * day squares. It also stops an implausible `createdAt` (a placeholder date, a
- * clock skew) from generating decades of empty panels. Excess years are dropped
+ * Cap on selectable periods: the trailing window plus four calendar years.
+ *
+ * This is mostly about page weight. Each period embeds ~370 `<rect>` elements,
+ * and the heatmap was the single heaviest thing on the homepage — nine panels
+ * meant over three thousand rects for a section whose older years nobody reads.
+ * It also stops an implausible `createdAt` (a placeholder date, a clock skew)
+ * from generating decades of empty panels. Excess years are dropped
  * oldest-first rather than failing the build.
  */
-export const MAX_RANGE_WINDOWS = 30;
+export const MAX_RANGE_WINDOWS = 5;
 
 export const TRAILING_RANGE_ID = 'last-12-months';
 
