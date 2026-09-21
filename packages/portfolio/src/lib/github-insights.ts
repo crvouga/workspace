@@ -4,16 +4,21 @@
  * Order of preference:
  *   1. live GitHub data (retried on transient failures), which also refreshes
  *      the committed snapshot;
- *   2. the committed snapshot, rendered with a visible "cached" caption;
+ *   2. the committed snapshot, rendered with a visible "cached" caption that
+ *      states how old it is;
  *   3. nothing — a notice card in `astro dev`, a hard build failure otherwise.
  *
  * Step 2 is why a GitHub incident, an expired token, or a rate-limit window
- * cannot take the site's build down.
+ * cannot take the site's build down. It is deliberately *not* why the data is
+ * fresh: freshness comes from the scheduled rebuild in ci.yml, and a snapshot
+ * old enough to mean that schedule has stopped working is logged loudly here so
+ * the failure surfaces in CI instead of only on the page.
  */
 
 import { fetchGitHubInsights } from './github';
 import { readSnapshot, writeSnapshot } from './github-cache';
 import { GitHubInsightsError, errorMessage } from './github-error';
+import { freshnessOf, isStale, type Freshness } from './github-freshness';
 import type { GitHubFetchOptions, GitHubInsights } from './github-types';
 
 export type LoadOptions = GitHubFetchOptions & {
@@ -28,39 +33,56 @@ export type LoadResult = {
   readonly insights: GitHubInsights | null;
   /** Human-readable reason the live fetch was not used, if it was not. */
   readonly warning: string | null;
+  /** Age of the data being rendered; null when there is none. */
+  readonly freshness: Freshness | null;
 };
-
-const fallback = (
-  reason: string,
-  options: LoadOptions
-): GitHubInsights | null =>
-  readSnapshot(options.snapshotPath) ?? logMiss(reason);
 
 const logMiss = (reason: string): null => {
   console.warn(`[portfolio] no GitHub snapshot available (${reason})`);
   return null;
 };
 
+/**
+ * A stale snapshot is not a rendering problem — the page is fine — but it does
+ * mean the daily refresh is not landing, so it is worth shouting about in a
+ * build log somebody reads.
+ */
+const reportStaleness = (freshness: Freshness): void => {
+  if (!isStale(freshness)) return;
+  console.warn(
+    `[portfolio] GitHub snapshot is ${freshness.label}; the scheduled refresh ` +
+      `(ci.yml) may have stopped running. The page renders, but the numbers are history.`
+  );
+};
+
 export const loadGitHubInsights = async (
   login: string,
   options: LoadOptions = {}
 ): Promise<LoadResult> => {
+  const now = options.now ?? new Date();
   try {
     const insights = await fetchGitHubInsights(login, options);
     if (options.persist !== false) {
       writeSnapshot(insights, options.snapshotPath);
     }
-    return { insights, warning: null };
+    return {
+      insights,
+      warning: null,
+      freshness: freshnessOf(insights.fetchedAt, now),
+    };
   } catch (error) {
     if (!(error instanceof GitHubInsightsError)) throw error;
     const reason = errorMessage(error);
     console.warn(`[portfolio] GitHub proof fetch failed: ${reason}`);
-    const cached = fallback(reason, options);
+    const cached = readSnapshot(options.snapshotPath);
     if (cached !== null) {
-      return { insights: cached, warning: reason };
+      const freshness = freshnessOf(cached.fetchedAt, now);
+      reportStaleness(freshness);
+      return { insights: cached, warning: reason, freshness };
     }
+    logMiss(reason);
     if (options.allowMissing === true) {
-      return { insights: null, warning: reason };
+      return { insights: null, warning: reason, freshness: null };
     }
     throw error;
   }

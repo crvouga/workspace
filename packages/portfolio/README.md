@@ -35,44 +35,58 @@ GitHub proof data is fetched at build time by [`src/lib/github.ts`](src/lib/gith
 
 A GitHub incident, an expired token, or a rate-limit window must not be able to take the build down. [`src/lib/github-insights.ts`](src/lib/github-insights.ts) applies, in order:
 
-1. live GitHub data, retried with backoff on network errors, 429, and 5xx — a success also rewrites the snapshot;
-2. the committed snapshot [`src/data/github-insights.json`](src/data/github-insights.json), rendered with a visible `Last known snapshot …` caption;
+1. live GitHub data, retried with backoff on network errors, 429, 5xx, and the transient GraphQL failures GitHub reports with HTTP 200 (`RATE_LIMITED`, backend timeouts) — a success also rewrites the snapshot;
+2. the committed snapshot [`src/data/github-insights.json`](src/data/github-insights.json), rendered with a visible `Last known snapshot …` caption that states how old it is;
 3. otherwise a notice card in `astro dev`, or a hard build failure in production.
 
-The snapshot is a normal source file so it is present in the Docker build context. Every successful build rewrites it (days are stored as a first-day date plus a flat count array, one number per line, to keep diffs small) — **commit it** to move the offline fallback forward. `astro dev` never writes it.
+When GitHub names its own wait (`Retry-After`, or `x-ratelimit-reset` on a spent quota) that wait is honored in place of the backoff curve — except when it is longer than `MAX_RETRY_WAIT_MS`, which is treated as _not_ retryable, because a build should reach for the snapshot rather than idle out a rate-limit hour.
+
+The snapshot is a normal source file so it is present in the Docker build context. Days are stored as a first-day date plus a flat count array, one number per line, to keep diffs small.
+
+## Staying fresh
+
+The site is static, so the numbers are frozen at image-build time. The `schedule:` cron in [`ci.yml`](../../.github/workflows/ci.yml) is what keeps them moving:
+
+- it rebuilds and redeploys the portfolio image daily, and that build fetches GitHub live — so the deployed page is never more than a day behind;
+- the `refresh-github-insights` job runs `bun run refresh-github` and lands the rewritten snapshot on `main` through a self-merging bot PR, so the offline fallback moves forward on its own instead of waiting for someone to remember. It is a PR rather than a push because the `main` ruleset requires one and has no bypass actors, and it is opened with `DEPLOY_DISPATCH_TOKEN` because a PR from the default `GITHUB_TOKEN` never triggers `on: pull_request` — `Required` would not report and auto-merge would wait forever.
+
+That job is deliberately _not_ a dependency of `publish`. If the token expires it goes red while the build carries on serving the last good snapshot — an alarm, not an outage. It is also strict where the build is forgiving: it never falls back, because a refresh that silently served yesterday's data would report success forever.
+
+[`src/lib/github-freshness.ts`](src/lib/github-freshness.ts) holds the budget. Past `STALE_AFTER_DAYS` the build log warns that the schedule has stopped landing; past `VERY_STALE_AFTER_DAYS` the caption stops implying the figures are current and says they are as of that date. Nothing here can fail a render — stale data still draws the full heatmap.
 
 The preferred local entry point is `bun portfolio`, which wraps the dev server in `vault run --config dev` and always starts `astro dev --force`.
 
 ## Layout
 
-| Path                               | Purpose                                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------------- |
-| `astro.config.mjs`                 | Static Astro config and canonical site URL.                                   |
-| `src/pages/index.astro`            | Homepage composition and recruiter-first section order.                       |
-| `src/pages/projects.astro`         | Full project archive; the homepage shows only the flagship six.               |
-| `src/pages/404.astro`              | Emitted to `dist/404.html`; served by the nginx `error_page`.                 |
-| `src/pages/llms.txt.ts`            | Plain-text site summary for LLM readers.                                      |
-| `src/lib/seo.ts`, `seo-json-ld.ts` | Per-page title/canonical/OG/JSON-LD.                                          |
-| `src/layouts/Page.astro`           | Sub-page chrome for `/projects/` and `/404`.                                  |
-| `src/components/`                  | Nav, Hero, Work, Projects, Proof, About, Toolbox, Contact, sticky CTA, icons. |
-| `src/lib/github.ts`                | Build-time GitHub GraphQL/REST fetch, validation, streaks, and errors.        |
-| `src/lib/github-insights.ts`       | Uptime policy: live data → committed snapshot → notice/failure.               |
-| `src/lib/github-cache.ts`          | Compact snapshot read/write and structural validation.                        |
-| `src/lib/github-ranges.ts`         | The selectable contribution periods and their GraphQL bounds.                 |
-| `src/lib/github-levels.ts`         | Per-period quartile thresholds behind the heatmap shades.                     |
-| `src/lib/heatmap-grid.ts`          | Weekday-accurate column/row geometry and month labels.                        |
-| `src/data/`                        | Committed GitHub snapshot (generated).                                        |
-| `src/lib/projects-view.ts`         | Shared visible-project ordering and typed gallery payload.                    |
-| `src/layouts/Base.astro`           | Document head, OG/JSON-LD metadata, global copy feedback script.              |
-| `src/styles/global.css`            | Dark design tokens, typography, layout primitives, focus styles.              |
-| `src/content/`                     | Typed content registry, skills, work, education, and project data.            |
-| `assets/`                          | Source screenshots/photos. Not served and excluded from the Docker context.   |
-| `public/`                          | Served derivatives, fonts, icons, robots.txt. No sitemap, no resume PDF.      |
-| `scripts/optimize-images.ts`       | Converts raster sources in `assets/` to 1400px WebP derivatives.              |
-| `scripts/prune-unused-assets.ts`   | Dry-run/apply asset reference hygiene.                                        |
-| `scripts/health-check-urls.ts`     | Checks every public URL referenced by content.                                |
-| `Dockerfile`, `nginx.conf`         | Container build and static server.                                            |
-| `test/server.test.ts`              | Local Docker E2E smoke test.                                                  |
+| Path                                 | Purpose                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| `astro.config.mjs`                   | Static Astro config and canonical site URL.                                   |
+| `src/pages/index.astro`              | Homepage composition and recruiter-first section order.                       |
+| `src/pages/projects.astro`           | Full project archive; the homepage shows only the flagship six.               |
+| `src/pages/404.astro`                | Emitted to `dist/404.html`; served by the nginx `error_page`.                 |
+| `src/pages/llms.txt.ts`              | Plain-text site summary for LLM readers.                                      |
+| `src/lib/seo.ts`, `seo-json-ld.ts`   | Per-page title/canonical/OG/JSON-LD.                                          |
+| `src/layouts/Page.astro`             | Sub-page chrome for `/projects/` and `/404`.                                  |
+| `src/components/`                    | Nav, Hero, Work, Projects, Proof, About, Toolbox, Contact, sticky CTA, icons. |
+| `src/lib/github.ts`                  | Build-time GitHub GraphQL/REST fetch, validation, streaks, and errors.        |
+| `src/lib/github-insights.ts`         | Uptime policy: live data → committed snapshot → notice/failure.               |
+| `src/lib/github-cache.ts`            | Compact snapshot read/write and structural validation.                        |
+| `src/lib/github-ranges.ts`           | The selectable contribution periods and their GraphQL bounds.                 |
+| `src/lib/github-levels.ts`           | Per-period quartile thresholds behind the heatmap shades.                     |
+| `src/lib/heatmap-grid.ts`            | Weekday-accurate column/row geometry and month labels.                        |
+| `src/data/`                          | Committed GitHub snapshot (generated).                                        |
+| `src/lib/projects-view.ts`           | Shared visible-project ordering and typed gallery payload.                    |
+| `src/layouts/Base.astro`             | Document head, OG/JSON-LD metadata, global copy feedback script.              |
+| `src/styles/global.css`              | Dark design tokens, typography, layout primitives, focus styles.              |
+| `src/content/`                       | Typed content registry, skills, work, education, and project data.            |
+| `assets/`                            | Source screenshots/photos. Not served and excluded from the Docker context.   |
+| `public/`                            | Served derivatives, fonts, icons, robots.txt. No sitemap, no resume PDF.      |
+| `scripts/optimize-images.ts`         | Converts raster sources in `assets/` to 1400px WebP derivatives.              |
+| `scripts/prune-unused-assets.ts`     | Dry-run/apply asset reference hygiene.                                        |
+| `scripts/health-check-urls.ts`       | Checks every public URL referenced by content.                                |
+| `scripts/refresh-github-insights.ts` | Strict live fetch that rewrites the committed snapshot; run daily by CI.      |
+| `Dockerfile`, `nginx.conf`           | Container build and static server.                                            |
+| `test/server.test.ts`                | Local Docker E2E smoke test.                                                  |
 
 ## Scripts
 
@@ -87,6 +101,8 @@ Run from the repository root with `bun run --filter @pkgs/portfolio <script>`, o
 | `gen` / `generate-all`                                        | Capture hosted screenshots into `assets/` and optimize derivatives.                               |
 | `screenshot-work` / `screenshot-projects` / `screenshot-main` | Capture one screenshot collection into `assets/`.                                                 |
 | `health-check-urls`                                           | GET every public URL in content; exits non-zero on failure.                                       |
+| `refresh-github`                                              | Refresh the committed GitHub snapshot; exits non-zero if the live fetch fails.                    |
+| `check-github-freshness`                                      | Report the snapshot's age; exits non-zero once it is stale.                                       |
 | `preview`                                                     | Build the Docker image with `PORTFOLIO_GITHUB_TOKEN` as a BuildKit secret and serve on port 8080. |
 | `tc`                                                          | `astro check` for TypeScript and Astro files.                                                     |
 | `lint`                                                        | ESLint with the shared workspace rules.                                                           |

@@ -57,18 +57,17 @@ const fetchProfile = async (
   token: string
 ): Promise<Profile> => {
   const context = `GitHub profile endpoint (GET /users/${login})`;
-  const json = await requestJson(
-    config,
-    `https://api.github.com/users/${encodeURIComponent(login)}`,
-    {
+  const json = await requestJson(config, {
+    url: `https://api.github.com/users/${encodeURIComponent(login)}`,
+    init: {
       headers: {
         Authorization: `Bearer ${token}`,
         'User-Agent': 'portfolio-build',
         Accept: 'application/vnd.github+json',
       },
     },
-    context
-  );
+    context,
+  });
   const profile = toRecord(json);
   const publicRepos = profile?.['public_repos'];
   const followers = profile?.['followers'];
@@ -108,6 +107,7 @@ export const fetchGitHubInsights = async (
     fetchFn: options.fetchFn ?? globalThis.fetch,
     attempts: options.attempts,
     sleepFn: options.sleepFn,
+    nowFn: options.nowFn,
   };
   // Sequential, not parallel: the profile's `created_at` decides how many
   // calendar years the calendar query asks for.
