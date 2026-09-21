@@ -1,10 +1,12 @@
 /**
  * Orchestrate the content-generation pipeline.
  *
- * Stage 1 (parallel):
+ * Stage 1:
  *   - All screenshots (work + projects + main) — one shared Chromium, bounded
  *     concurrency. Live per-job spinner via listr2.
- *   - Resume PDF — runs concurrently in its own process slot.
+ *
+ * The resume PDF is not generated here: `astro build` renders it from content
+ * (src/pages/chris-vouga-resume.pdf.ts), so it can never lag the site.
  *
  * Stage 2:
  *   - Image derivatives: every raster in `assets/` is re-encoded into the
@@ -30,7 +32,6 @@ import {
   type ScreenshotJob,
 } from './screenshot-helpers';
 import { buildAllScreenshotJobs } from './screenshot-jobs';
-import { generateResume } from './generate-resume';
 import type { Browser } from 'playwright';
 
 type Ctx = {
@@ -39,7 +40,6 @@ type Ctx = {
   failures: { stage: string; name: string; error: string }[];
   totals: {
     screenshots: { ok: number; failed: number };
-    resume: 'ok' | 'failed' | 'skipped';
     images: 'ok' | 'failed' | 'skipped';
   };
 };
@@ -54,7 +54,6 @@ const ctx: Ctx = {
   failures: [],
   totals: {
     screenshots: { ok: 0, failed: 0 },
-    resume: 'skipped',
     images: 'skipped',
   },
 };
@@ -80,7 +79,7 @@ const tasks = new Listr<Ctx>(
     },
     {
       title: pc.bold(
-        `Stage 1 — screenshots (${screenshotJobs.length}) + resume ${pc.dim(
+        `Stage 1 — screenshots (${screenshotJobs.length}) ${pc.dim(
           `[parallel: cs=${ctx.screenshotConcurrency}]`
         )}`
       ),
@@ -119,26 +118,6 @@ const tasks = new Listr<Ctx>(
                     rendererOptions: { collapseSubtasks: false },
                   }
                 ),
-            },
-            {
-              title: 'Resume PDF',
-              task: async (ctx, t) => {
-                const t0 = performance.now();
-                try {
-                  const path = await generateResume();
-                  ctx.totals.resume = 'ok';
-                  t.title = `Resume PDF ${pc.dim(path)} ${fmtElapsed(performance.now() - t0)}`;
-                } catch (err) {
-                  ctx.totals.resume = 'failed';
-                  const msg = err instanceof Error ? err.message : String(err);
-                  ctx.failures.push({
-                    stage: 'resume',
-                    name: 'Resume PDF',
-                    error: msg,
-                  });
-                  throw new Error(msg);
-                }
-              },
             },
           ],
           {
@@ -208,7 +187,7 @@ try {
 }
 
 const elapsed = performance.now() - t0;
-const { screenshots, resume, images } = ctx.totals;
+const { screenshots, images } = ctx.totals;
 
 const status = (value: 'ok' | 'failed' | 'skipped'): string =>
   value === 'ok'
@@ -224,7 +203,6 @@ writeLine(
     `${screenshots.failed} failed`
   )} (out of ${screenshotJobs.length})`
 );
-writeLine(`  ${pc.cyan('Resume PDF')}:  ${status(resume)}`);
 writeLine(`  ${pc.cyan('Images')}:      ${status(images)}`);
 writeLine(`  ${pc.cyan('Total')}:       ${pretty(elapsed)}`);
 
@@ -235,7 +213,7 @@ if (ctx.failures.length > 0) {
     writeLine(`  ${pc.red('✗')} [${f.stage}] ${f.name} — ${f.error}`);
   }
   // Treat non-trivial failures as a non-zero exit so CI catches them.
-  if (resume === 'failed' || images === 'failed') exitCode = 1;
+  if (images === 'failed') exitCode = 1;
 }
 
 process.exit(exitCode);

@@ -8,10 +8,12 @@ export type Deployment =
   | { t: 'not-deployed-yet' }
   | { t: 'private' };
 
-/** Resume curation overrides. Default: include if `projectToLinkHref` is non-null. */
+/**
+ * Resume curation. The resume lists the homepage's featured side projects in
+ * homepage order; `include: false` keeps one off it.
+ */
 export type ResumePolicy = {
   readonly include?: boolean;
-  readonly priority?: number;
 };
 
 export type Project = {

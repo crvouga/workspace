@@ -1,5 +1,6 @@
 ---
 import { CONTENT } from '../content/content';
+import { RESUME_HREF } from '../constants/resume';
 import { TOPIC_TO_NAME } from '../content/topic';
 import IconEmail from '../components/icons/IconEmail.astro';
 import IconDownload from '../components/icons/IconDownload.astro';
@@ -23,14 +24,15 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
       <p class="eyebrow">{CONTENT.HERO.eyebrow}</p>
       <h1>{CONTENT.HERO.name}</h1>
       <p class="statement">{CONTENT.HERO.statement}</p>
+      <p class="statement-secondary">{CONTENT.HERO.statementSecondary}</p>
       <p class="pill">
         <span class="dot" aria-hidden="true"></span>{CONTENT.HERO.availability}
       </p>
       <div class="ctas">
-        <a class="btn btn-contained" href={`mailto:${email}`} data-copy={email}>
+        <a class="btn btn-contained" href={`mailto:${email}`}>
           <IconEmail /><span class="btn-label">{CONTENT.HERO.ctaPrimary.label}</span>
         </a>
-        <a class="btn" href="/chris-vouga-resume.pdf" download>
+        <a class="btn" href={RESUME_HREF} target="_blank" rel="noopener">
           <IconDownload /><span class="btn-label">Résumé</span>
         </a>
         <a class="btn" href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
@@ -45,6 +47,12 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
           <IconLinkedIn /><span class="btn-label">LinkedIn</span>
         </a>
       </div>
+      <p class="cta-note">
+        <a class="inline-link" href={`mailto:${email}`}>{email}</a>
+        <button type="button" class="copy-btn" data-copy={email}>
+          <span class="btn-label">{CONTENT.HERO.ctaCopyLabel}</span>
+        </button>
+      </p>
     </div>
 
     <aside class="card now">
@@ -60,6 +68,27 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
 <style>
   .hero {
     padding-block: var(--space-8) var(--space-7);
+  }
+  .statement-secondary {
+    max-width: 60ch;
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  /* Secondary to the mailto button: the primary action must not be surprising. */
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    padding: 0 var(--space-2);
+    background: none;
+    border: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    cursor: pointer;
+  }
+  .copy-btn:hover {
+    color: var(--accent);
   }
   @media (min-width: 900px) {
     .hero {
@@ -119,6 +148,12 @@ const stack = CONTENT.CORE_STACK.map((topic) => TOPIC_TO_NAME[topic]).join(' · 
     flex-wrap: wrap;
     gap: var(--space-3);
     margin-top: var(--space-6);
+  }
+  .cta-note {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
   }
   .now {
     padding: var(--space-5);

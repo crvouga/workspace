@@ -37,6 +37,7 @@
   --accent-deep: #1e5baf;
   --accent-soft: rgba(127, 179, 255, 0.12);
   --accent-glow: rgba(127, 179, 255, 0.18);
+  --accent-hover: #a6cbff;
   --success: #3fb950;
 
   /* GitHub heatmap ramp: a quiet zero below --paper, then even luminance steps. */
@@ -97,6 +98,14 @@ body {
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Clearance for the phone-only action bar (components/StickyCta.astro) so it
+   never covers the last line of the footer. */
+@media (max-width: 899px) {
+  body {
+    padding-bottom: 76px;
+  }
 }
 
 a {
@@ -180,6 +189,14 @@ img {
 @media (min-width: 900px) {
   .container {
     padding-inline: var(--space-6);
+  }
+}
+
+/* The header wraps to two rows below 600px, so anchored sections need more
+   clearance than the single-row desktop height. */
+@media (max-width: 599px) {
+  html {
+    scroll-padding-top: 132px;
   }
 }
 
@@ -283,6 +300,24 @@ section {
 .chip img {
   width: 12px;
   height: 12px;
+}
+
+/* Opens the shared gallery dialog. Lives here, not in a component, because the
+   projects grid, the work cards and the archive page all render one. */
+.gallery-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+}
+.gallery-btn:hover {
+  color: var(--accent-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {

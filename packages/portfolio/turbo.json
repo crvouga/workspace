@@ -2,6 +2,30 @@
   "$schema": "https://v2-10-13.turborepo.dev/schema.json",
   "extends": ["//"],
   "tasks": {
+    "tc": {
+      "inputs": [
+        "src/**",
+        "projects.ts",
+        "tsconfig.json",
+        "astro.config.mjs",
+        "package.json",
+        "../../tsconfig.strict.json"
+      ]
+    },
+    "lint": {
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "test/**",
+        "projects.ts",
+        "eslint.config.cjs",
+        "astro.config.mjs",
+        "package.json"
+      ]
+    },
+    "test": {
+      "inputs": ["src/**", "projects.ts", "public/**", "package.json"]
+    },
     "build": {
       "inputs": [
         "src/**",

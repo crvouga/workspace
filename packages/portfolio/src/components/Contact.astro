@@ -1,5 +1,6 @@
 ---
 import { CONTENT } from '../content/content';
+import { RESUME_HREF } from '../constants/resume';
 import IconEmail from './icons/IconEmail.astro';
 import IconGitHub from './icons/IconGitHub.astro';
 import IconLinkedIn from './icons/IconLinkedIn.astro';
@@ -19,12 +20,15 @@ const email = CONTENT.EMAIL_ADDRESS;
     <p class="meta">
       {CONTENT.LOCATION} · {CONTENT.HERO.availability}
     </p>
-    <a class="email" href={`mailto:${email}`} data-copy={email}>{email}</a>
+    <a class="email" href={`mailto:${email}`}>{email}</a>
     <div class="ctas">
-      <a class="btn btn-contained" href={`mailto:${email}`} data-copy={email}>
+      <a class="btn btn-contained" href={`mailto:${email}`}>
         <IconEmail /><span class="btn-label">{CONTENT.CONTACT_COPY.ctaPrimary.label}</span>
       </a>
-      <a class="btn" href="/chris-vouga-resume.pdf" download>
+      <button type="button" class="btn" data-copy={email}>
+        <span class="btn-label">{CONTENT.HERO.ctaCopyLabel}</span>
+      </button>
+      <a class="btn" href={RESUME_HREF} target="_blank" rel="noopener">
         <span class="btn-label">Résumé</span>
       </a>
       <a class="btn" href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">

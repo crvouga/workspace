@@ -1,43 +1,16 @@
 ---
 import '../styles/global.css';
-import { CONTENT } from '../content/content';
-
-const SITE_URL = CONTENT.SITE_URL;
-const TITLE = 'Chris Vouga — Software Engineer';
-const DESCRIPTION = CONTENT.ABOUT_ME_ATTR_SAFE.replace(/\s+/g, ' ').trim().slice(0, 160);
-const PREVIEW_URL = `${SITE_URL}/main-site-screenshot.optimized.webp`;
-const school = CONTENT.SCHOOL[0];
-const knowsAbout = [...new Set(CONTENT.SKILL_ROWS.flatMap((row) => row.items))];
-const structuredData = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    {
-      '@type': 'Person',
-      name: 'Chris Vouga',
-      url: SITE_URL,
-      jobTitle: 'Software Engineer',
-      image: PREVIEW_URL,
-      description: DESCRIPTION,
-      sameAs: [CONTENT.GITHUB_URL, CONTENT.LINKEDIN_URL],
-      knowsAbout,
-      alumniOf:
-        school === undefined
-          ? undefined
-          : { '@type': 'CollegeOrUniversity', name: school.institutionName },
-      address: {
-        '@type': 'PostalAddress',
-        addressRegion: 'AZ',
-        addressCountry: 'US',
-      },
-    },
-    { '@type': 'WebSite', url: `${SITE_URL}/`, name: TITLE },
-  ],
-};
+import { HOME_SEO, absoluteUrl } from '../lib/seo';
+import { buildJsonLd } from '../lib/seo-json-ld';
+import type { Seo } from '../lib/seo-types';
 
 interface Props {
-  title?: string;
+  /** Omitted by the homepage, which is the canonical Person + WebSite page. */
+  seo?: Seo;
 }
-const { title = TITLE } = Astro.props;
+const { seo = HOME_SEO } = Astro.props;
+const canonical = absoluteUrl(seo.path);
+const jsonLd = buildJsonLd(seo);
 ---
 
 <!doctype html>
@@ -45,30 +18,33 @@ const { title = TITLE } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={DESCRIPTION} />
-    <link rel="canonical" href={`${SITE_URL}/`} />
+    <title>{seo.title}</title>
+    <meta name="description" content={seo.description} />
+    <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
-    <link rel="sitemap" href="/sitemap.xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
     <meta name="theme-color" content="#0A0A0B" />
     <meta name="color-scheme" content="dark" />
     <meta name="generator" content={Astro.generator} />
+    {seo.noindex === true && <meta name="robots" content="noindex" />}
     <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-variable.woff2" crossorigin />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/jetbrains-mono-variable.woff2" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Chris Vouga" />
-    <meta property="og:url" content={`${SITE_URL}/`} />
-    <meta property="og:title" content={TITLE} />
-    <meta property="og:description" content={DESCRIPTION} />
-    <meta property="og:image" content={PREVIEW_URL} />
-    <meta property="og:image:alt" content="The chrisvouga.dev homepage" />
-    <meta property="og:image:width" content="1400" />
-    <meta property="og:image:height" content="788" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={seo.title} />
+    <meta property="og:description" content={seo.description} />
+    <meta property="og:image" content={seo.image.url} />
+    <meta property="og:image:alt" content={seo.image.alt} />
+    <meta property="og:image:width" content={String(seo.image.width)} />
+    <meta property="og:image:height" content={String(seo.image.height)} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={TITLE} />
-    <meta name="twitter:description" content={DESCRIPTION} />
-    <meta name="twitter:image" content={PREVIEW_URL} />
-    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    <meta name="twitter:title" content={seo.title} />
+    <meta name="twitter:description" content={seo.description} />
+    <meta name="twitter:image" content={seo.image.url} />
+    {jsonLd !== null && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    )}
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

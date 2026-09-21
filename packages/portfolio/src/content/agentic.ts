@@ -1,18 +1,23 @@
 /**
- * "How I build" — the agentic-development story, stated as workflow facts.
+ * "How I build" — stated as an engineering claim, not a tooling one.
  *
- * Timelessness rules: no years, no tool-count bragging, nothing that reads
- * as hype. The claims must still be true if a specific tool disappears.
+ * Timelessness rules: no years, no tool-count bragging, nothing that reads as
+ * hype. The claims must still be true if a specific tool disappears — which is
+ * also why the section is about the gates rather than the agent. "I use coding
+ * agents" is table stakes and says nothing; "I built what makes them safe to
+ * run" is a claim about judgment, and it is checkable.
  */
 
 export const AGENTIC_CURSOR_BADGE = 'Recognized by Cursor';
 export const AGENTIC_CURSOR_TEXT =
-  'Recognized by Cursor as one of their top tab users, with a custom tab button shipped as a gift.';
+  'Cursor recognized me as one of their top tab users and shipped a custom tab button as a gift. Fun, and a volume stat — the gates below are the part that matters.';
 
-export const AGENTIC_WORKFLOW_TITLE =
-  'Agents in the loop, engineer accountable';
+export const AGENTIC_WORKFLOW_TITLE = 'Agents draft. The gates decide.';
+
 export const AGENTIC_WORKFLOW_POINTS: readonly string[] = [
-  'Coding agents draft, refactor, and sweep — under review gates, typed contracts, and test suites that decide what actually merges.',
-  'Infrastructure, CI, and deployments are code: pipelines converge environments and deploy on push without manual steps.',
-  'I own the outcome end-to-end — API design, data model, infrastructure, and the interface — and use agents to remove the repeatable parts, not to outsource judgment.',
+  'Types that actually constrain: <code>strict</code>, plus <code>noUncheckedIndexedAccess</code> and <code>exactOptionalPropertyTypes</code> — the two that catch what generated code gets wrong most.',
+  'Structural limits enforced as errors, not warnings: caps on file length, function length, parameters, and cyclomatic complexity, with a standing rule that they may never be disabled to make a change fit.',
+  'Invariant tests over unit tests: assertions that the content model is coherent — every asset path resolves, every cross-reference points at something real — because that is the class of error a fast contributor actually introduces.',
+  'Infrastructure, CI, and deploys are code: a reconcile loop plans and converges environments on push, and is forbidden from deleting anything stateful.',
+  'I own the outcome end-to-end — data model, API, infrastructure, interface. Agents remove the repeatable parts. When something wrong ships, it is mine.',
 ];

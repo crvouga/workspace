@@ -1,5 +1,5 @@
 export type SectionId =
-  'proof' | 'agentic' | 'work' | 'projects' | 'about' | 'education' | 'contact';
+  'work' | 'projects' | 'agentic' | 'proof' | 'about' | 'contact';
 
 export type Section = {
   readonly id: SectionId;
@@ -10,45 +10,37 @@ export type Section = {
   readonly nav: boolean;
 };
 
-export const SECTIONS: readonly Section[] = [
+/**
+ * Declaration order is the page order (see pages/index.astro) and the header
+ * order; `number` is derived from it so the two can never drift apart.
+ *
+ * Education is deliberately not a section: a diploma image in its own numbered
+ * slot reads as credential anxiety at this much experience, so the degree is
+ * one line inside About.
+ */
+const ORDERED: readonly Omit<Section, 'number'>[] = [
+  { id: 'work', title: 'Work', navLabel: 'Work', nav: true },
+  {
+    id: 'projects',
+    title: 'Selected projects',
+    navLabel: 'Projects',
+    nav: true,
+  },
+  { id: 'agentic', title: 'How I build', navLabel: 'How I build', nav: true },
   {
     id: 'proof',
-    number: '01',
     title: 'Proof, not promises',
     navLabel: 'Proof',
     nav: false,
   },
-  {
-    id: 'agentic',
-    number: '02',
-    title: 'How I build',
-    navLabel: 'How I build',
-    nav: false,
-  },
-  { id: 'work', number: '03', title: 'Work', navLabel: 'Work', nav: true },
-  {
-    id: 'projects',
-    number: '04',
-    title: 'Projects',
-    navLabel: 'Projects',
-    nav: true,
-  },
-  { id: 'about', number: '05', title: 'About', navLabel: 'About', nav: true },
-  {
-    id: 'education',
-    number: '06',
-    title: 'Education',
-    navLabel: 'Education',
-    nav: false,
-  },
-  {
-    id: 'contact',
-    number: '07',
-    title: 'Contact',
-    navLabel: 'Contact',
-    nav: true,
-  },
+  { id: 'about', title: 'About', navLabel: 'About', nav: false },
+  { id: 'contact', title: 'Contact', navLabel: 'Contact', nav: true },
 ];
+
+export const SECTIONS: readonly Section[] = ORDERED.map((section, index) => ({
+  ...section,
+  number: String(index + 1).padStart(2, '0'),
+}));
 
 export const getSection = (id: SectionId): Section => {
   const found = SECTIONS.find((s) => s.id === id);
