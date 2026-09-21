@@ -18,6 +18,7 @@ export type Identity = {
   readonly email: string;
   readonly phone: string;
   readonly website: string;
+  readonly websiteUrl: string;
   readonly githubDisplay: string;
   readonly githubUrl: string;
   readonly linkedinDisplay: string;
@@ -28,7 +29,9 @@ export type Experience = {
   readonly company: string;
   readonly jobTitle: string;
   readonly dateRange: string;
-  readonly description: string;
+  /** Inline HTML: only `<strong>`, `<em>` and `<code>` survive assembly. */
+  readonly bullets: readonly string[];
+  readonly awards: readonly string[];
   readonly url: string | null;
 };
 
@@ -36,6 +39,8 @@ export type Project = {
   readonly title: string;
   readonly description: string | null;
   readonly url: string | null;
+  /** Printed beside the title: a paper copy has no clickable link. */
+  readonly urlDisplay: string | null;
   readonly topics: readonly string[];
 };
 
@@ -52,9 +57,9 @@ export type Education = {
 
 export type ResumeContent = {
   readonly identity: Identity;
-  /** Sentences (joined with a space). Drop from the end if too long. */
+  /** Complete sentences, joined with a space. */
   summary: string[];
-  /** Always shown in full (work history is non-negotiable). */
+  /** Every role is always shown; the fit loop only trims bullets. */
   experience: Experience[];
   /** Drop from the end (least important last). */
   projects: Project[];
@@ -97,13 +102,16 @@ const RESUME_CSS = `  <style>
     html, body {
       background: #fff;
       color: var(--text);
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 9.6pt;
-      line-height: 1.42;
+      font-family: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 9.3pt;
+      line-height: 1.38;
       font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "tnum" 1;
       -webkit-font-smoothing: antialiased;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      /* A long unbroken token (a repo URL, an email) would otherwise run past
+         the printable width and be clipped by the PDF page box. */
+      overflow-wrap: break-word;
     }
 
     body {
@@ -142,6 +150,7 @@ const RESUME_CSS = `  <style>
       color: var(--text-muted);
     }
     .contact {
+      overflow-wrap: anywhere;
       text-align: right;
       font-size: 8.6pt;
       color: var(--text-secondary);
@@ -156,8 +165,8 @@ const RESUME_CSS = `  <style>
 
     /* ---------- Summary ---------- */
     .summary {
-      font-size: 9.6pt;
-      line-height: 1.45;
+      font-size: 9.3pt;
+      line-height: 1.42;
       color: var(--text-secondary);
       margin-bottom: 11px;
     }
@@ -220,7 +229,29 @@ const RESUME_CSS = `  <style>
       line-height: 1.42;
     }
 
+    .bullets {
+      margin-top: 2px;
+      padding-left: 12px;
+      color: var(--text-secondary);
+      line-height: 1.36;
+    }
+    .bullets li { margin-top: 1px; }
+    .bullets li::marker { color: var(--text-muted); }
+    .bullets strong { color: var(--text); font-weight: 600; }
+    .award {
+      margin-top: 2px;
+      font-size: 9pt;
+      color: var(--text-secondary);
+    }
+    .award strong { color: var(--text); font-weight: 600; }
+
     /* ---------- Projects ---------- */
+    .project-url {
+      overflow-wrap: anywhere;
+      margin-left: 6px;
+      font-size: 8.5pt;
+      color: var(--accent);
+    }
     .tech {
       display: inline-block;
       margin-left: 6px;
@@ -274,7 +305,7 @@ const linkOrText = (
   url: string | null,
   className?: string
 ): string => {
-  const cls = className ? ` class="${className}"` : '';
+  const cls = className !== undefined ? ` class="${className}"` : '';
   return url
     ? `<a${cls} href="${escapeHtml(url)}">${escapeHtml(text)}</a>`
     : `<span${cls}>${escapeHtml(text)}</span>`;
@@ -290,7 +321,7 @@ function resumeContactHtml(content: ResumeContent): string {
   const contactItems = [
     `<a href="mailto:${escapeHtml(identity.email)}">${escapeHtml(identity.email)}</a>`,
     `<span>${escapeHtml(identity.phone)}</span>`,
-    `<a href="https://${escapeHtml(identity.website)}">${escapeHtml(identity.website)}</a>`,
+    `<a href="${escapeHtml(identity.websiteUrl)}">${escapeHtml(identity.website)}</a>`,
     `<a href="${escapeHtml(identity.githubUrl)}">${escapeHtml(identity.githubDisplay)}</a>`,
     `<a href="${escapeHtml(identity.linkedinUrl)}">${escapeHtml(identity.linkedinDisplay)}</a>`,
   ];
@@ -302,7 +333,7 @@ function resumeSummaryHtml(content: ResumeContent): string {
   const { summary } = content;
 
   return summary.length > 0
-    ? `<section class="summary">${escapeHtml(summary.join('. '))}.</section>`
+    ? `<section class="summary">${escapeHtml(summary.join(' '))}</section>`
     : '';
 }
 
@@ -324,7 +355,8 @@ function resumeExperienceHtml(content: ResumeContent): string {
             </div>
             <span class="entry-date">${escapeHtml(e.dateRange)}</span>
           </div>
-          <p class="entry-desc">${escapeHtml(e.description)}</p>
+          ${e.bullets.length > 0 ? `<ul class="bullets">${e.bullets.map((b) => `<li>${b}</li>`).join('')}</ul>` : ''}
+          ${e.awards.map((a) => `<p class="award"><strong>Recognition:</strong> ${escapeHtml(a)}</p>`).join('')}
         </div>`
         )
         .join('')}
@@ -345,10 +377,11 @@ function resumeProjectsHtml(content: ResumeContent): string {
           <div class="entry-row">
             <div class="entry-headline">
               ${linkOrText(p.title, p.url, 'entry-title')}
+              ${p.url !== null && p.urlDisplay !== null && p.urlDisplay !== p.title ? `<a class="project-url" href="${escapeHtml(p.url)}">${escapeHtml(p.urlDisplay)}</a>` : ''}
               ${p.topics.length > 0 ? `<span class="tech">${p.topics.map(escapeHtml).join(' · ')}</span>` : ''}
             </div>
           </div>
-          ${p.description ? `<p class="entry-desc">${escapeHtml(p.description)}</p>` : ''}
+          ${p.description !== null ? `<p class="entry-desc">${escapeHtml(p.description)}</p>` : ''}
         </div>`
         )
         .join('')}
@@ -406,7 +439,12 @@ function resumeEducationHtml(content: ResumeContent): string {
 // Document
 // ---------------------------------------------------------------------------
 
-function renderHtml(content: ResumeContent): string {
+/**
+ * `fontFaceCss` is inlined rather than linked: the page is loaded with
+ * `setContent`, so a Google Fonts request would make every build depend on the
+ * network and could silently fall back to a different face mid-measure.
+ */
+function renderHtml(content: ResumeContent, fontFaceCss = ''): string {
   const { identity } = content;
 
   return `<!DOCTYPE html>
@@ -414,9 +452,7 @@ function renderHtml(content: ResumeContent): string {
 <head>
   <meta charset="UTF-8">
   <title>${escapeHtml(identity.name)} — Resume</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>${fontFaceCss}</style>
 ${RESUME_CSS}
 </head>
 <body>

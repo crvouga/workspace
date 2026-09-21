@@ -23,6 +23,7 @@ import { promisify } from 'node:util';
 import { writeLine } from '../src/library/cli-output';
 import { CONTENT } from '../src/content/content';
 import { TOPIC_TO_IMAGE_SRC } from '../src/content/topic';
+import { DEFAULT_OG_IMAGE_PATH } from '../src/lib/seo';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,12 +51,11 @@ const ASSET_PATH_IN_TEXT = new RegExp(
   'g'
 );
 
-/** Never pruned: robots/sitemap are protocol files, not referenced by markup. */
-const ALWAYS_KEEP: readonly string[] = [
-  '/robots.txt',
-  '/sitemap.xml',
-  '/favicon.ico',
-];
+/**
+ * Never pruned: robots.txt is a protocol file, not referenced by markup. The
+ * sitemap is no longer here — `@astrojs/sitemap` generates it into `dist/`.
+ */
+const ALWAYS_KEEP: readonly string[] = ['/robots.txt', '/favicon.ico'];
 
 const DERIVATIVE_SUFFIX = '.optimized.webp';
 const MAX_LISTED = 200;
@@ -94,11 +94,17 @@ function toPublicPath(raw: string): string | null {
 function typedReferences(): string[] {
   return [
     ...CONTENT.PROJECTS.flatMap((p) => [...p.imageSrc, ...p.galleryImageSrc]),
+    // Folded behind "everything else" on /projects/, but still rendered.
+    ...CONTENT.ARCHIVE_PROJECTS.flatMap((p) => [
+      ...p.imageSrc,
+      ...p.galleryImageSrc,
+    ]),
     ...CONTENT.WORK.flatMap((w) => [...w.imageSrc, ...w.galleryImageSrc]),
     ...CONTENT.SCHOOL.flatMap((s) => [s.imageSrc, ...s.galleryImageSrc]),
     ...Object.values(TOPIC_TO_IMAGE_SRC).filter(
       (value): value is string => typeof value === 'string'
     ),
+    DEFAULT_OG_IMAGE_PATH,
   ];
 }
 

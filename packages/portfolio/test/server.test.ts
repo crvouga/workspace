@@ -87,7 +87,7 @@ async function cleanup(): Promise<void> {
   }
 }
 
-test('Docker container serves HTML on port 80', async () => {
+test('Docker container serves the multi-route site on port 80', async () => {
   try {
     writeLine('Cleaning up any existing containers/images...');
     await cleanup();
@@ -133,7 +133,34 @@ test('Docker container serves HTML on port 80', async () => {
     ).toBe(true);
     expect(body.includes('<rect')).toBe(true);
 
-    writeLine('✓ Test passed: Server responds with 200 HTML');
+    // The site is multi-route now, so nginx must NOT fall back to the
+    // homepage. An unknown path has to be a real 404 serving 404.html.
+    writeLine('Checking that an unknown path 404s...');
+    const missing = await fetch(`${TEST_URL}/definitely-not-a-page`);
+    expect(missing.status).toBe(404);
+    const missingBody = await missing.text();
+    expect(missingBody.includes('That page does not exist.')).toBe(true);
+
+    // The retired hand-written sitemap must be gone, not silently served.
+    const oldSitemap = await fetch(`${TEST_URL}/sitemap.xml`);
+    expect(oldSitemap.status).toBe(404);
+
+    writeLine('Checking the generated routes...');
+    const archive = await fetch(`${TEST_URL}/projects/`);
+    expect(archive.status).toBe(200);
+    expect((await archive.text()).includes('All projects')).toBe(true);
+
+    const sitemap = await fetch(`${TEST_URL}/sitemap-index.xml`);
+    expect(sitemap.status).toBe(200);
+    expect((await sitemap.text()).includes('sitemap-0.xml')).toBe(true);
+
+    const llms = await fetch(`${TEST_URL}/llms.txt`);
+    expect(llms.status).toBe(200);
+    expect(
+      (llms.headers.get('content-type') || '').includes('text/plain')
+    ).toBe(true);
+
+    writeLine('✓ Test passed: routes, 404 handling and sitemap all correct');
   } catch (error) {
     await printDockerLogs();
     throw error;

@@ -19,9 +19,9 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "**/*.md"
-      - ".vscode/**"
-      - ".cursor/**"
+      - '**/*.md'
+      - '.vscode/**'
+      - '.cursor/**'
   # No paths-ignore on PRs: the `Required` gate must report on every PR (the
   # `changes` job already skips heavy work for docs-only diffs).
   pull_request:
@@ -36,11 +36,11 @@ on:
         type: boolean
         default: false
       service_id:
-        description: "Manual fleet redeploy: single service id (empty = all)"
+        description: 'Manual fleet redeploy: single service id (empty = all)'
         required: false
         type: string
       image_tag:
-        description: "Manual fleet redeploy image tag"
+        description: 'Manual fleet redeploy image tag'
         required: false
         type: string
         default: latest
@@ -54,61 +54,61 @@ on:
   workflow_call:
     inputs:
       service_id:
-        description: "Service id matching services.yaml (e.g. portfolio, todo-app)."
+        description: 'Service id matching services.yaml (e.g. portfolio, todo-app).'
         required: true
         type: string
       dockerfile:
-        description: "Path to Dockerfile relative to context."
+        description: 'Path to Dockerfile relative to context.'
         required: false
         type: string
         default: ./Dockerfile
       context:
-        description: "Docker build context."
+        description: 'Docker build context.'
         required: false
         type: string
         default: .
       image_owner:
-        description: "ghcr.io owner."
+        description: 'ghcr.io owner.'
         required: false
         type: string
         default: crvouga
       image_prefix:
-        description: "GHCR package prefix (from services.yaml image_prefix)."
+        description: 'GHCR package prefix (from services.yaml image_prefix).'
         required: false
         type: string
         default: chrisvouga
       infra_github_repo:
-        description: "Infra repo owner/name for deploy dispatch."
+        description: 'Infra repo owner/name for deploy dispatch.'
         required: false
         type: string
         default: crvouga/workspace
       notify_deploy:
-        description: "POST repository_dispatch to infra after push. Set false when chaining deploy."
+        description: 'POST repository_dispatch to infra after push. Set false when chaining deploy.'
         required: false
         type: boolean
         default: true
     secrets:
       DEPLOY_DISPATCH_TOKEN:
-        description: "PAT or GITHUB_TOKEN with repo dispatch to the infra repo."
+        description: 'PAT or GITHUB_TOKEN with repo dispatch to the infra repo.'
         required: false
       CALLER_GITHUB_TOKEN:
-        description: "Caller workflow github.token — required for GHCR push from cross-repo calls."
+        description: 'Caller workflow github.token — required for GHCR push from cross-repo calls.'
         required: false
       RAILWAY_TOKEN:
-        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        description: 'Repo secret — vault bootstrap job only (not passed by callers).'
         required: false
       CF_API_TOKEN:
-        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        description: 'Repo secret — vault bootstrap job only (not passed by callers).'
         required: false
       DB_CONNECTION_URI:
-        description: "Repo secret — vault bootstrap job only (not passed by callers)."
+        description: 'Repo secret — vault bootstrap job only (not passed by callers).'
         required: false
     outputs:
       image_tag:
-        description: "Image tag pushed (commit SHA)."
+        description: 'Image tag pushed (commit SHA).'
         value: ${{ jobs.publish.outputs.image_tag }}
       service_id:
-        description: "Service id that was published."
+        description: 'Service id that was published.'
         value: ${{ jobs.publish.outputs.service_id }}
 
 concurrency:
@@ -259,7 +259,6 @@ jobs:
               ;;
           esac
 
-
   check:
     needs: [changes, vault]
     if: |
@@ -293,6 +292,15 @@ jobs:
           VAULT_CONFIG: dev
           VAULT_PROJECT: personal
         run: bun run --filter @pkgs/turborepo-remote-cache smoke:secrets
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - name: Install Chromium (portfolio resume PDF)
+        run: |
+          cd packages/portfolio
+          node node_modules/playwright/cli.js install --with-deps chromium
       - name: Turbo CI (format, tc, lint, test, build)
         run: bun run check
 
@@ -699,7 +707,7 @@ jobs:
 
       - name: Verify custom domain (pre-unseal)
         env:
-          REQUIRE_HEALTHY: "false"
+          REQUIRE_HEALTHY: 'false'
         run: |
           chmod +x scripts/verify-custom-domain.sh
           ./scripts/verify-custom-domain.sh
@@ -721,7 +729,7 @@ jobs:
 
       - name: Health check custom domain
         env:
-          REQUIRE_HEALTHY: "true"
+          REQUIRE_HEALTHY: 'true'
         run: ./scripts/verify-custom-domain.sh
 
       - name: Health-check vault

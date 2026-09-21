@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # Build from the repo root: docker build -f packages/portfolio/Dockerfile .
-FROM node:22-alpine AS build
-
-RUN apk add --no-cache libc6-compat
+# Debian, not Alpine: the build renders the resume PDF with Playwright's
+# Chromium (src/pages/chris-vouga-resume.pdf.ts), which ships glibc-only.
+FROM node:22-bookworm-slim AS build
 
 # bun binary for `bun install --frozen-lockfile`; astro build runs via node.
 COPY --from=oven/bun:1.3.11 /usr/local/bin/bun /usr/local/bin/bun
@@ -25,6 +25,11 @@ COPY packages/workstation/package.json ./packages/workstation/
 COPY packages/9router/package.json ./packages/9router/
 
 RUN bun install --frozen-lockfile
+
+# Matches the lockfile's Playwright version, and is cached with it: this layer
+# only rebuilds when dependencies change, not when content does.
+RUN cd packages/portfolio \
+  && node node_modules/playwright/cli.js install --with-deps chromium
 
 COPY packages/portfolio ./packages/portfolio
 

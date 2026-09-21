@@ -1,22 +1,36 @@
 ---
 import { CONTENT } from '../content/content';
+import { RESUME_HREF } from '../constants/resume';
+
+interface Props {
+  /** Sub-pages need absolute anchors; the homepage keeps same-page ones. */
+  variant?: 'home' | 'sub';
+}
+const { variant = 'home' } = Astro.props;
 
 const links = CONTENT.SECTIONS.filter((section) => section.nav);
+const sectionHref = (id: string): string =>
+  variant === 'home' ? `#${id}` : `/#${id}`;
+const homeHref = variant === 'home' ? '#top' : '/';
+const homeLabel =
+  variant === 'home'
+    ? `${CONTENT.MONOGRAM_INITIALS} — back to top`
+    : `${CONTENT.MONOGRAM_INITIALS} — Chris Vouga home`;
 ---
 
 <header class="nav">
   <div class="container inner">
-    <a
-      href="#top"
-      class="monogram"
-      aria-label={`${CONTENT.MONOGRAM_INITIALS} — back to top`}
-    >
+    <a href={homeHref} class="monogram" aria-label={homeLabel}>
       {CONTENT.MONOGRAM_INITIALS}
     </a>
     <nav aria-label="Site sections">
-      {links.map((section) => <a href={`#${section.id}`}>{section.navLabel}</a>)}
+      {
+        links.map((section) => (
+          <a href={sectionHref(section.id)}>{section.navLabel}</a>
+        ))
+      }
     </nav>
-    <a href="/chris-vouga-resume.pdf" class="resume" download>Résumé</a>
+    <a href={RESUME_HREF} class="resume" target="_blank" rel="noopener">Résumé</a>
   </div>
 </header>
 

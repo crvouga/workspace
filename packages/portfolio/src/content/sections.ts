@@ -1,5 +1,5 @@
 export type SectionId =
-  'work' | 'projects' | 'proof' | 'agentic' | 'about' | 'education' | 'contact';
+  'work' | 'projects' | 'agentic' | 'proof' | 'about' | 'contact';
 
 export type Section = {
   readonly id: SectionId;
@@ -13,24 +13,27 @@ export type Section = {
 /**
  * Declaration order is the page order (see pages/index.astro) and the header
  * order; `number` is derived from it so the two can never drift apart.
+ *
+ * Education is deliberately not a section: a diploma image in its own numbered
+ * slot reads as credential anxiety at this much experience, so the degree is
+ * one line inside About.
  */
 const ORDERED: readonly Omit<Section, 'number'>[] = [
   { id: 'work', title: 'Work', navLabel: 'Work', nav: true },
-  { id: 'projects', title: 'Projects', navLabel: 'Projects', nav: true },
+  {
+    id: 'projects',
+    title: 'Selected projects',
+    navLabel: 'Projects',
+    nav: true,
+  },
+  { id: 'agentic', title: 'How I build', navLabel: 'How I build', nav: true },
   {
     id: 'proof',
     title: 'Proof, not promises',
     navLabel: 'Proof',
-    nav: true,
-  },
-  { id: 'agentic', title: 'How I build', navLabel: 'How I build', nav: false },
-  { id: 'about', title: 'About', navLabel: 'About', nav: true },
-  {
-    id: 'education',
-    title: 'Education',
-    navLabel: 'Education',
     nav: false,
   },
+  { id: 'about', title: 'About', navLabel: 'About', nav: false },
   { id: 'contact', title: 'Contact', navLabel: 'Contact', nav: true },
 ];
 

@@ -7,11 +7,14 @@ const year = new Date().getFullYear();
 <footer>
   <div class="container inner">
     <p>
-      © {year} Chris Vouga · single static HTML page · no trackers
+      © {year} Chris Vouga · static site · no trackers
     </p>
-    <a href={CONTENT.SITE_SOURCE_CODE_URL} rel="noopener" target="_blank">
-      Source on GitHub
-    </a>
+    <nav class="links" aria-label="Site">
+      <a href="/projects/">All projects</a>
+      <a href={CONTENT.SITE_SOURCE_CODE_URL} rel="noopener" target="_blank">
+        Source on GitHub
+      </a>
+    </nav>
   </div>
 </footer>
 
@@ -20,6 +23,12 @@ const year = new Date().getFullYear();
     border-top: 1px solid var(--paper-border);
     padding-block: var(--space-6);
     margin-top: var(--space-6);
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
   }
   .inner {
     display: flex;

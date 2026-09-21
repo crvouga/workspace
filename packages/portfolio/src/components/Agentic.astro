@@ -14,10 +14,14 @@ const section = CONTENT.GET_SECTION('agentic');
       <div class="card workflow-card">
         <h3>{CONTENT.AGENTIC_WORKFLOW_TITLE}</h3>
         <ul>
-          {CONTENT.AGENTIC_WORKFLOW_POINTS.map((point) => <li>{point}</li>)}
+          {
+            CONTENT.AGENTIC_WORKFLOW_POINTS.map((point) => (
+              <li set:html={point} />
+            ))
+          }
         </ul>
       </div>
-      <div class="card cursor-card">
+      <aside class="card cursor-card">
         <div class="frame">
           <iframe
             src={CONTENT.ABOUT_YOUTUBE_EMBED_URL}
@@ -30,7 +34,7 @@ const section = CONTENT.GET_SECTION('agentic');
           <span class="badge">{CONTENT.AGENTIC_CURSOR_BADGE}</span>
           <p>{CONTENT.AGENTIC_CURSOR_TEXT}</p>
         </div>
-      </div>
+      </aside>
     </div>
   </div>
 </section>
@@ -39,22 +43,24 @@ const section = CONTENT.GET_SECTION('agentic');
   .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: var(--space-5);
     align-items: start;
   }
+  /* The gates are the argument; the Cursor aside is a footnote, so it gets the
+     narrow column rather than equal billing. */
   @media (min-width: 900px) {
     .grid {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.6fr 1fr;
     }
   }
   .workflow-card {
-    padding: 28px;
+    padding: var(--space-6);
   }
   .workflow-card h3 {
     font-family: var(--font-mono);
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
   .workflow-card ul {
     margin: 0;
@@ -62,13 +68,13 @@ const section = CONTENT.GET_SECTION('agentic');
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--space-3);
   }
   .workflow-card li {
     position: relative;
-    padding-left: 20px;
+    padding-left: 20px; /* bullet hanging indent, matches Experience */
     color: var(--text-muted);
-    font-size: 15px;
+    font-size: var(--text-base);
   }
   .workflow-card li::before {
     content: '›';
@@ -91,28 +97,28 @@ const section = CONTENT.GET_SECTION('agentic');
     display: block;
   }
   .card-body {
-    padding: 20px;
+    padding: var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-2);
   }
   .badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-1);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--text-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
-    padding: 4px 8px;
+    padding: var(--space-1) var(--space-2);
     background: var(--accent-soft);
     border: 1px solid var(--accent-glow);
     border-radius: var(--radius-pill);
     align-self: flex-start;
   }
   .card-body p {
-    font-size: 14px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
   }
 </style>

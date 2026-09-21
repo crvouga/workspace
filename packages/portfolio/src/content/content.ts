@@ -1,6 +1,7 @@
 import {
   ABOUT_ME,
   ABOUT_ME_ATTR_SAFE,
+  ABOUT_ME_PARAGRAPHS,
   ABOUT_YOUTUBE_EMBED_URL,
   ABOUT_YOUTUBE_VIDEO_TITLE,
   ABOUT_GITHUB_HEATMAP_TEXT,
@@ -8,7 +9,7 @@ import {
 import { CONTACT_COPY } from './contact';
 import { FOOTER_COPY } from './footer';
 import { CORE_STACK, HERO, LOCATION, MONOGRAM_INITIALS } from './hero';
-import { PROJECTS } from './project';
+import { ARCHIVE_PROJECTS, PROJECTS } from './project';
 import { PROOF_LEDE } from './proof';
 import { SCHOOL } from './school';
 import { SECTIONS, getSection } from './sections';
@@ -54,6 +55,7 @@ export const CONTENT = {
   PROOF_LEDE,
   PROJECT_SECTION_TITLE: getSection('projects').title,
   PROJECTS,
+  ARCHIVE_PROJECTS,
   AGENTIC_CURSOR_BADGE,
   AGENTIC_CURSOR_TEXT,
   AGENTIC_WORKFLOW_TITLE,
@@ -64,12 +66,12 @@ export const CONTENT = {
   //
   ABOUT_ME_SECTION_TITLE: getSection('about').title,
   ABOUT_ME,
+  ABOUT_ME_PARAGRAPHS,
   SKILL_ROWS,
   ABOUT_YOUTUBE_EMBED_URL,
   ABOUT_YOUTUBE_VIDEO_TITLE,
   ABOUT_GITHUB_HEATMAP_TEXT,
   //
-  SCHOOL_SECTION_TITLE: getSection('education').title,
   SCHOOL,
   //
   CONTACT_SECTION_TITLE: getSection('contact').title,

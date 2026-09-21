@@ -12,6 +12,7 @@
 import type { Project } from './src/content/projects/types';
 import { PROJECT_ENTRIES_PART_1 } from './src/content/projects/entries-part-1';
 import { PROJECT_ENTRIES_PART_2 } from './src/content/projects/entries-part-2';
+import { PROJECT_ENTRIES_ARCHIVE } from './src/content/projects/entries-archive';
 
 export type {
   Code,
@@ -34,3 +35,10 @@ export const PROJECTS: readonly Project[] = [
   ...PROJECT_ENTRIES_PART_1,
   ...PROJECT_ENTRIES_PART_2,
 ];
+
+/**
+ * Early and small work, kept out of `PROJECTS` so it never dilutes the curated
+ * listing, the Toolbox, the screenshot jobs or the resume. `/projects/` renders
+ * it behind a fold so nothing built is ever actually lost.
+ */
+export const ARCHIVE_PROJECTS: readonly Project[] = PROJECT_ENTRIES_ARCHIVE;
