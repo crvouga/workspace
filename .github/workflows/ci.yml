@@ -146,6 +146,8 @@ jobs:
           filters: |
             check:
               - 'packages/**'
+              - 'scripts/**'
+              - 'llms.txt'
               - 'package.json'
               - 'bun.lock'
               - 'turbo.json'
