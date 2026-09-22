@@ -422,6 +422,20 @@ services:
     ghcr:
       visibility: public
 
+  - id: violets-garden
+    kind: railway
+    hostname: violetsgarden.chrisvouga.dev
+    github_repo: crvouga/violets-garden
+    source_code_url: https://github.com/crvouga/violets-garden
+    dockerfile: ./Dockerfile
+    build_context: .
+    port: 80
+    health_check: true
+    ghcr:
+      visibility: public
+    env:
+      PORT: '80'
+
   - id: turborepo
     kind: railway
     hostname: turborepo.chrisvouga.dev

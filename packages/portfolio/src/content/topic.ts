@@ -61,6 +61,8 @@ export const TOPIC_TO_IMAGE_SRC = {
   clojure: '/clojure.svg',
   clojurescript: '/clojure.svg',
   'react-native': '/react.svg',
+  phaser: null,
+  'tone-js': null,
 };
 
 export type Topic = keyof typeof TOPIC_TO_IMAGE_SRC;
@@ -125,4 +127,6 @@ export const TOPIC_TO_NAME: { [key in Topic]: string } = {
   clojure: 'Clojure',
   clojurescript: 'ClojureScript',
   'react-native': 'React Native',
+  phaser: 'Phaser',
+  'tone-js': 'Tone.js',
 };

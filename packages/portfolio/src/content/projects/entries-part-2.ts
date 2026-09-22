@@ -193,4 +193,18 @@ export const PROJECT_ENTRIES_PART_2: readonly Project[] = [
     ],
     topics: ['bootstrap', 'drupal', 'javascript', 'react', 'css', 'php'],
   },
+  {
+    id: 'violets-garden',
+    title: "Violet's Garden",
+    setting: 'side',
+    deployment: { t: 'public', url: 'https://violetsgarden.chrisvouga.dev' },
+    code: { t: 'public', url: 'https://github.com/crvouga/violets-garden' },
+    description:
+      'A cozy, mobile-first Sokoban-style puzzle game: guide Violet the pug through hedge mazes of keys, gates, crates and pressure buttons. All art is vector SVG and every sound is synthesized at runtime, so the build has no image or audio files. Every level is proven solvable by a BFS solver in the test suite, which also checks the par move counts.',
+    imageAlt: IMAGE_ALT,
+    imageSrc: ['/violets-garden-screenshot.optimized.webp'],
+    galleryImageSrc: ['/violets-garden-screenshot.optimized.webp'],
+    topics: ['typescript', 'phaser', 'tone-js', 'javascript', 'html', 'docker'],
+    resume: { include: false },
+  },
 ];

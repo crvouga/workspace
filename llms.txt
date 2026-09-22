@@ -433,7 +433,7 @@ Names only — never values.
 <custom domain needs, rate limits, known caveats, who to ask — or none>
 ```
 
-Portfolio topics (use these exact keys; a new topic needs an icon, so ask for it in the issue instead of inventing one): `neo4j`, `graphene`, `flask`, `salesforce`, `dynamodb`, `php`, `drupal`, `typescript`, `heroku`, `jest`, `redux-saga`, `ramda`, `react`, `firebase`, `docker`, `supabase`, `postgres`, `material-ui`, `nextjs`, `socket-io`, `express`, `css`, `shopify`, `sanity`, `nodejs`, `puppeteer`, `redux`, `rxjs`, `elm`, `react-query`, `greensock`, `javascript`, `vue`, `tailwind`, `mongodb`, `bootstrap`, `graphql`, `gridsome`, `mysql`, `nuxt`, `python`, `aws`, `bun`, `websocket`, `alphinejs`, `roc`, `htmx`, `sqlite`, `rust`, `datastar`, `go`, `trpc`, `vercel`, `html`, `s3`, `zod`, `clojure`, `clojurescript`, `react-native`.
+Portfolio topics (use these exact keys; a new topic needs an icon, so ask for it in the issue instead of inventing one): `neo4j`, `graphene`, `flask`, `salesforce`, `dynamodb`, `php`, `drupal`, `typescript`, `heroku`, `jest`, `redux-saga`, `ramda`, `react`, `firebase`, `docker`, `supabase`, `postgres`, `material-ui`, `nextjs`, `socket-io`, `express`, `css`, `shopify`, `sanity`, `nodejs`, `puppeteer`, `redux`, `rxjs`, `elm`, `react-query`, `greensock`, `javascript`, `vue`, `tailwind`, `mongodb`, `bootstrap`, `graphql`, `gridsome`, `mysql`, `nuxt`, `python`, `aws`, `bun`, `websocket`, `alphinejs`, `roc`, `htmx`, `sqlite`, `rust`, `datastar`, `go`, `trpc`, `vercel`, `html`, `s3`, `zod`, `clojure`, `clojurescript`, `react-native`, `phaser`, `tone-js`.
 
 ### Step 2 — the service entry (added in `crvouga/workspace` from your issue)
 
@@ -491,6 +491,7 @@ permissions:
   contents: read
   packages: write
   id-token: write
+  pull-requests: read
 
 jobs:
   my_app:
@@ -548,6 +549,7 @@ Working examples to copy from — each links to its source repo:
 | `snake-game` | https://snake.chrisvouga.dev | [crvouga/snake](https://github.com/crvouga/snake) | `./Dockerfile` (`.`) | 80 | `/` |
 | `match-three` | https://matchthree.chrisvouga.dev | [crvouga/match-three](https://github.com/crvouga/match-three) | `./Dockerfile` (`.`) | 80 | `/` |
 | `simon-says` | https://simonsays.chrisvouga.dev | [crvouga/simon-says](https://github.com/crvouga/simon-says) | `./Dockerfile` (`.`) | 80 | `/` |
+| `violets-garden` | https://violetsgarden.chrisvouga.dev | [crvouga/violets-garden](https://github.com/crvouga/violets-garden) | `./Dockerfile` (`.`) | 80 | `/` |
 | `turborepo` | https://turborepo.chrisvouga.dev | [crvouga/workspace](https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache) | `packages/turborepo-remote-cache/Dockerfile` (`.`) | 8080 | `/health` |
 | `llm-proxy` | https://llm-proxy.chrisvouga.dev | [crvouga/llm-server](https://github.com/crvouga/llm-server) | `proxy/Dockerfile` (`proxy`) | 8080 | `/ui` |
 
