@@ -135,6 +135,8 @@ jobs:
       publish: ${{ steps.flags.outputs.publish }}
       deploy: ${{ steps.flags.outputs.deploy }}
       portfolio: ${{ steps.flags.outputs.portfolio }}
+      # Called workflows report the caller's event_name, never workflow_call.
+      workflow_call: ${{ steps.flags.outputs.workflow_call }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -197,8 +199,17 @@ jobs:
           PUBLISH=false
           DEPLOY=false
           PORTFOLIO=false
+          # github.event_name here is the caller's event (push on a sibling
+          # publish). workflow_call is never that value. Sibling publishes are
+          # the only runs that pass service_id outside a manual dispatch.
+          WORKFLOW_CALL=false
+          if [ -n "${INPUT_SERVICE_ID}" ] && \
+             [ "${EVENT_NAME}" != "workflow_dispatch" ] && \
+             [ "${EVENT_NAME}" != "repository_dispatch" ]; then
+            WORKFLOW_CALL=true
+          fi
 
-          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+          if [ "${WORKFLOW_CALL}" = "true" ]; then
             # Sibling repo publishes its image through this workflow; nothing else runs.
             PUBLISH=true
           elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
@@ -246,8 +257,9 @@ jobs:
             echo "publish=${PUBLISH}"
             echo "deploy=${DEPLOY}"
             echo "portfolio=${PORTFOLIO}"
+            echo "workflow_call=${WORKFLOW_CALL}"
           } >> "$GITHUB_OUTPUT"
-          echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY} portfolio=${PORTFOLIO}"
+          echo "flags check=${CHECK} vault=${VAULT} publish=${PUBLISH} deploy=${DEPLOY} portfolio=${PORTFOLIO} workflow_call=${WORKFLOW_CALL}"
 
   vault-state:
     if: |
@@ -477,16 +489,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
-        if: github.event_name != 'workflow_call'
+        if: needs.changes.outputs.workflow_call != 'true'
       - run: bun install --frozen-lockfile
-        if: github.event_name != 'workflow_call'
+        if: needs.changes.outputs.workflow_call != 'true'
       - id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CALL: ${{ needs.changes.outputs.workflow_call }}
           IN_SERVICE_ID: ${{ inputs.service_id }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+          if [ "${WORKFLOW_CALL}" = "true" ]; then
             echo "service_ids=[\"${IN_SERVICE_ID}\"]" >> "$GITHUB_OUTPUT"
           elif [ "${EVENT_NAME}" = "schedule" ]; then
             # The daily run exists only to refresh portfolio's GitHub data.
@@ -523,14 +536,14 @@ jobs:
       # The publish inputs come from services.yaml, so the job needs the workspace
       # toolchain (sibling workflow_call publishes pass their inputs directly).
       - uses: oven-sh/setup-bun@v2
-        if: github.event_name != 'workflow_call'
+        if: needs.changes.outputs.workflow_call != 'true'
       - run: bun install --frozen-lockfile
-        if: github.event_name != 'workflow_call'
+        if: needs.changes.outputs.workflow_call != 'true'
 
       - name: Resolve build inputs
         id: resolve
         env:
-          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CALL: ${{ needs.changes.outputs.workflow_call }}
           IN_SERVICE_ID: ${{ inputs.service_id }}
           IN_DOCKERFILE: ${{ inputs.dockerfile }}
           IN_CONTEXT: ${{ inputs.context }}
@@ -540,7 +553,7 @@ jobs:
           MATRIX_SERVICE_ID: ${{ matrix.service_id }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_call" ]; then
+          if [ "${WORKFLOW_CALL}" = "true" ]; then
             SID="${IN_SERVICE_ID}"
             for v in "${SID}" "${IN_DOCKERFILE}" "${IN_CONTEXT}" "${IN_OWNER}" "${IN_PREFIX}"; do
               if [ -z "${v}" ]; then
@@ -845,6 +858,7 @@ jobs:
       - id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CALL: ${{ needs.changes.outputs.workflow_call }}
           CLIENT_ID: ${{ github.event.client_payload.id }}
           CLIENT_IMAGE_TAG: ${{ github.event.client_payload.image_tag }}
           INPUT_SERVICE_ID: ${{ inputs.service_id }}
@@ -860,7 +874,7 @@ jobs:
           fi
 
           # A monorepo publish in this run redeploys exactly the services it built.
-          if [ "${PUBLISH_RESULT}" = "success" ] && [ "${EVENT_NAME}" != "workflow_call" ]; then
+          if [ "${PUBLISH_RESULT}" = "success" ] && [ "${WORKFLOW_CALL}" != "true" ]; then
             SERVICE_IDS="${PUBLISH_TARGETS}"
             TAG="${GITHUB_SHA}"
             REDEPLOY=true
@@ -990,10 +1004,11 @@ jobs:
       ]
     # Production smoke follows health checks on pushes and production
     # dispatches; never probe production from PRs or sibling publish calls.
+    # Sibling calls keep the caller's event_name, so use the changes output.
     if: |
       always() &&
       github.event_name != 'pull_request' &&
-      github.event_name != 'workflow_call' &&
+      needs.changes.outputs.workflow_call != 'true' &&
       needs.changes.result == 'success' &&
       (needs.vault-state.result == 'success' || needs.vault-state.result == 'skipped') &&
       (needs.check.result == 'success' || needs.check.result == 'skipped') &&
