@@ -19,7 +19,9 @@ cloudflare:
       status: 301
 
 railway:
-  project: infra
+  # Desired name. Reconcile renames the project that already hosts these
+  # services, and creates one only when no project does.
+  project: Workspace
   environment: production
   region: us-east4
   replicas: 1

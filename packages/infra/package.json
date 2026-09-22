@@ -20,6 +20,7 @@
     "rollout-publish": "bun run scripts/rollout-publish-workflows.ts",
     "seed-vault-github-secret": "bun run scripts/seed-vault-github-secret.ts",
     "reconcile": "bun run scripts/reconcile.ts",
+    "test": "bun test",
     "print-vault-kv-keys": "bun run scripts/print-vault-kv-keys.ts",
     "sync-aliases": "bun run scripts/sync-aliases.ts",
     "sync-dns": "bun run scripts/sync-dns.ts",

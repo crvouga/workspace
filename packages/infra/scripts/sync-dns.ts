@@ -22,9 +22,10 @@ import {
   issueCustomDomainCertificate,
   railwayDnsRecords,
   resolveEnvironment,
-  resolveProjectContext,
   type RailwayCustomDomain,
+  type RailwayProject,
 } from "../lib/railway-api.js";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayToken } from "../lib/railway-token.js";
 import {
   allDnsTargets,
@@ -158,7 +159,10 @@ function toDesiredRecords(
   return records;
 }
 
-type RailwayDnsContext = Awaited<ReturnType<typeof resolveProjectContext>> & {
+type RailwayDnsContext = {
+  readonly project: RailwayProject;
+  readonly projectId: string;
+  readonly environmentId: string;
   readonly environment: ReturnType<typeof resolveEnvironment>;
 };
 
@@ -168,12 +172,19 @@ async function loadRailwayDnsContext(config: ServicesConfig): Promise<RailwayDns
   assert.nonEmptyString(projectName, "sync-dns railway project name must be non-empty");
   const environmentName = railwayEnvironmentName(config);
   assert.nonEmptyString(environmentName, "sync-dns railway environment name must be non-empty");
-  const ctx = await resolveProjectContext(projectName, environmentName);
-  assert.defined(ctx, "sync-dns railway context must be defined");
-  assert.nonEmptyString(ctx.projectId, "sync-dns railway project id must be non-empty");
+  const opened = await convergeRailwayProject(config, { apply: false, allowCreate: false });
+  if (!opened.project || !opened.projectId || !opened.environmentId) {
+    throw new Error(
+      `Railway project "${projectName}" not found — run provision-railway --apply`,
+    );
+  }
+  assert.nonEmptyString(opened.projectId, "sync-dns railway project id must be non-empty");
+  assert.nonEmptyString(opened.environmentId, "sync-dns railway environment id must be non-empty");
   return {
-    ...ctx,
-    environment: resolveEnvironment(ctx.project, environmentName),
+    project: opened.project,
+    projectId: opened.projectId,
+    environmentId: opened.environmentId,
+    environment: resolveEnvironment(opened.project, environmentName),
   };
 }
 

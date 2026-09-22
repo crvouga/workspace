@@ -40,13 +40,13 @@ Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin con
 
 ## Global resource naming
 
-| Resource                                       | Pattern                                                     | Example                                |
-| ---------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
-| Railway project                                | from `services.yaml` → `railway.project`                    | `infra`                                |
-| Railway service                                | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
-| GHCR image                                     | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
-| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
-| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                | Vault `dev` / `prd` `S3_BUCKET`        |
+| Resource                                       | Pattern                                                                               | Example                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------- |
+| Railway project                                | from `services.yaml` → `railway.project` (reconcile renames the live project to this) | `Workspace`                            |
+| Railway service                                | service `id` (no prefix)                                                              | `portfolio`, `vault`                   |
+| GHCR image                                     | `chrisvouga-<id>`                                                                     | `ghcr.io/crvouga/chrisvouga-portfolio` |
+| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR)                           | `ghcr.io/example/app:latest`           |
+| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                                          | Vault `dev` / `prd` `S3_BUCKET`        |
 
 Railway names come from [`packages/infra/services.yaml`](packages/infra/services.yaml) via `railwayServiceName()` in [`packages/infra/lib/services.ts`](packages/infra/lib/services.ts) — defaults to the service `id`. Legacy Fly.io apps used the `crvouga-` prefix; see `legacyFlyAppName()`.
 

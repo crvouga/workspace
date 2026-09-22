@@ -14,16 +14,14 @@ const ha: Assert = hotAssert();
 
 import { ensureGhcrPackagePublic } from "../lib/ghcr.js";
 import {
-    connectServiceImage,
-    ensureCustomDomain,
-    ensureProject,
-    ensureServiceFromImage,
-    ensureVolume,
-    type RailwayProject,
-    resolveEnvironment,
-    resolveProjectContext,
-    updateServiceInstance,
+	connectServiceImage,
+	ensureCustomDomain,
+	ensureServiceFromImage,
+	ensureVolume,
+	type RailwayProject,
+	updateServiceInstance,
 } from "../lib/railway-api.js";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayGhcrPullCredentials } from "../lib/railway-ghcr.js";
 import {
     collectServiceVariables,
@@ -271,16 +269,34 @@ async function main(): Promise<void> {
 	}
 
 	await ensureRailwayToken();
-	const ctx = await resolveProjectContext(projectName, environmentName);
-	assert.nonEmptyString(ctx.projectId, "project id must be non-empty");
-	assert.nonEmptyString(ctx.environmentId, "environment id must be non-empty");
-	const project = args.apply ? await ensureProject(projectName) : ctx.project;
-	const environment = resolveEnvironment(project, environmentName);
-	assert.nonEmptyString(environment.id, "environment id must be non-empty");
+	const opened = await convergeRailwayProject(config, { apply: args.apply });
+	if (!opened.project || !opened.environmentId) {
+		assert.ok(!args.apply, "apply creates the railway project before provisioning");
+		console.log(`  [plan] create Railway project "${projectName}"`);
+		for (const service of services) {
+			ha.nonEmptyString(service.id, "service id must be non-empty");
+			console.log(`\n=== ${service.id} ===`);
+			console.log(`  ${describeService(config, service)}`);
+			console.log(
+				"  [plan] ensure service, instance settings, env, domain, volume",
+			);
+		}
+		console.log("\nProvision complete.");
+		return;
+	}
+	if (opened.plan.op === "rename" && !args.apply) {
+		console.log(
+			`  [plan] Railway project "${opened.plan.from}" → "${opened.plan.to}"`,
+		);
+	}
+	const project = opened.project;
+	const environmentId = opened.environmentId;
+	assert.nonEmptyString(project.id, "project id must be non-empty");
+	assert.nonEmptyString(environmentId, "environment id must be non-empty");
 
 	for (const service of services) {
 		ha.nonEmptyString(service.id, "service id must be non-empty");
-		await provisionService(config, project, environment.id, service, args);
+		await provisionService(config, project, environmentId, service, args);
 	}
 
 	console.log("\nProvision complete.");
