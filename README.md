@@ -1,5 +1,7 @@
 # Infra (Railway)
 
+> Integrating another repo (Vault, Turborepo cache, R2, hosting)? Follow the generated [`llms.txt`](llms.txt).
+
 Railway deployment for all services on the zone defined in [`services.yaml`](services.yaml) (`zone: chrisvouga.dev`).
 
 Project repos build and push their own public image to `ghcr.io/<image_owner>/<image_prefix>-<id>` (e.g. `ghcr.io/crvouga/chrisvouga-todo-app`), while the images for services whose code lives here (`turborepo`, `vault`, `portfolio`) are built and pushed by this repo's CI publish job. This repo otherwise **consumes** those images — GitHub Actions provisions Railway services via the GraphQL API, syncs DNS/secrets, deploys, and health-checks.

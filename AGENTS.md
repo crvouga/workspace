@@ -13,11 +13,15 @@ Single flat Turborepo + Bun workspace at the repo root. Every package is scoped 
 - `packages/vault-service` — standalone OpenBao service (Docker + shell; no package.json)
 - `packages/workstation` — portable local-machine config (no package.json)
 
-Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`, and `INTEGRATING.md` (the guide other repos link to for consuming Vault / Turborepo cache / R2 — keep it in sync when those contracts change).
+Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`, `llms.txt` (the generated integration guide other repos fetch — see below), and `INTEGRATING.md` (a stub pointing at `llms.txt` so old links keep working).
 
 `bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.agents/commands/ci.md`](.agents/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
 **A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.agents/commands/ci.md`](.agents/commands/ci.md) → **Watch CI & fix failures**.
+
+## Integration guide (`llms.txt`)
+
+The root [`llms.txt`](llms.txt) is the single document external codebases (and their agents) fetch from `https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt` to integrate with Vault, the Turborepo remote cache, the R2 object store, and fleet hosting (Dockerized, prebuilt GHCR images published through `ci.yml`'s `workflow_call`). It is **generated — never edit it by hand**: prose lives in [`scripts/llms-txt.template.md`](scripts/llms-txt.template.md), and every value (hostnames, Vault paths, OIDC role, buckets, KV keys, `workflow_call` inputs, the publish workflow from `packages/infra/lib/publish-workflow.ts`, the fleet table) is read from `services.yaml`, `ci.yml` and the Vault secret registry by [`scripts/llms-txt.ts`](scripts/llms-txt.ts). After changing any of those, run `bun run llms:sync` and commit the result; `bun run check:llms` (part of `bun run check`) fails on drift, on a `{{path:…}}` that no longer exists, or on a `{{script:…}}` missing from `package.json`. When an integration contract changes in a way config can't express, update the template prose too. (Not to be confused with the portfolio site's `/llms.txt`, rendered by `packages/portfolio/src/pages/llms.txt.ts`.)
 
 ## Declarative infra (`packages/infra/services.yaml`)
 

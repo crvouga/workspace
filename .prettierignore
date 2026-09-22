@@ -16,3 +16,7 @@ packages/portfolio/src/data/github-insights.json
 
 # Superset design-feedback attachments (generated, not source)
 .superset/attachments
+
+# Template for the generated root llms.txt; Prettier would rewrite the
+# {{block:…}} tokens inside its fenced YAML. Its output (llms.txt) is not Markdown-formatted either.
+scripts/llms-txt.template.md

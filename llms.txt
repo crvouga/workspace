@@ -1,0 +1,469 @@
+# crvouga/workspace — shared infrastructure integration guide
+
+> The one file an agent needs to integrate another codebase with the shared infrastructure owned by `crvouga/workspace`: Vault (OpenBao) secrets, the self-hosted Turborepo remote cache, the shared Cloudflare R2 object store, and hosting on the managed Railway fleet — every hosted project is **Dockerized and ships as a prebuilt GHCR image**. Values in this file are generated from `packages/infra/services.yaml`, `.github/workflows/ci.yml` and the Vault secret registry; CI fails whenever it drifts from them.
+
+Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
+
+## Use this file
+
+- Link it from your project's `AGENTS.md` / `CLAUDE.md` so every session can fetch it:
+
+  ```md
+  Shared infra (Vault, Turborepo remote cache, R2 object store, hosting):
+  https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
+  ```
+
+- Re-fetch it instead of trusting a cached copy — ports, hostnames and the fleet list change.
+- Pick the sections that apply (checklist below); each one is self-contained.
+- If anything here disagrees with `services.yaml` in `crvouga/workspace`, the YAML wins — tell the human the file is stale.
+
+## Ground rules
+
+- **Never invent, print, log, or commit secret values.** If a secret is missing, tell the human the exact key, Vault path and command to set it, then stop and wait.
+- **Never install global tooling yourself** (`vault`, `bao`, `jq`, `gh`). Tell the human the install command.
+- **Never modify the shared services from another repo** (deploy them, rotate tokens, change policies, edit Railway/Cloudflare by hand). Those changes happen in `crvouga/workspace`; tell the human exactly what is needed.
+- `@pkgs/*` packages in `crvouga/workspace` are **private workspace packages** — they cannot be installed elsewhere. Use the plain HTTP / S3 / env-var contracts below.
+- Keep the app **twelve-factor**: configuration and secrets come from env vars at runtime, never from files baked into the image or the repo.
+
+## Integration checklist
+
+1. Needs secrets (API keys, database URLs)? → [1. Vault](#1-vault-secrets). Every other section depends on it.
+2. Uses Turborepo (`turbo.json` exists)? → [2. Turborepo remote cache](#2-turborepo-remote-cache).
+3. Stores files / blobs? → [3. Object store](#3-object-store-cloudflare-r2-s3-compatible).
+4. Should be publicly hosted at `*.chrisvouga.dev`? → [4. Hosting](#4-hosting-on-the-managed-fleet). The project must be Dockerized and publish prebuilt images.
+
+## Resources at a glance
+
+| Resource | Endpoint | Auth |
+| --- | --- | --- |
+| Vault (OpenBao) | `https://vault.chrisvouga.dev` | `vault login` locally; GitHub OIDC (role `github-actions`) in CI; read token at runtime |
+| Turborepo cache | `https://turborepo.chrisvouga.dev` | `Authorization: Bearer $TURBO_TOKEN` |
+| Object store | Cloudflare R2 (S3 API) via `S3_ENDPOINT` | SigV4 with `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` |
+| Hosting | Railway project `infra` at `*.chrisvouga.dev` | Prebuilt GHCR image published by the shared workflow (§4) |
+
+All credentials live in Vault. Vault is the only thing you authenticate to directly.
+
+---
+
+## 1. Vault (secrets)
+
+**Coordinates**
+
+| Thing   | Value                                                                                    |
+| ------- | ---------------------------------------------------------------------------------------- |
+| Address | `https://vault.chrisvouga.dev` (OpenBao; Vault-compatible API + CLI)                                    |
+| Engine  | KV v2 mounted at `secret/`                                                          |
+| Path    | `secret/<project>/<config>` (HTTP API: `secret/data/<project>/<config>`)       |
+| Project | `personal` — shared by all personal apps; use it unless told otherwise              |
+| Configs | `dev`, `prd` — `dev` for local work, `prd` for CI / production (same key names in both) |
+
+Each KV field becomes one env var. Every config must carry the **same key names** (values may differ). CI read access covers only `secret/data/personal/*` and `secret/metadata/personal/*` — a new project namespace needs a policy change in `crvouga/workspace`, so add your app's keys under `personal`.
+
+### Keys that already exist
+
+Reuse these instead of creating duplicates. Adding a key means a human runs `vault kv patch` **and** adds it to `vault.kv_keys` in `services.yaml`.
+
+| Key | Configs | Used by | Required |
+| --- | --- | --- | --- |
+| `TURBO_TOKEN` | dev, prd | turborepo, ci | yes |
+| `TURBO_API` | dev, prd | turborepo, ci | yes |
+| `TURBO_TEAM` | dev, prd | turborepo, ci | yes |
+| `TURBO_CACHE` | dev, prd | turborepo, ci |  |
+| `TURBO_LOG_ORDER` | dev, prd | turborepo |  |
+| `TURBO_TELEMETRY_DISABLED` | dev, prd | turborepo |  |
+| `S3_ENDPOINT` | dev, prd | turborepo, ci | yes |
+| `S3_REGION` | dev, prd | turborepo, ci | yes |
+| `S3_ACCESS_KEY_ID` | dev, prd | turborepo, ci | yes |
+| `S3_SECRET_ACCESS_KEY` | dev, prd | turborepo, ci | yes |
+| `S3_BUCKET` | dev, prd | turborepo, ci | yes |
+| `S3_ACCESS_KEY` | dev, prd | ci |  |
+| `S3_SECRET_KEY` | dev, prd | ci |  |
+| `VAULT_TOKEN` | dev, prd | turborepo, railway | yes |
+| `DATABASE_URL` | dev, prd | moviefinder, llm-proxy, ci |  |
+| `TMDB_API_READ_ACCESS_TOKEN` | dev, prd | moviefinder |  |
+| `TWILIO_ACCOUNT_SID` | dev, prd | moviefinder |  |
+| `TWILIO_AUTH_TOKEN` | dev, prd | moviefinder |  |
+| `TWILIO_SERVICE_SID` | dev, prd | moviefinder |  |
+| `CLOUDFLARE_API_TOKEN` | dev, prd | ci, infra |  |
+| `CLOUDFLARE_ACCOUNT_ID` | dev, prd | ci, infra |  |
+| `RAILWAY_TOKEN` | dev, prd | ci, infra |  |
+| `PORTFOLIO_GITHUB_TOKEN` | dev, prd | ci, portfolio | yes |
+| `OPENAI_API_KEY` | dev, prd | ci, opencode |  |
+| `9ROUTER_PASSWORD` | prd | 9router |  |
+| `9ROUTER_JWT_SECRET` | prd | 9router |  |
+| `9ROUTER_API_KEY_SECRET` | prd | 9router |  |
+| `9ROUTER_MACHINE_ID_SALT` | prd | 9router |  |
+
+### Local dev — `vault run`
+
+The human installs the wrapper once per machine (from a `crvouga/workspace` checkout; needs the `vault` or `bao` CLI and `jq`):
+
+```bash
+packages/vault-service/scripts/install-cli.sh   # → ~/.local/bin/vault wrapper
+vault login --method=userpass username=crvouga
+```
+
+In your project, commit a `.vault.yaml` (coordinates only, no secrets — safe to commit). `vault setup --project personal --config dev` writes it:
+
+```yaml
+addr: https://vault.chrisvouga.dev
+mount: secret
+project: personal
+config: dev
+```
+
+Then wrap commands:
+
+```bash
+vault run -- bun run dev                  # injects every field as env vars
+vault run --config prd -- <cmd>           # override config
+vault run --dry-run -- <cmd>              # list injected var names only
+vault kv get secret/personal/dev          # inspect (human only)
+vault kv patch secret/personal/dev KEY=…  # add/update a key (human only)
+```
+
+Put `vault run -- …` inside `package.json` scripts rather than asking developers to export variables. List the needed env var **names** (never values) in `.env.example`, and gitignore `.env*` except `.env.example`.
+
+### CI (GitHub Actions) — OIDC, no stored token
+
+Repos under `crvouga/*` mint a short-lived Vault token via GitHub OIDC. Never add a `VAULT_TOKEN` repository secret for CI.
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+
+steps:
+  - uses: hashicorp/vault-action@v4
+    with:
+      url: https://vault.chrisvouga.dev
+      method: jwt
+      path: jwt
+      role: github-actions
+      jwtGithubAudience: https://vault.chrisvouga.dev
+      secrets: |
+        secret/data/personal/prd DATABASE_URL | DATABASE_URL ;
+        secret/data/personal/prd SOME_KEY     | SOME_KEY
+```
+
+- JWT auth at `jwt/`, role `github-actions` → policy `ci-read`, TTL 10m.
+- The role is bound to `refs/heads/main`: pull-request and branch runs **cannot** read Vault. Keep Vault-dependent steps on the default branch, or ask the human to widen the binding. Never work around it with a stored token.
+- Vault restarts **sealed** and auto-unseals on deploy. If calls return 503, poll `GET https://vault.chrisvouga.dev/v1/sys/health?standbyok=true` until 200 before failing — [`.github/actions/vault-secrets/action.yml`](https://github.com/crvouga/workspace/blob/main/.github/actions/vault-secrets/action.yml) is a wait + retry pattern to copy.
+- A repo outside `crvouga/*` or a project outside `personal` needs [`packages/vault-service/scripts/setup-oidc-auth.sh`](https://github.com/crvouga/workspace/blob/main/packages/vault-service/scripts/setup-oidc-auth.sh) / a policy change — tell the human.
+
+### App runtime — read token + HTTP
+
+Processes that cannot be wrapped in `vault run` (servers loading secrets at boot, Workers) use a long-lived read-only token supplied as the platform secret `VAULT_TOKEN` (policy `personal-read`, period 768h; the human mints it). Pass `VAULT_ADDR=https://vault.chrisvouga.dev`, `VAULT_PROJECT=personal`, `VAULT_CONFIG=prd` as plain env.
+
+```ts
+const res = await fetch(
+  `${VAULT_ADDR}/v1/secret/data/${VAULT_PROJECT}/${VAULT_CONFIG}`,
+  { headers: { 'X-Vault-Token': VAULT_TOKEN } }
+);
+if (!res.ok) throw new Error(`vault ${res.status}`); // 503 = sealed → retry with backoff
+const secrets = (await res.json()).data.data as Record<string, string>;
+```
+
+Honor `Retry-After` on 429 and cache the result for the process lifetime. **Apps hosted on the fleet do not need this** — declare `secrets:` in `services.yaml` (§4) and they arrive as plain env vars.
+
+---
+
+## 2. Turborepo remote cache
+
+Self-hosted Turborepo remote cache (Turbo's standard HTTP API, Bearer auth). Only applies to projects with a `turbo.json`. Do not use Vercel Remote Cache (`turbo login` / `turbo link`) alongside it.
+
+**Env vars** (all in Vault `secret/personal/{dev,prd}`):
+
+| Var | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `TURBO_TOKEN` | yes |  | Bearer token Turbo clients send and the cache server validates — from Vault, never committed |
+| `TURBO_API` | yes | `https://turborepo.chrisvouga.dev` | Self-hosted cache URL (TURBO_API env for turbo CLI) |
+| `TURBO_TEAM` | yes | `local` | Any team slug (e.g. local) — required by turbo CLI for remote cache |
+| `TURBO_CACHE` | yes | `remote:rw` | Turbo --cache flag default (e.g. remote:rw) |
+| `TURBO_LOG_ORDER` | optional |  | Turbo log order (e.g. stream) |
+| `TURBO_TELEMETRY_DISABLED` | optional |  | Set to 1 to disable Turbo telemetry |
+
+**Local:** with `.vault.yaml` pointing at `personal`, `vault run -- turbo run build` picks everything up. Using a separate Vault project? The human copies the keys from `crvouga/workspace` with `bun run seed:turbo-client -- --target-project <project> --all-configs`.
+
+**CI:** load the keys with the OIDC step from §1 and expose them as job env:
+
+```yaml
+secrets: |
+  secret/data/personal/prd TURBO_TOKEN | TURBO_TOKEN ;
+  secret/data/personal/prd TURBO_API   | TURBO_API ;
+  secret/data/personal/prd TURBO_TEAM  | TURBO_TEAM ;
+  secret/data/personal/prd TURBO_CACHE | TURBO_CACHE
+```
+
+**`turbo.json`:** never put the token there. `TURBO_*` vars are read by the `turbo` binary itself, not by tasks, so strict env mode needs no changes.
+
+**Verify:**
+
+```bash
+curl -fsS https://turborepo.chrisvouga.dev/health                          # up
+curl -s -o /dev/null -w '%{http_code}\n' https://turborepo.chrisvouga.dev/v8/artifacts/status   # 401 (auth gate works)
+curl -fsS -H "Authorization: Bearer $TURBO_TOKEN" https://turborepo.chrisvouga.dev/v8/artifacts/status   # JSON, not 401
+vault run -- turbo run build   # 2nd run with unchanged inputs → "cache hit, replaying logs"
+```
+
+If the health check fails the cache is down — report it; do not switch providers or disable caching.
+
+---
+
+## 3. Object store (Cloudflare R2, S3-compatible)
+
+Shared buckets, one per Vault config; apps partition them by key prefix.
+
+| Vault config | Bucket |
+| --- | --- |
+| `dev` | `crvouga-development` |
+| `prd` | `crvouga-production` |
+
+**Env vars** (Vault `secret/personal/{dev,prd}`):
+
+| Var | Meaning |
+| --- | --- |
+| `S3_ENDPOINT` | Cloudflare R2 S3 API endpoint (https://<ACCOUNT_ID>.r2.cloudflarestorage.com) |
+| `S3_REGION` | R2 SigV4 region (always "auto") |
+| `S3_ACCESS_KEY_ID` | R2 API token Access Key ID (Object Read & Write on the cache bucket) |
+| `S3_SECRET_ACCESS_KEY` | R2 API token Secret Access Key (shown once at creation) |
+| `S3_BUCKET` | Shared R2 bucket (dev→crvouga-development, prd→crvouga-production) |
+
+**Rules**
+
+- **Prefix every key with your app id**: `<app-id>/…` (e.g. `moviefinder/posters/123.webp`). Never write, list, or delete outside your prefix — other apps share the bucket, and `turbo-cache/` belongs to the Turborepo cache. Make the prefix a single constant at the composition root.
+- Read the bucket from `S3_BUCKET`; never hardcode bucket names. dev vs prd is selected purely by the Vault config you run with.
+- Use path-style addressing: `${S3_ENDPOINT}/${S3_BUCKET}/${key}`.
+- Buckets are private. Serve objects through your app (or presigned URLs), never public bucket URLs.
+- Do not create buckets or R2 tokens; provisioning lives in `crvouga/workspace` (`bun run provision-r2`).
+
+**Clients**
+
+```ts
+// Workers / Bun / Node — tiny, fetch-based (what crvouga/workspace uses)
+import { AwsClient } from 'aws4fetch';
+const s3 = new AwsClient({
+  accessKeyId: env.S3_ACCESS_KEY_ID,
+  secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+  region: env.S3_REGION, // "auto"
+  service: 's3',
+});
+const base = `${env.S3_ENDPOINT.replace(/\/$/, '')}/${env.S3_BUCKET}`;
+const key = `myapp/${id}`;
+await s3.fetch(`${base}/${key}`, {
+  method: 'PUT',
+  body: bytes,
+  headers: { 'content-type': type },
+});
+const res = await s3.fetch(`${base}/${key}`); // 404 → missing
+```
+
+```ts
+// @aws-sdk/client-s3
+new S3Client({
+  endpoint: process.env.S3_ENDPOINT,
+  region: process.env.S3_REGION,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+});
+```
+
+Any other S3 SDK works with the same five values + path-style. AWS CLI: `aws s3 ls s3://$S3_BUCKET/myapp/ --endpoint-url $S3_ENDPOINT` (with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` set from the `S3_*` vars).
+
+Recommended shape: hide the SDK behind a small interface — `get(key) → {body, contentType, size} | null`, `put(key, bytes, contentType)` (idempotent), `head(key) → boolean`, `delete(key)` (no-op if missing), `withPrefix(prefix)` — plus an in-memory implementation for tests.
+
+---
+
+## 4. Hosting on the managed fleet
+
+`crvouga/workspace` hosts apps on Railway (project `infra`, region `us-east4`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by reconcile. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
+
+### Contract your project must meet
+
+- **Dockerized.** A `Dockerfile` (multi-stage; build tools in the build stage, minimal runtime stage) that builds with plain `docker build -f <dockerfile> <context>` — no build args or secrets required. The build must run in CI for `linux/amd64`.
+- **Prebuilt image.** Built and pushed only by the shared publish workflow below, as `ghcr.io/crvouga/chrisvouga-<id>:<git-sha>` and `:latest`. Never enable Railway's GitHub/Nixpacks builds, never run `railway up`, never push images by hand. The package is made public automatically.
+- **One port.** The container listens on `0.0.0.0:<port>` and that port equals `port` in `services.yaml`. Read `PORT` from env (the fleet sets it via `env:`) with the same default in code.
+- **Health check.** `GET <health_path>` (default `/`) returns 2xx within seconds of boot, without auth and without depending on third-party services. Deploys that fail it are marked failed.
+- **Config from env only.** Runtime secrets are injected by the fleet from Vault as env vars (`secrets:` in `services.yaml`). Nothing secret in the image, repo, or Dockerfile; no `.env` files read in production. Fail fast at boot with a clear message naming any missing var.
+- **Stateless.** Containers can be replaced at any time: no local disk state (use Postgres via `DATABASE_URL` or the object store), logs to stdout/stderr, handle `SIGTERM` gracefully.
+- **Small and reproducible.** Pin base images (e.g. `node:22-bookworm-slim`, `oven/bun:1.3`, `nginx:alpine`), commit a lockfile and install with it frozen, and add a `.dockerignore` (`node_modules`, `.git`, `.env*`, build output).
+
+Minimal Dockerfiles to start from:
+
+```dockerfile
+# Static site (Vite/Astro/etc.) served by nginx on port 80
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+```
+
+```dockerfile
+# Bun HTTP server on $PORT (default 8080)
+FROM oven/bun:1.3 AS build
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+COPY . .
+
+FROM oven/bun:1.3-slim
+WORKDIR /app
+ENV NODE_ENV=production PORT=8080
+COPY --from=build /app /app
+USER bun
+EXPOSE 8080
+CMD ["bun", "run", "src/server.ts"]
+```
+
+Verify locally before wiring CI: `docker build -t app . && docker run --rm -p 8080:8080 -e PORT=8080 app`, then `curl -fsS localhost:8080<health_path>`.
+
+### Step 1 — declare the service (in `crvouga/workspace`)
+
+The fleet only runs what `packages/infra/services.yaml` declares. Ask the human to add an entry (or, when working inside `crvouga/workspace`, add it and run `bun run reconcile` to review the plan):
+
+```yaml
+- id: my-app
+  kind: railway
+  hostname: my-app.chrisvouga.dev
+  github_repo: crvouga/my-app
+  source_code_url: https://github.com/crvouga/my-app
+  dockerfile: ./Dockerfile
+  build_context: .
+  port: 8080
+  health_check: true
+  health_path: /health
+  ghcr:
+    visibility: public
+  env:
+    PORT: "8080"
+  secrets:
+    - name: DATABASE_URL
+      source: vault
+```
+
+| Field             | Meaning                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `id`              | Service id: Railway service name, GHCR package `chrisvouga-<id>`, and publish `service_id` |
+| `hostname`        | Public hostname on `chrisvouga.dev`; DNS and TLS are provisioned automatically                        |
+| `github_repo`     | `owner/name` of the repo that publishes the image                                               |
+| `source_code_url` | Link shown on the portfolio                                                                     |
+| `dockerfile`      | Dockerfile path, relative to the repo root                                                      |
+| `build_context`   | Docker build context, relative to the repo root                                                 |
+| `port`            | Port the container listens on                                                                   |
+| `health_check`    | Probe the service after deploys                                                                 |
+| `health_path`     | Path probed (default `/`); must return 2xx                                                      |
+| `env`             | Plain, non-secret env vars                                                                      |
+| `secrets`         | `name` + `source: vault` → value copied from Vault `personal/prd` into the service's env   |
+| `image`           | Optional external image, used verbatim (skips GHCR publishing entirely)                         |
+
+### Step 2 — add the publish workflow (in your repo)
+
+Commit exactly this as `.github/workflows/publish.yml` (from `crvouga/workspace`, `bun run rollout-publish -- --repo <owner/name>` generates and pushes it for every service of that repo). If the repo's default branch is not `main`, change the trigger branch:
+
+```yaml
+# AUTO-GENERATED by infra/scripts/rollout-publish-workflows.ts — do not edit.
+name: Publish image
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  my_app:
+    uses: crvouga/workspace/.github/workflows/ci.yml@main
+    secrets:
+      DEPLOY_DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+      CALLER_GITHUB_TOKEN: ${{ github.token }}
+    with:
+      service_id: my-app
+      dockerfile: ./Dockerfile
+      context: .
+      image_owner: crvouga
+      image_prefix: chrisvouga
+      infra_github_repo: crvouga/workspace
+```
+
+It calls `crvouga/workspace`'s `ci.yml` as a reusable workflow. Inputs:
+
+| Input | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `service_id` | yes |  | Service id matching services.yaml (e.g. portfolio, todo-app). |
+| `dockerfile` |  | `./Dockerfile` | Path to Dockerfile relative to context. |
+| `context` |  | `.` | Docker build context. |
+| `image_owner` |  | `crvouga` | ghcr.io owner. |
+| `image_prefix` |  | `chrisvouga` | GHCR package prefix (from services.yaml image_prefix). |
+| `infra_github_repo` |  | `crvouga/workspace` | Infra repo owner/name for deploy dispatch. |
+| `notify_deploy` |  | `true` | POST repository_dispatch to infra after push. Set false when chaining deploy. |
+
+Caller secrets: `CALLER_GITHUB_TOKEN` (pass `github.token`; used to push to GHCR) and `DEPLOY_DISPATCH_TOKEN` (an org-level secret on `crvouga` with `repo` scope on `crvouga/workspace`; if missing, the human runs `GITHUB_TOKEN_SUPER=… bun run rollout-publish -- --repo <owner/name> --set-org-dispatch-secret`).
+
+### What happens on every push to `main`
+
+1. Your repo's publish job builds the Dockerfile and pushes `ghcr.io/crvouga/chrisvouga-<id>:<sha>` + `:latest`.
+2. It sends `repository_dispatch` `deploy-service` with `{"id": "<id>", "image_tag": "<sha>"}` to `crvouga/workspace`.
+3. `crvouga/workspace` CI reconciles DNS / Railway settings from `services.yaml`, syncs the declared Vault secrets into the service, deploys the image at that SHA, and health-checks `https://<hostname><health_path>`.
+
+Check it: `gh run list -R crvouga/workspace --workflow ci.yml --limit 3`, then `curl -fsS https://<hostname><health_path>`. Never redeploy from the Railway dashboard; a human can redeploy with `gh workflow run ci.yml -R crvouga/workspace -f service_id=<id> -f image_tag=<sha>`.
+
+### Current fleet
+
+Working examples to copy from — each links to its source repo:
+
+| Service id | Public URL | Repo | Dockerfile (context) | Port | Health |
+| --- | --- | --- | --- | --- | --- |
+| `portfolio` | https://www.chrisvouga.dev | [crvouga/workspace](https://github.com/crvouga/workspace/tree/main/packages/portfolio) | `packages/portfolio/Dockerfile` (`.`) | 80 | `/` |
+| `moviefinder-app-rust` | https://moviefinder-app-rust.chrisvouga.dev | [crvouga/moviefinder.app-rust](https://github.com/crvouga/moviefinder.app-rust) | `./Dockerfile` (`.`) | 3000 | `/` |
+| `moviefinder-app-react` | https://moviefinder-app-react.chrisvouga.dev | [crvouga/moviefinder.app-react](https://github.com/crvouga/moviefinder.app-react) | `./Dockerfile` (`.`) | 3000 | `/` |
+| `moviefinder-app-clojurescript` | https://moviefinder-app-clojurescript.chrisvouga.dev | [crvouga/moviefinder.app-clojurescript](https://github.com/crvouga/moviefinder.app-clojurescript) | `./Dockerfile` (`.`) | 9630 | `/` |
+| `headless-combobox-svelte-example` | https://svelte-headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `example/svelte/Dockerfile` (`example/svelte`) | 80 | `/` |
+| `headless-combobox-docs` | https://headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `./Dockerfile` (`.`) | 80 | `/` |
+| `todo-app` | https://todo.chrisvouga.dev | [crvouga/todo-v1](https://github.com/crvouga/todo-v1) | `./Dockerfile` (`.`) | 8080 | `/` |
+| `image-service` | https://imageservice.chrisvouga.dev | [crvouga/image-service](https://github.com/crvouga/image-service) | `./Dockerfile` (`.`) | 80 | `/login/send-link` |
+| `connect-four` | https://connectfour.chrisvouga.dev | [crvouga/connect-four](https://github.com/crvouga/connect-four) | `./Dockerfile` (`.`) | 8080 | `/` |
+| `anime-blog` | https://anime.chrisvouga.dev | [crvouga/anime](https://github.com/crvouga/anime) | `./Dockerfile` (`.`) | 80 | `/` |
+| `snake-game` | https://snake.chrisvouga.dev | [crvouga/snake](https://github.com/crvouga/snake) | `./Dockerfile` (`.`) | 80 | `/` |
+| `match-three` | https://matchthree.chrisvouga.dev | [crvouga/match-three](https://github.com/crvouga/match-three) | `./Dockerfile` (`.`) | 80 | `/` |
+| `simon-says` | https://simonsays.chrisvouga.dev | [crvouga/simon-says](https://github.com/crvouga/simon-says) | `./Dockerfile` (`.`) | 80 | `/` |
+| `turborepo` | https://turborepo.chrisvouga.dev | [crvouga/workspace](https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache) | `packages/turborepo-remote-cache/Dockerfile` (`.`) | 8080 | `/health` |
+| `llm-proxy` | https://llm-proxy.chrisvouga.dev | [crvouga/llm-server](https://github.com/crvouga/llm-server) | `proxy/Dockerfile` (`proxy`) | 8080 | `/ui` |
+
+---
+
+## Troubleshooting
+
+| Symptom                                        | Meaning / fix                                                                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `vault run`: `No value found at secret/…` | KV empty, or wrong project/config in `.vault.yaml` — tell the human                                                            |
+| `vault run`: permission denied / 403           | Token expired — the human runs `vault login …`                                                                                 |
+| Vault HTTP 503                                 | Sealed (restart in progress) — wait and retry; the human can run `gh workflow run ci.yml -R crvouga/workspace -f unseal_only=true` |
+| OIDC: audience error                           | Missing `jwtGithubAudience: https://vault.chrisvouga.dev`                                                                                     |
+| OIDC: role / bound claim error                 | Repo not `crvouga/*`, or the run is not on `refs/heads/main` — see §1 CI                                                 |
+| Turbo: 401 from cache                          | `TURBO_TOKEN` missing or wrong in that environment                                                                             |
+| Turbo: no remote hits                          | `TURBO_API` / `TURBO_CACHE` not set where `turbo` runs; check `--cache` flags                                                  |
+| R2: `SignatureDoesNotMatch`                    | Wrong secret key, region ≠ `auto`, or virtual-host addressing — use path-style                                                 |
+| R2: `NoSuchBucket`                             | `S3_BUCKET` does not match the config's bucket                                                                                 |
+| Publish: `id-token` / permissions error        | The caller workflow must grant `contents: read`, `packages: write`, `id-token: write` (Step 2 does)                            |
+| Publish: `DEPLOY_DISPATCH_TOKEN is not set`    | Org secret missing — see Step 2                                                                                                |
+| Deploy: service id not found                   | No `services.yaml` entry for that `service_id` yet — Step 1                                                                    |
+| Deploy: health check fails                     | Container not listening on `port`, or `health_path` is not 2xx — reproduce with `docker run` locally                           |
+
+---
+
+## Maintaining this file (agents working inside `crvouga/workspace`)
+
+`llms.txt` is generated — never edit it by hand. Prose lives in [`scripts/llms-txt.template.md`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.template.md); values, tables and the publish workflow come from [`packages/infra/services.yaml`](https://github.com/crvouga/workspace/blob/main/packages/infra/services.yaml), [`.github/workflows/ci.yml`](https://github.com/crvouga/workspace/blob/main/.github/workflows/ci.yml), [`packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`](https://github.com/crvouga/workspace/blob/main/packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts) and [`packages/infra/lib/publish-workflow.ts`](https://github.com/crvouga/workspace/blob/main/packages/infra/lib/publish-workflow.ts) via [`scripts/llms-txt.ts`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.ts). Run `bun run llms:sync` after changing any of them; `bun run check:llms` (part of `bun run check`) fails CI on drift, on a dangling file reference, or on an unknown `bun run` script.
