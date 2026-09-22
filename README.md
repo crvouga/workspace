@@ -26,7 +26,7 @@ Monorepo push/PR ──▶ ci.yml: vault-state → vault? → check → publish?
                                                        → railway-deploy? → health
                                                                                 │
                                                                                 ▼
-                                                Railway (infra / production)
+                                                Railway (Workspace / production)
                                                                                 │
                                                                                 ▼
                                                        *.<zone> via Cloudflare DNS
@@ -34,16 +34,16 @@ Monorepo push/PR ──▶ ci.yml: vault-state → vault? → check → publish?
 
 ## Configuration ([`services.yaml`](services.yaml))
 
-| Field                    | Purpose                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `zone`                   | Primary DNS zone (e.g. `chrisvouga.dev`)                                |
-| `image_owner`            | GHCR org/user                                                           |
-| `infra_github_repo`      | GitHub repo slug for this infra repo                                    |
-| `railway.project`        | Railway project name (e.g. `infra`)                                     |
-| `railway.environment`    | Environment name (default `production`)                                 |
-| `railway.region`         | Deployment region (default `us-east4`)                                  |
-| `railway.service_prefix` | Optional service name prefix (default: none — names match service `id`) |
-| `railway.sleep`          | Per service: `true` (serverless) or `false` (always on)                 |
+| Field                    | Purpose                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| `zone`                   | Primary DNS zone (e.g. `chrisvouga.dev`)                                                  |
+| `image_owner`            | GHCR org/user                                                                             |
+| `infra_github_repo`      | GitHub repo slug for this infra repo                                                      |
+| `railway.project`        | Desired Railway project name; reconcile keeps the live project in sync (e.g. `Workspace`) |
+| `railway.environment`    | Environment name (default `production`)                                                   |
+| `railway.region`         | Deployment region (default `us-east4`)                                                    |
+| `railway.service_prefix` | Optional service name prefix (default: none — names match service `id`)                   |
+| `railway.sleep`          | Per service: `true` (serverless) or `false` (always on)                                   |
 
 Derived automatically: `image_prefix` (`chrisvouga`), Vault URL (`https://vault.<zone>`).
 
@@ -97,7 +97,7 @@ vault run -- bun run provision-railway --apply
 # or: export RAILWAY_TOKEN=... && bun run provision-railway --apply
 ```
 
-Creates project `infra`, fleet services (excludes vault), custom domains, and volumes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
+Creates the Railway project named by `railway.project` (`Workspace`), fleet services (excludes vault), custom domains, and volumes. Reconcile renames that project when `railway.project` changes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
 
 ### 4. Run CI deploy
 

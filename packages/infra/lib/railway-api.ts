@@ -84,9 +84,16 @@ export type RailwayProjectContext = {
 
 type ProjectSummary = { readonly id: string; readonly name: string };
 
+export type RailwayProjectSnapshot = {
+  readonly id: string;
+  readonly name: string;
+  readonly serviceNames: readonly string[];
+};
+
 type CachedProjectContext = RailwayProjectContext & { readonly project: RailwayProject };
 
 let listProjectsCache: readonly ProjectSummary[] | null = null;
+let projectSnapshotCache: readonly RailwayProjectSnapshot[] | null = null;
 const projectCache = new Map<string, RailwayProject>();
 const projectContextCache = new Map<string, CachedProjectContext>();
 
@@ -104,10 +111,12 @@ function railwayMinIntervalMs(): number {
 /** Clear process-local Railway read caches (called after mutations). */
 export function invalidateRailwayCache(): void {
   listProjectsCache = null;
+  projectSnapshotCache = null;
   projectCache.clear();
   projectContextCache.clear();
   assert.ok(projectCache.size === 0, "railway project cache must be empty after invalidate");
   assert.ok(projectContextCache.size === 0, "railway project context cache must be empty after invalidate");
+  assert.ok(projectSnapshotCache === null, "railway project snapshot cache must be empty after invalidate");
 }
 
 async function paceRailwayRequest(): Promise<void> {
@@ -347,6 +356,50 @@ export async function getProject(projectId: string): Promise<RailwayProject> {
   return data.project;
 }
 
+export async function listProjectSnapshots(): Promise<readonly RailwayProjectSnapshot[]> {
+  if (projectSnapshotCache) return projectSnapshotCache;
+
+  const data = await railwayRequest<{
+    projects: Connection<{
+      readonly id: string;
+      readonly name: string;
+      readonly services: Connection<{ readonly id: string; readonly name: string }>;
+    }>;
+  }>(`
+    query projects {
+      projects {
+        edges {
+          node {
+            id
+            name
+            services {
+              edges {
+                node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `);
+  const snapshots = nodes(data.projects).map((project) => {
+    ha.nonEmptyString(project.id, "railway project id must be non-empty");
+    ha.nonEmptyString(project.name, "railway project name must be non-empty");
+    const serviceNames = nodes(project.services).map((service) => {
+      ha.nonEmptyString(service.name, "railway service name must be non-empty");
+      return service.name;
+    });
+    assert.array(serviceNames, "railway project service names must be an array");
+    return { id: project.id, name: project.name, serviceNames };
+  });
+  assert.array(snapshots, "railway project snapshots must be an array");
+  projectSnapshotCache = snapshots;
+  return projectSnapshotCache;
+}
+
 export async function findProjectByName(name: string): Promise<RailwayProject | undefined> {
   assert.nonEmptyString(name, "project name must be non-empty");
   const projects = await listProjects();
@@ -372,13 +425,6 @@ export async function createProject(name: string): Promise<RailwayProject> {
   assert.nonEmptyString(data.projectCreate.id, "created project id must be non-empty");
   invalidateRailwayCache();
   return getProject(data.projectCreate.id);
-}
-
-export async function ensureProject(name: string): Promise<RailwayProject> {
-  assert.nonEmptyString(name, "project name must be non-empty");
-  const existing = await findProjectByName(name);
-  if (existing) return existing;
-  return createProject(name);
 }
 
 export async function updateProjectName(projectId: string, name: string): Promise<void> {
@@ -1076,7 +1122,12 @@ export async function resolveProjectContext(
   const cached = projectContextCache.get(cacheKey);
   if (cached) return cached;
 
-  const project = await ensureProject(projectName);
+  const project = await findProjectByName(projectName);
+  if (!project) {
+    throw new RailwayApiError(
+      `Railway project "${projectName}" not found. railway.project is the desired name; reconcile renames the project that already hosts the declared services.`,
+    );
+  }
   const environment = resolveEnvironment(project, environmentName);
   const ctx: CachedProjectContext = {
     project,

@@ -39,7 +39,7 @@ Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga
 | Vault (OpenBao) | `https://vault.chrisvouga.dev` | `vault login` locally; GitHub OIDC (role `github-actions`) in CI; read token at runtime |
 | Turborepo cache | `https://turborepo.chrisvouga.dev` | `Authorization: Bearer $TURBO_TOKEN` |
 | Object store | Cloudflare R2 (S3 API) via `S3_ENDPOINT` | SigV4 with `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` |
-| Hosting | Railway project `infra` at `*.chrisvouga.dev` | Prebuilt GHCR image published by the shared workflow (§4) |
+| Hosting | Railway project `Workspace` at `*.chrisvouga.dev` | Prebuilt GHCR image published by the shared workflow (§4) |
 
 All credentials live in Vault. Vault is the only thing you authenticate to directly.
 
@@ -279,7 +279,7 @@ Recommended shape: hide the SDK behind a small interface — `get(key) → {body
 
 ## 4. Hosting on the managed fleet
 
-`crvouga/workspace` hosts apps on Railway (project `infra`, region `us-east4`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by reconcile. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
+`crvouga/workspace` hosts apps on Railway (project `Workspace`, region `us-east4`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by reconcile. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
 
 ### Contract your project must meet
 
