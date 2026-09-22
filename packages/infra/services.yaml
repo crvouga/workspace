@@ -438,6 +438,20 @@ services:
     env:
       PORT: '80'
 
+  - id: mockingbird-docs
+    kind: railway
+    hostname: mockingbird.chrisvouga.dev
+    github_repo: crvouga/mockingbird
+    source_code_url: https://github.com/crvouga/mockingbird/tree/main/sites/docs
+    dockerfile: sites/docs/Dockerfile
+    build_context: .
+    port: 80
+    health_check: true
+    ghcr:
+      visibility: public
+    env:
+      PORT: '80'
+
   - id: turborepo
     kind: railway
     hostname: turborepo.chrisvouga.dev
