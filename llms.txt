@@ -550,6 +550,7 @@ Working examples to copy from — each links to its source repo:
 | `match-three` | https://matchthree.chrisvouga.dev | [crvouga/match-three](https://github.com/crvouga/match-three) | `./Dockerfile` (`.`) | 80 | `/` |
 | `simon-says` | https://simonsays.chrisvouga.dev | [crvouga/simon-says](https://github.com/crvouga/simon-says) | `./Dockerfile` (`.`) | 80 | `/` |
 | `violets-garden` | https://violetsgarden.chrisvouga.dev | [crvouga/violets-garden](https://github.com/crvouga/violets-garden) | `./Dockerfile` (`.`) | 80 | `/` |
+| `mockingbird-docs` | https://mockingbird.chrisvouga.dev | [crvouga/mockingbird](https://github.com/crvouga/mockingbird/tree/main/sites/docs) | `sites/docs/Dockerfile` (`.`) | 80 | `/` |
 | `turborepo` | https://turborepo.chrisvouga.dev | [crvouga/workspace](https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache) | `packages/turborepo-remote-cache/Dockerfile` (`.`) | 8080 | `/health` |
 | `llm-proxy` | https://llm-proxy.chrisvouga.dev | [crvouga/llm-server](https://github.com/crvouga/llm-server) | `proxy/Dockerfile` (`proxy`) | 8080 | `/ui` |
 
