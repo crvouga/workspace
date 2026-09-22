@@ -39,6 +39,7 @@ import {
   VAULT_SECRET_REGISTRY,
 } from '../packages/turborepo-remote-cache/scripts/vault-secrets-registry.js';
 import { OBJECT_KEY_PREFIX } from '../packages/object-store/src/object-key.js';
+import { TOPIC_TO_IMAGE_SRC } from '../packages/portfolio/src/content/topic.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const TEMPLATE_PATH = 'scripts/llms-txt.template.md';
@@ -216,6 +217,9 @@ function values(ctx: Context): Record<string, string> {
       'ci.yml repository_dispatch type'
     ),
     publishWorkflowPath: PUBLISH_WORKFLOW_PATH,
+    portfolioTopics: Object.keys(TOPIC_TO_IMAGE_SRC)
+      .map((topic) => code(topic))
+      .join(', '),
   };
 }
 
