@@ -6,6 +6,9 @@
  *   bun run scripts/health-check-urls.ts
  *   bun run scripts/health-check-urls.ts --timeout-ms 30000 --retries 4
  */
+import { lookup } from 'node:dns/promises';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { CONTENT } from '../src/content/content';
 import { PROJECTS } from '../src/content/project';
 import { WORK } from '../src/content/work';
@@ -226,6 +229,53 @@ const extractUrls = (): string[] => {
   return Array.from(urls).sort();
 };
 
+const SERVICES_YAML = path.resolve(
+  import.meta.dir,
+  '../../infra/services.yaml'
+);
+
+/** Hostnames the fleet declares in `packages/infra/services.yaml`. */
+async function readFleetHostnames(): Promise<ReadonlySet<string>> {
+  const doc = Bun.YAML.parse(await readFile(SERVICES_YAML, 'utf8')) as {
+    services?: readonly { hostname?: string }[];
+  };
+  const hostnames = (doc.services ?? []).flatMap((s) =>
+    s.hostname ? [s.hostname.toLowerCase()] : []
+  );
+  return new Set(hostnames);
+}
+
+async function resolves(hostname: string): Promise<boolean> {
+  try {
+    await lookup(hostname);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A service added in the same PR as its portfolio entry is declared in
+ * services.yaml but has no DNS record until the post-merge deploy provisions
+ * it, so its URL cannot pass yet. Skip exactly those (declared + no DNS
+ * record); a provisioned service that is down still resolves and still fails.
+ */
+async function splitPendingUrls(
+  urls: readonly string[]
+): Promise<{ readonly live: string[]; readonly pending: string[] }> {
+  const fleet = await readFleetHostnames();
+  const pendingFlags = await Promise.all(
+    urls.map(async (url) => {
+      const host = new URL(url).hostname.toLowerCase();
+      return fleet.has(host) && !(await resolves(host));
+    })
+  );
+  return {
+    live: urls.filter((_, i) => !pendingFlags[i]),
+    pending: urls.filter((_, i) => pendingFlags[i]),
+  };
+}
+
 type FailedUrl = { url: string; error: string; attempts: number };
 
 type CheckRun = {
@@ -300,7 +350,12 @@ function reportFailures(failedUrls: readonly FailedUrl[]): void {
 
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
-  const urls = extractUrls();
+  const { live: urls, pending } = await splitPendingUrls(extractUrls());
+  for (const url of pending) {
+    writeLine(
+      `⏭  Skipping ${url}: declared in services.yaml, not provisioned yet (no DNS record)`
+    );
+  }
   const { results, totalDuration } = await runChecks(urls, args);
   const failedUrls = summarize(results, totalDuration);
 
