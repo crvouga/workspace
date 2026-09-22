@@ -30,7 +30,7 @@ Canonical URL (always current `main`): {{rawUrl}}
 1. Needs secrets (API keys, database URLs)? → [1. Vault](#1-vault-secrets). Every other section depends on it.
 2. Uses Turborepo (`turbo.json` exists)? → [2. Turborepo remote cache](#2-turborepo-remote-cache).
 3. Stores files / blobs? → [3. Object store](#3-object-store-cloudflare-r2-s3-compatible).
-4. Should be publicly hosted at `*.{{zone}}`? → [4. Hosting](#4-hosting-on-the-managed-fleet). The project must be Dockerized and publish prebuilt images.
+4. Should be publicly hosted at `*.{{zone}}` (and listed on the portfolio)? → [4. Hosting](#4-hosting-on-the-managed-fleet). The project must be Dockerized and publish prebuilt images; you request hosting by opening a GitHub issue on `{{infraRepo}}` (§4 Step 1) that carries everything needed to deploy it and list it on the portfolio.
 
 ## Resources at a glance
 
@@ -255,9 +255,118 @@ CMD ["bun", "run", "src/server.ts"]
 
 Verify locally before wiring CI: `docker build -t app . && docker run --rm -p 8080:8080 -e PORT=8080 app`, then `curl -fsS localhost:8080<health_path>`.
 
-### Step 1 — declare the service (in `{{infraRepo}}`)
+### Step 1 — open a hosting request issue (on `{{infraRepo}}`)
 
-The fleet only runs what `packages/infra/services.yaml` declares. Ask the human to add an entry (or, when working inside `{{infraRepo}}`, add it and run `{{script:reconcile}}` to review the plan):
+You cannot add a service from another repo — the fleet only runs what `packages/infra/services.yaml` in `{{infraRepo}}` declares, and an agent working there adds it. Your job is to hand that agent **everything** it needs in one GitHub issue, so it never has to open your repo to guess: where the image lives, how to run it, which secrets it needs, and how the project should appear on the portfolio at `https://www.{{zone}}`.
+
+1. Meet the contract above and verify the image locally (`docker build` + `docker run` + `curl` the health path). Do not open the issue until that works.
+2. Commit the publish workflow (Step 3) in the same change, so the image already exists on GHCR when the infra agent deploys it. Until the service entry lands, the deploy step in `{{infraRepo}}` fails with "service id not found" — that is expected.
+3. Check for an existing request first: `gh issue list -R {{infraRepo}} --state all --search "[hosting] <id> in:title"`. Update that issue instead of opening a duplicate.
+4. Fill in **every** field of the body below (write `none` / `n/a` rather than deleting a field), save it to a scratch file outside the repo, and open the issue:
+
+   ```bash
+   gh issue create -R {{infraRepo}} --label enhancement \
+     --title "[hosting] <id> — <one-line summary>" \
+     --body-file /tmp/hosting-request.md
+   ```
+
+   If `gh` is not authenticated or the human lacks access to `{{infraRepo}}`, give the human the filled-in body and the command instead.
+
+5. Tell the human the issue URL. When the infra agent comments with the live URL, confirm `curl -fsS https://<hostname><health_path>` succeeds.
+
+**Never put secret values in the issue** (it is public). List secret _names_ only; the human writes values into Vault.
+
+Issue body — copy it verbatim and replace every `<…>`:
+
+```md
+## Service
+
+| Field                | Value                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Service id           | `<id>` — kebab-case, unique in `services.yaml`; becomes the Railway name and GHCR name  |
+| Summary              | <one sentence: what the app is and who uses it>                                         |
+| Source repo          | `<owner>/<name>` (<public/private>), default branch `<main>`                            |
+| Source code URL      | <https://github.com/owner/name or …/tree/main/path for a monorepo package>              |
+| Requested hostname   | `<sub>.{{zone}}` (or "any")                                                             |
+| Kind                 | <static site / HTTP server / API / websocket server / other: …>                         |
+| Stack                | <language, framework, runtime version, package manager>                                 |
+
+## Image
+
+| Field               | Value                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| Image source        | <shared publish workflow → `{{ghcrPattern}}` / external image: `<registry/name:tag>`>       |
+| Image reference     | `<full ref, e.g. {{ghcrPattern}}:latest>`                                         |
+| Already published?  | <yes — tag/SHA `<sha>`, run <link> / not yet>                                               |
+| Dockerfile          | `<path relative to repo root>`                                                              |
+| Build context       | `<path relative to repo root>`                                                              |
+| Platform            | `linux/amd64` builds in CI: <yes/no>                                                        |
+| Publish workflow    | <committed at `{{publishWorkflowPath}}` in <commit/PR link> / not yet / n/a (external)>     |
+| Image size          | <approx MB>                                                                                 |
+
+## Runtime
+
+| Field                 | Value                                                                        |
+| --------------------- | ---------------------------------------------------------------------------- |
+| Port                  | `<port>` (reads `PORT` from env: <yes/no>, default `<port>`)                 |
+| Health path           | `<path>` → <status code>, no auth, no third-party calls                      |
+| Boot time             | <seconds until the health path is 2xx>                                       |
+| Start command         | `<CMD / ENTRYPOINT>`                                                         |
+| Plain env vars        | <`NAME=value`, one per line — non-secret only — or none>                     |
+| Websockets / SSE      | <yes/no>                                                                     |
+| Background work       | <cron jobs, queues, long-running tasks — or none>                            |
+| Persistent disk       | none (required — containers are stateless; use Postgres or the object store) |
+| Memory / CPU needs    | <typical / peak, or "small">                                                 |
+| Graceful `SIGTERM`    | <yes/no>                                                                     |
+
+## Secrets and shared infra
+
+Names only — never values.
+
+| Env var  | Already in Vault `{{kvProject}}`? | Configs      | Purpose / where the human gets the value |
+| -------- | --------------------------------- | ------------ | ---------------------------------------- |
+| `<NAME>` | <yes (reuse) / no (new key)>      | <dev, prd>   | <e.g. "TMDB API read token from …">      |
+
+- Postgres (`DATABASE_URL`): <needed / not needed>; migrations run <at boot / manually / n/a>
+- Object store (R2): <needed / not needed>; key prefix `<prefix>/`
+- Turborepo remote cache: <used / not used>
+- Vault access from CI (OIDC): <needed / not needed>
+
+## Local verification
+
+<paste the exact commands you ran and their trimmed output:>
+
+    docker build -f <dockerfile> -t <id> <context>
+    docker run --rm -p <port>:<port> -e PORT=<port> <id>
+    curl -fsS -o /dev/null -w '%{http_code}\n' localhost:<port><health_path>
+
+## Portfolio entry
+
+| Field           | Value                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| List it?        | <yes — main list / yes — archive (below the fold on /projects/) / no>                           |
+| Project id      | `<id>` (kebab-case; usually the service id)                                                     |
+| Title           | <display name, e.g. "Snake" or "moviefinder.app">                                               |
+| Setting         | <side / work>                                                                                   |
+| Deployment      | <public: `https://<hostname>` / private / not-deployed-yet>                                     |
+| Code            | <public: <repo URL> / private>                                                                  |
+| Description     | <1–2 plain sentences (~150–300 chars): what it does, then the interesting constraint or why>    |
+| Topics          | <from the allowed list below, most important first; ask for new ones separately>                |
+| Screenshots     | <"capture from deployment URL" / public image URLs — landscape, ≥1280px wide>                   |
+| Demo video      | <YouTube video id, or none>                                                                     |
+| Include on resume | <yes / no>                                                                                    |
+| Highlights      | <optional: 1–3 facts worth featuring — scale, notable tech, users>                              |
+
+## Anything else
+
+<custom domain needs, rate limits, known caveats, who to ask — or none>
+```
+
+Portfolio topics (use these exact keys; a new topic needs an icon, so ask for it in the issue instead of inventing one): {{portfolioTopics}}.
+
+### Step 2 — the service entry (added in `{{infraRepo}}` from your issue)
+
+The infra agent turns your issue into an entry like this in `packages/infra/services.yaml` (when you are working inside `{{infraRepo}}` yourself, add it and run `{{script:reconcile}}` to review the plan). Use it to check that your issue answers every field:
 
 ```yaml
 {{block:serviceExample}}
@@ -278,7 +387,7 @@ The fleet only runs what `packages/infra/services.yaml` declares. Ask the human 
 | `secrets`         | `name` + `source: vault` → value copied from Vault `{{kvProject}}/prd` into the service's env   |
 | `image`           | Optional external image, used verbatim (skips GHCR publishing entirely)                         |
 
-### Step 2 — add the publish workflow (in your repo)
+### Step 3 — add the publish workflow (in your repo)
 
 Commit exactly this as `{{publishWorkflowPath}}` (from `{{infraRepo}}`, `{{script:rollout-publish}} -- --repo <owner/name>` generates and pushes it for every service of that repo). If the repo's default branch is not `main`, change the trigger branch:
 
@@ -321,10 +430,24 @@ Working examples to copy from — each links to its source repo:
 | Turbo: no remote hits                          | `TURBO_API` / `TURBO_CACHE` not set where `turbo` runs; check `--cache` flags                                                  |
 | R2: `SignatureDoesNotMatch`                    | Wrong secret key, region ≠ `auto`, or virtual-host addressing — use path-style                                                 |
 | R2: `NoSuchBucket`                             | `S3_BUCKET` does not match the config's bucket                                                                                 |
-| Publish: `id-token` / permissions error        | The caller workflow must grant `contents: read`, `packages: write`, `id-token: write` (Step 2 does)                            |
-| Publish: `DEPLOY_DISPATCH_TOKEN is not set`    | Org secret missing — see Step 2                                                                                                |
-| Deploy: service id not found                   | No `services.yaml` entry for that `service_id` yet — Step 1                                                                    |
+| Publish: `id-token` / permissions error        | The caller workflow must grant `contents: read`, `packages: write`, `id-token: write` (Step 3 does)                            |
+| Publish: `DEPLOY_DISPATCH_TOKEN is not set`    | Org secret missing — see Step 3                                                                                                |
+| Deploy: service id not found                   | No `services.yaml` entry for that `service_id` yet — open the Step 1 issue                                                     |
 | Deploy: health check fails                     | Container not listening on `port`, or `health_path` is not 2xx — reproduce with `docker run` locally                           |
+
+---
+
+## Handling a hosting request (agents working inside `{{infraRepo}}`)
+
+Hosting requests are issues titled `[hosting] <id> — …` (`gh issue list -R {{infraRepo}} --search "[hosting] in:title" --state open`). Work one issue per branch and PR:
+
+1. **Validate the request.** Every field is filled; the id and hostname are unused in {{path:packages/infra/services.yaml}}; the image reference exists (`docker manifest inspect <ref>` or the GHCR package page); no secret values appear anywhere in the issue (if one does, tell the human to rotate it and edit the issue). Ask for anything missing in an issue comment and stop — never guess a port, health path or secret.
+2. **Declare the service.** Add the entry to `services:` in `services.yaml` (fields as in Step 2; `image:` only for an external image). For each new secret, add it to `vault.kv_keys` with `configs` and `used_by: [<id>]`, then tell the human the exact `vault kv patch {{kvMount}}/{{kvProject}}/<config> NAME=…` commands — never write values yourself.
+3. **Plan.** `{{script:reconcile}}` (dry run) and check the plan only adds this service, its DNS record and its variable bindings.
+4. **Publish workflow.** If the issue says it is not committed yet, `{{script:rollout-publish}} -- --repo <owner/name>` generates it (ask the human before pushing to another repo).
+5. **Portfolio.** When the issue asks for a listing, add a `Project` to {{path:packages/portfolio/src/content/projects/entries-part-2.ts}} (main list; append at the end) or {{path:packages/portfolio/src/content/projects/entries-archive.ts}} (archive), following {{path:packages/portfolio/src/content/projects/types.ts}}: `deployment: { t: 'public', url: 'https://<hostname>' }`, `code`, `description`, `topics` from {{path:packages/portfolio/src/content/topic.ts}}, and `imageSrc` / `galleryImageSrc` set to `/<id>-screenshot.optimized.webp`. Once the service is live, the human runs `bun run --filter @pkgs/portfolio gen` locally to capture the screenshot into `assets/` and its optimized derivative into `public/` (Playwright; never in CI) — commit both.
+6. **Regenerate and check.** `{{script:llms:sync}}` (the fleet table changes), then `bun run check`.
+7. **Ship.** Open the PR with `Closes #<issue>` in the body. After merge, watch CI (`gh run list -R {{infraRepo}} --workflow ci.yml --limit 3`), confirm `curl -fsS https://<hostname><health_path>`, and comment the live URL on the issue. If the deploy failed only because the entry was missing, redeploy with `gh workflow run ci.yml -R {{infraRepo}} -f service_id=<id> -f image_tag=<sha>`.
 
 ---
 
