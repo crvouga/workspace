@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "fetchedAt": "2026-09-25T17:49:25.240Z",
+  "fetchedAt": "2026-09-26T16:55:54.458Z",
   "login": "crvouga",
-  "totalContributions": 12784,
+  "totalContributions": 12970,
   "longestStreak": 76,
   "currentStreak": 13,
   "publicRepos": 81,
@@ -11,12 +11,11 @@
     {
       "id": "last-12-months",
       "label": "Last 12 months",
-      "from": "2025-09-25",
-      "to": "2026-09-25",
-      "totalContributions": 12784,
-      "firstDay": "2025-09-25",
+      "from": "2025-09-26",
+      "to": "2026-09-26",
+      "totalContributions": 12970,
+      "firstDay": "2025-09-26",
       "counts": [
-        5,
         8,
         8,
         11,
@@ -380,16 +379,17 @@
         228,
         270,
         73,
-        226,
-        25
+        241,
+        201,
+        0
       ]
     },
     {
       "id": "2026",
       "label": "2026",
       "from": "2026-01-01",
-      "to": "2026-09-25",
-      "totalContributions": 11362,
+      "to": "2026-09-26",
+      "totalContributions": 11553,
       "firstDay": "2026-01-01",
       "counts": [
         0,
@@ -658,8 +658,9 @@
         228,
         270,
         73,
-        226,
-        25
+        241,
+        201,
+        0
       ]
     },
     {
