@@ -1,0 +1,74 @@
+---
+import { CONTENT } from '../content/content';
+import { RESUME_HREF } from '../constants/resume';
+import IconEmail from './icons/IconEmail.astro';
+import IconDownload from './icons/IconDownload.astro';
+
+/**
+ * Phone-only action bar. On a phone the hero's calls to action scroll away
+ * within one swipe and the contact section is eight sections down, so the two
+ * actions that matter stay reachable the whole way. It hides itself once the
+ * contact section is on screen, where the same actions are already visible.
+ */
+const email = CONTENT.EMAIL_ADDRESS;
+---
+
+<div class="sticky-cta" data-sticky-cta>
+  <a class="btn btn-contained" href={`mailto:${email}`}>
+    <IconEmail /><span class="btn-label">{CONTENT.HERO.ctaPrimary.label}</span>
+  </a>
+  <a class="btn" href={RESUME_HREF} target="_blank" rel="noopener">
+    <IconDownload /><span class="btn-label">Résumé</span>
+  </a>
+</div>
+
+<style>
+  .sticky-cta {
+    display: none;
+  }
+
+  @media (max-width: 899px) {
+    .sticky-cta {
+      position: fixed;
+      inset-inline: 0;
+      bottom: 0;
+      z-index: 9;
+      display: flex;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+      background: rgba(10, 10, 11, 0.92);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--paper-border);
+      transition:
+        transform var(--motion-med) var(--motion-ease),
+        opacity var(--motion-med) var(--motion-ease);
+    }
+    .sticky-cta .btn {
+      flex: 1;
+      justify-content: center;
+    }
+    .sticky-cta[data-hidden] {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+</style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const bar = document.querySelector('[data-sticky-cta]');
+    const contact = document.getElementById('contact');
+    if (!bar || !contact || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          bar.toggleAttribute('data-hidden', entry.isIntersecting);
+        });
+      },
+      { rootMargin: '0px 0px -25% 0px' }
+    );
+    observer.observe(contact);
+  });
+</script>

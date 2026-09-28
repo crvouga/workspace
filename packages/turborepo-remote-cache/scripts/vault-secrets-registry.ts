@@ -75,6 +75,7 @@ export const VaultSecretKey = {
   s3SecretAccessKey: 'S3_SECRET_ACCESS_KEY',
   s3Bucket: 'S3_BUCKET',
   vaultToken: 'VAULT_TOKEN',
+  portfolioGithubToken: 'PORTFOLIO_GITHUB_TOKEN',
 } as const;
 
 /** Shared R2 buckets — one per Vault config. Apps own key prefixes inside the bucket. */
@@ -237,6 +238,21 @@ export const VAULT_SECRET_REGISTRY: readonly SecretStoreEntry[] = [
     required: false,
     usedBy: ['client'],
     hint: 'Set to 1 to disable Turbo telemetry',
+  }),
+  new SecretStoreEntry({
+    key: VaultSecretKey.portfolioGithubToken,
+    required: true,
+    usedBy: ['ci', 'portfolio'],
+    hint: 'GitHub user token with read:user access for the contribution calendar',
+    description:
+      'Build-time credential for the portfolio proof section (contribution calendar + profile stats).',
+    docsUrl:
+      'https://docs.github.com/en/graphql/reference/objects#contributionscollection',
+    obtainUrl: 'https://github.com/settings/tokens',
+    vaultUiPath: `${VAULT_UI_BASE}/personal/{{config}}`,
+    validExample: 'ghp_… (classic) or github_pat_… (fine-grained)',
+    invalidHint:
+      'Store a GitHub user token with read:user at secret/data/personal/{dev|prd} → PORTFOLIO_GITHUB_TOKEN, e.g. `vault kv patch secret/personal/dev PORTFOLIO_GITHUB_TOKEN=<value>`, then build with `vault run --config dev -- bun run --filter @pkgs/portfolio build`.',
   }),
 ];
 

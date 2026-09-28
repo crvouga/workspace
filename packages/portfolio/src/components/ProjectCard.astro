@@ -1,0 +1,220 @@
+---
+import { TOPIC_TO_IMAGE_SRC, TOPIC_TO_NAME } from '../content/topic';
+import type { Project } from '../content/project';
+import { accessNote, galleryFor, projectHref } from '../lib/projects-view';
+
+interface Props {
+  project: Project;
+  /** Index into the page's flat gallery array; null renders no Images button. */
+  galleryIndex?: number | null;
+  /** Archive rows: no cover, plain chips. */
+  compact?: boolean;
+}
+const {
+  project,
+  galleryIndex = null,
+  compact = false,
+} = Astro.props;
+
+const MAX_CHIPS = 6;
+const href = projectHref(project);
+const note = accessNote(project);
+const chips = project.topics.slice(0, MAX_CHIPS);
+const extraTopics = Math.max(0, project.topics.length - MAX_CHIPS);
+const cover = compact ? undefined : project.imageSrc[0];
+const hasGallery = galleryIndex !== null && galleryFor(project).length > 0;
+---
+
+<article class={`card project ${compact ? 'compact' : ''}`}>
+  {
+    !compact && (
+      <div class="cover-box">
+        {/* Always rendered, even with no screenshot: a card that omits the
+            box is a different height and breaks the grid's alignment. */}
+        {cover === undefined ? (
+          <span class="cover-fallback" aria-hidden="true">
+            {project.title}
+          </span>
+        ) : (
+          <img
+            class="cover"
+            src={cover}
+            alt={project.imageAlt}
+            loading="lazy"
+            decoding="async"
+            width="1400"
+            height="788"
+          />
+        )}
+      </div>
+    )
+  }
+  <div class="body">
+    <h3>
+      {/* Client work under NDA has no destination but its gallery;
+          an <a> without an href would read as a broken link. */}
+      {
+        href === null ? (
+          project.title
+        ) : (
+          <a href={href} rel="noopener" target="_blank">
+            {project.title}
+          </a>
+        )
+      }
+    </h3>
+    <p class="desc" set:html={project.description} />
+    <div class="meta">
+      <div class="chips">
+        {
+          chips.map((topic) => (
+            <span class="chip">
+              {!compact && TOPIC_TO_IMAGE_SRC[topic] && (
+                <img src={TOPIC_TO_IMAGE_SRC[topic] ?? ''} alt="" loading="lazy" />
+              )}
+              {TOPIC_TO_NAME[topic]}
+            </span>
+          ))
+        }
+        {extraTopics > 0 && <span class="chip chip-more">+{extraTopics}</span>}
+      </div>
+      <div class="links">
+        {
+          project.deployment.t === 'public' && (
+            <a href={project.deployment.url} rel="noopener" target="_blank">
+              Live
+            </a>
+          )
+        }
+        {
+          project.code.t === 'public' && (
+            <a href={project.code.url} rel="noopener" target="_blank">
+              Code
+            </a>
+          )
+        }
+        {
+          hasGallery && (
+            <button type="button" class="gallery-btn" data-gallery={galleryIndex}>
+              Images
+            </button>
+          )
+        }
+        {note !== null && <span class="access-note">{note}</span>}
+      </div>
+    </div>
+  </div>
+</article>
+
+<style>
+  .project {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* Fixed aspect keeps every row aligned regardless of the source ratio.
+     The contents are absolutely positioned so the box's height comes only
+     from `aspect-ratio` — in flow, a tall screenshot's natural height wins
+     and the cards stop matching. `flex: 0 0 auto` stops the column flex
+     parent from shrinking it afterwards. */
+  .cover-box {
+    position: relative;
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 9;
+    border-bottom: 1px solid var(--paper-border);
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .project .cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* Projects with nothing to screenshot (a control plane, a library) still
+     need a box of the same size, so they get a wordmark instead. */
+  .cover-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    color: var(--text-subtle);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .body {
+    padding: var(--space-5) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    flex: 1;
+  }
+  h3 {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  h3 a {
+    color: var(--text);
+  }
+  h3 a:hover {
+    color: var(--accent);
+  }
+  .desc {
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  /* Featured cards share grid rows; one long description would stretch the
+     whole row and leave its neighbours mostly empty. Clamp to a common
+     measure; the text stays in the DOM for crawlers and screen readers. */
+  .project:not(.compact) .desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    overflow: hidden;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip-more {
+    color: var(--text-subtle);
+  }
+  .meta {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+  /* `.gallery-btn` is a shared primitive in global.css. */
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    color: var(--accent);
+  }
+  .access-note {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+  }
+</style>

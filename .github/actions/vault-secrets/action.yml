@@ -59,6 +59,7 @@ runs:
           secret/data/personal/prd S3_BUCKET | S3_BUCKET ;
           secret/data/personal/prd S3_REGION | S3_REGION ;
           secret/data/personal/prd OPENAI_API_KEY | OPENAI_API_KEY ;
+          secret/data/personal/prd PORTFOLIO_GITHUB_TOKEN | PORTFOLIO_GITHUB_TOKEN ;
 
     - name: Wait before Vault retry
       if: steps.vault_core.outcome == 'failure'
@@ -91,6 +92,7 @@ runs:
           secret/data/personal/prd S3_BUCKET | S3_BUCKET ;
           secret/data/personal/prd S3_REGION | S3_REGION ;
           secret/data/personal/prd OPENAI_API_KEY | OPENAI_API_KEY ;
+          secret/data/personal/prd PORTFOLIO_GITHUB_TOKEN | PORTFOLIO_GITHUB_TOKEN ;
 
     - name: Require Vault OIDC
       if: steps.vault_core.outcome == 'failure' && steps.vault_core_retry.outcome != 'success'

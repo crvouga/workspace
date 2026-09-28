@@ -4,7 +4,8 @@
 
 Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
 
-- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), the only deployable app; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
+- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), deployed as the `turborepo` Railway service; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
+- `packages/portfolio` — `www.chrisvouga.dev` static site + content registry (`@pkgs/portfolio`), deployed as the `portfolio` Railway service
 - `packages/infra` — infra control plane (`@pkgs/infra`): sole desired-state doc [`services.yaml`](packages/infra/services.yaml), `lib/reconcile/`, and ops scripts. Prefer `bun run reconcile` / `bun run infra` over one-off scripts.
 - `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
 - `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
@@ -12,11 +13,15 @@ Single flat Turborepo + Bun workspace at the repo root. Every package is scoped 
 - `packages/vault-service` — standalone OpenBao service (Docker + shell; no package.json)
 - `packages/workstation` — portable local-machine config (no package.json)
 
-Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`.
+Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`, `llms.txt` (the generated integration guide other repos fetch — see below), and `INTEGRATING.md` (a stub pointing at `llms.txt` so old links keep working).
 
-`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages, mirroring the CI check job; `bun run check:ci` additionally runs the Vault dev-secret gate; see [`.cursor/commands/ci.md`](.cursor/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
+`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.agents/commands/ci.md`](.agents/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
 
-**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) → **Watch CI & fix failures**.
+**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.agents/commands/ci.md`](.agents/commands/ci.md) → **Watch CI & fix failures**.
+
+## Integration guide (`llms.txt`)
+
+The root [`llms.txt`](llms.txt) is the single document external codebases (and their agents) fetch from `https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt` to integrate with Vault, the Turborepo remote cache, the R2 object store, and fleet hosting (Dockerized, prebuilt GHCR images published through `ci.yml`'s `workflow_call`). It is **generated — never edit it by hand**: prose lives in [`scripts/llms-txt.template.md`](scripts/llms-txt.template.md), and every value (hostnames, Vault paths, OIDC role, buckets, KV keys, `workflow_call` inputs, the publish workflow from `packages/infra/lib/publish-workflow.ts`, the fleet table) is read from `services.yaml`, `ci.yml` and the Vault secret registry by [`scripts/llms-txt.ts`](scripts/llms-txt.ts). After changing any of those, run `bun run llms:sync` and commit the result; `bun run check:llms` (part of `bun run check`) fails on drift, on a `{{path:…}}` that no longer exists, or on a `{{script:…}}` missing from `package.json`. When an integration contract changes in a way config can't express, update the template prose too. `llms.txt` §4 tells external agents to request hosting by opening a `[hosting] <id> — …` issue on this repo with a fixed body (image, runtime, secret names, portfolio entry); its **Handling a hosting request** section is the checklist for turning one into a `services.yaml` entry + portfolio project in a PR that `Closes` the issue. (Not to be confused with the portfolio site's `/llms.txt`, rendered by `packages/portfolio/src/pages/llms.txt.ts`.)
 
 ## Declarative infra (`packages/infra/services.yaml`)
 
@@ -35,13 +40,13 @@ Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin con
 
 ## Global resource naming
 
-| Resource                                       | Pattern                                                     | Example                                |
-| ---------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
-| Railway project                                | from `services.yaml` → `railway.project`                    | `infra`                                |
-| Railway service                                | service `id` (no prefix)                                    | `portfolio`, `vault`                   |
-| GHCR image                                     | `chrisvouga-<id>`                                           | `ghcr.io/crvouga/chrisvouga-portfolio` |
-| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR) | `ghcr.io/example/app:latest`           |
-| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                | Vault `dev` / `prd` `S3_BUCKET`        |
+| Resource                                       | Pattern                                                                               | Example                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------- |
+| Railway project                                | from `services.yaml` → `railway.project` (reconcile renames the live project to this) | `Workspace`                            |
+| Railway service                                | service `id` (no prefix)                                                              | `portfolio`, `vault`                   |
+| GHCR image                                     | `chrisvouga-<id>`                                                                     | `ghcr.io/crvouga/chrisvouga-portfolio` |
+| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR)                           | `ghcr.io/example/app:latest`           |
+| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                                          | Vault `dev` / `prd` `S3_BUCKET`        |
 
 Railway names come from [`packages/infra/services.yaml`](packages/infra/services.yaml) via `railwayServiceName()` in [`packages/infra/lib/services.ts`](packages/infra/lib/services.ts) — defaults to the service `id`. Legacy Fly.io apps used the `crvouga-` prefix; see `legacyFlyAppName()`.
 
@@ -147,6 +152,23 @@ bun run setup
 bun run dev # bun server :8787
 ```
 
+## Portfolio site (`packages/portfolio/`)
+
+Source for `www.chrisvouga.dev` — an Astro 7 static site (`astro build` via Node ≥ 22 → `/`, `/projects/`, `/404`, `/llms.txt`, each with CSS inlined) served by nginx, plus the content registry `projects.ts` (+ `src/content/projects/**`, the source of truth for project listings; append new projects to `entries-part-2.ts`; `entries-archive.ts` is the separate `ARCHIVE_PROJECTS` list behind the `/projects/` fold, excluded from `PROJECTS`). GitHub proof data (heatmap with a period picker capped at `MAX_RANGE_WINDOWS` — the trailing year plus four calendar years, because each panel costs ~370 `<rect>`s — streaks, counts) is fetched from the GitHub API at build time (`src/lib/github.ts`). Build-time uptime policy (`src/lib/github-insights.ts`): live data with retries → the committed snapshot `packages/portfolio/src/data/github-insights.json` (rendered with a visible "last known snapshot" caption naming its age) → a notice card in `astro dev`, or a build failure in production. **Freshness is the `schedule:` cron in `ci.yml`, not the snapshot**: a daily run rebuilds and redeploys the portfolio image (whose build fetches GitHub live) and the `refresh-github-insights` job lands the refreshed snapshot on `main` through a self-merging bot PR (the `main` ruleset requires a PR and has no bypass actors, so a direct push would be rejected), so the offline fallback cannot rot. That job is intentionally _not_ a dependency of `publish` — an expired token turns it red while the site keeps serving the last good snapshot. `src/lib/github-freshness.ts` holds the staleness budget (`STALE_AFTER_DAYS`); a snapshot past it warns in the build log and the caption says how old the numbers are. The publish job injects Vault's `PORTFOLIO_GITHUB_TOKEN` as the `github_token` build secret. Screenshots are sourced from `assets/`, optimized derivatives in `public/` are the only served images.
+
+`@astrojs/sitemap` emits `sitemap-index.xml` (there is no `public/sitemap.xml`), and `nginx.conf` has no SPA fallback — unknown paths 404 to `dist/404.html`. **The resume PDF is generated by `astro build`** (`src/pages/chris-vouga-resume.pdf.ts` → `src/resume/**`) from the same content the site renders, so it is never committed and cannot go stale; rendering it needs Playwright's Chromium, which is why the Docker build stage is Debian and CI installs Chromium before `bun run check`.
+
+Its image `ghcr.io/crvouga/chrisvouga-portfolio` is built by this repo's CI: `publish-plan` derives the publish matrix from `services.yaml` (`list-publish-service-ids.ts` → services whose `github_repo` is this repo, minus standalone), the `publish` matrix builds each using `print-publish-inputs.ts` (dockerfile + repo-root build context), and `deploy-prepare` redeploys exactly those services at the pushed SHA. The `portfolio-health-check` job checks every public URL in content when `packages/portfolio/**` changes.
+
+| Command                                              | Purpose                                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `bun run --filter @pkgs/portfolio build`             | `astro build` → `dist/` (package cwd; used by the Docker build and `turbo run build`).     |
+| `bun run --filter @pkgs/portfolio gen`               | Screenshots + optimized derivatives (Playwright; local only).                              |
+| `bun run --filter @pkgs/portfolio health-check-urls` | GET every public URL in content.                                                           |
+| `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI). |
+
+`bun run --filter @pkgs/portfolio test` discovers tests only under `src/`, which is why the Docker E2E never runs in the CI `check` job.
+
 ## Local 9router (`packages/9router/`)
 
 Not on Railway. Local bun/tsx CLI at `http://127.0.0.1:20128`. Cursor BYOK uses the named Cloudflare tunnel **https://9router.chrisvouga.dev** (not fleet `sync-dns`). See [`packages/9router/README.md`](packages/9router/README.md): `cd packages/9router && bun install && bun start` (interactive menu for setup, provision-tunnel, start/stop daemons, sync, etc.).
@@ -161,6 +183,10 @@ Portable local-machine configuration; the source of truth for the global OpenCod
 - Setup: `bun run ws:install` installs dependencies, registers the global `ws` CLI (`~/.local/bin/ws`), and converges workstation configuration idempotently; it refuses to overwrite unmanaged files. Day-to-day: run `ws` (interactive dashboard) or `ws sync`.
 - Canonical context: [`packages/workstation/README.md`](packages/workstation/README.md); agent directive: [`packages/workstation/AGENTS.md`](packages/workstation/AGENTS.md)
 - No secrets live here — they come from Vault KV at `secret/data/personal/{dev|prd}`.
+
+## Agent commands
+
+Canonical agent commands live in `.agents/commands/*.md` (`/ci`, `/pr-ready`); every harness copy (`.claude/commands`, `.cursor/commands`, `.opencode/command`, `.windsurf/workflows`, `.github/prompts`, `.agents/skills`) is a symlink managed by `bun run agents:sync`. Edit the canonical file, never a link. `/pr-ready` drives `bun run pr:ready <command>` (`scripts/pr-ready.ts`); PRs to `main` need the single `Required` check (`ci.yml` aggregator over `changes`, `check`, `portfolio-health-check`, `commitlint`, `pr-title`).
 
 ## Hard rules
 

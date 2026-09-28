@@ -1,8 +1,10 @@
 # Infra (Railway)
 
+> Integrating another repo (Vault, Turborepo cache, R2, hosting)? Follow the generated [`llms.txt`](llms.txt).
+
 Railway deployment for all services on the zone defined in [`services.yaml`](services.yaml) (`zone: chrisvouga.dev`).
 
-Each project repo builds and pushes its own public image to `ghcr.io/<image_owner>/<image_prefix>-<id>` (e.g. `ghcr.io/crvouga/chrisvouga-portfolio`). This repo **only consumes those images** — GitHub Actions provisions Railway services via the GraphQL API, syncs DNS/secrets, deploys, and health-checks.
+Project repos build and push their own public image to `ghcr.io/<image_owner>/<image_prefix>-<id>` (e.g. `ghcr.io/crvouga/chrisvouga-todo-app`), while the images for services whose code lives here (`turborepo`, `vault`, `portfolio`) are built and pushed by this repo's CI publish job. This repo otherwise **consumes** those images — GitHub Actions provisions Railway services via the GraphQL API, syncs DNS/secrets, deploys, and health-checks.
 
 Cloudflare DNS points custom domains at Railway (CNAME + TXT verification). Railway terminates TLS on custom domains; Cloudflare SSL mode is **Full (strict)** with DNS-only records.
 
@@ -24,7 +26,7 @@ Monorepo push/PR ──▶ ci.yml: vault-state → vault? → check → publish?
                                                        → railway-deploy? → health
                                                                                 │
                                                                                 ▼
-                                                Railway (infra / production)
+                                                Railway (Workspace / production)
                                                                                 │
                                                                                 ▼
                                                        *.<zone> via Cloudflare DNS
@@ -32,16 +34,16 @@ Monorepo push/PR ──▶ ci.yml: vault-state → vault? → check → publish?
 
 ## Configuration ([`services.yaml`](services.yaml))
 
-| Field                    | Purpose                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `zone`                   | Primary DNS zone (e.g. `chrisvouga.dev`)                                |
-| `image_owner`            | GHCR org/user                                                           |
-| `infra_github_repo`      | GitHub repo slug for this infra repo                                    |
-| `railway.project`        | Railway project name (e.g. `infra`)                                     |
-| `railway.environment`    | Environment name (default `production`)                                 |
-| `railway.region`         | Deployment region (default `us-east4`)                                  |
-| `railway.service_prefix` | Optional service name prefix (default: none — names match service `id`) |
-| `railway.sleep`          | Per service: `true` (serverless) or `false` (always on)                 |
+| Field                    | Purpose                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| `zone`                   | Primary DNS zone (e.g. `chrisvouga.dev`)                                                  |
+| `image_owner`            | GHCR org/user                                                                             |
+| `infra_github_repo`      | GitHub repo slug for this infra repo                                                      |
+| `railway.project`        | Desired Railway project name; reconcile keeps the live project in sync (e.g. `Workspace`) |
+| `railway.environment`    | Environment name (default `production`)                                                   |
+| `railway.region`         | Deployment region (default `us-east4`)                                                    |
+| `railway.service_prefix` | Optional service name prefix (default: none — names match service `id`)                   |
+| `railway.sleep`          | Per service: `true` (serverless) or `false` (always on)                                   |
 
 Derived automatically: `image_prefix` (`chrisvouga`), Vault URL (`https://vault.<zone>`).
 
@@ -95,7 +97,7 @@ vault run -- bun run provision-railway --apply
 # or: export RAILWAY_TOKEN=... && bun run provision-railway --apply
 ```
 
-Creates project `infra`, fleet services (excludes vault), custom domains, and volumes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
+Creates the Railway project named by `railway.project` (`Workspace`), fleet services (excludes vault), custom domains, and volumes. Reconcile renames that project when `railway.project` changes. After migrating from prefixed names, run `bun run rename-railway --apply` once.
 
 ### 4. Run CI deploy
 
@@ -144,7 +146,31 @@ bun run deploy-railway --id portfolio
 bun run sync-dns --apply
 ```
 
-See [`.cursor/commands/ci.md`](.cursor/commands/ci.md) for the full check/CI reference.
+See [`.agents/commands/ci.md`](.agents/commands/ci.md) for the full check/CI reference.
+
+## Agent commands & `/pr-ready`
+
+`/pr-ready` takes the current branch from uncommitted work to a merged PR:
+commit (commitlint-checked), push, merge `main`, resolve conflicts, open the
+PR, loop CI until the `Required` check is green, then `gh pr merge --merge --auto`.
+The agent only writes commit/PR text, resolves conflicts, and fixes CI root
+causes; all git/GitHub work runs through `bun run pr:ready <command>`
+([`scripts/pr-ready.ts`](scripts/pr-ready.ts)), which prints one JSON object per
+command (`status`, `context`, `commit`, `publish`, `sync`, `pr`, `checks`,
+`logs`, `repo`, `ruleset`, `merge`).
+
+Merge gate (read-only unless `--apply`; writes need repo admin):
+
+```bash
+bun run pr:ready repo       # merge-commit only, auto-merge, delete branch on merge
+bun run pr:ready ruleset    # `main` ruleset: PR required, `Required` check, no force-push/deletion
+```
+
+Commands live once in [`.agents/commands/`](.agents/commands/) and are symlinked
+into `.claude/commands`, `.cursor/commands`, `.opencode/command`,
+`.windsurf/workflows`, `.github/prompts` and `.agents/skills/<name>/SKILL.md`.
+**Edit `.agents/commands/*.md`, never the links.** After adding or renaming one,
+run `bun run agents:sync`; `bun run check:agents` (part of `bun check`) fails on drift.
 
 Desired state lives in [`packages/infra/services.yaml`](packages/infra/services.yaml). Stateful destroy requires `bun run reconcile destroy <kind> --id … --i-understand-stateful`.
 
@@ -161,6 +187,7 @@ Single flat Turborepo + Bun workspace. Every package is `@pkgs/*` and lives unde
 ```
 packages/
   turborepo-remote-cache/  # Turborepo remote cache server (@pkgs/turborepo-remote-cache) + support scripts
+  portfolio/               # chrisvouga.dev static site + content registry (@pkgs/portfolio)
   infra/                   # services.yaml + lib/ + infra/fleet ops scripts (@pkgs/infra)
   {assert,logger,object-store,secret-store,secret-string,vault}/  # @pkgs/* libs
   9router/                 # local 9router CLI (@pkgs/9router)

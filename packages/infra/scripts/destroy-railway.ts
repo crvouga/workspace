@@ -9,16 +9,11 @@
 import { assert, hotAssert, type Assert } from "@pkgs/assert";
 
 const ha: Assert = hotAssert();
-import {
-  deleteService,
-  ensureProject,
-  findServiceByName,
-  resolveEnvironment,
-} from "../lib/railway-api.js";
+import { deleteService, findServiceByName } from "../lib/railway-api.js";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayToken } from "../lib/railway-token.js";
 import {
   loadServicesConfig,
-  railwayEnvironmentName,
   railwayProjectName,
   railwayServiceName,
 } from "../lib/services.js";
@@ -61,9 +56,15 @@ async function destroyOne(id: string, apply: boolean): Promise<void> {
   assert.ok(typeof apply === "boolean", "apply must be a boolean");
   const config = loadServicesConfig();
   const serviceName = railwayServiceName(config, id);
-  const project = await ensureProject(railwayProjectName(config));
-  resolveEnvironment(project, railwayEnvironmentName(config));
-  const railwayService = findServiceByName(project, serviceName);
+  const opened = await convergeRailwayProject(config, {
+    apply: false,
+    allowCreate: false,
+  });
+  if (!opened.project) {
+    console.log(`  skip ${serviceName} (Railway project "${railwayProjectName(config)}" not found)`);
+    return;
+  }
+  const railwayService = findServiceByName(opened.project, serviceName);
 
   if (!railwayService) {
     console.log(`  skip ${serviceName} (not on Railway)`);

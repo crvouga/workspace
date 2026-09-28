@@ -122,6 +122,17 @@ export function railwayProjectName(config: ServicesConfig): string {
   return project;
 }
 
+/** Railway service names declared for the managed project. Identity for a rename. */
+export function railwayDeclaredServiceNames(config: ServicesConfig): readonly string[] {
+  assert.record(config, "services config must be a record");
+  const names = railwayServices(config).map((service) => railwayServiceName(config, service.id));
+  assert.array(names, "declared railway service names must be an array");
+  for (const name of names) {
+    assert.nonEmptyString(name, "declared railway service name must be non-empty");
+  }
+  return names;
+}
+
 export function railwayEnvironmentName(config: ServicesConfig): string {
   assert.record(config, "services config must be a record");
   const name = config.railway?.environment?.trim() || "production";

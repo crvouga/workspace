@@ -1,0 +1,333 @@
+/* Design tokens — ported from src/ui/theme.ts before its deletion. */
+
+@font-face {
+  font-family: 'Inter Variable';
+  src: url('/fonts/inter-variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-sans:
+    'Inter Variable', -apple-system, 'system-ui', 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'SF Mono', 'Menlo', 'Consolas',
+    'Liberation Mono', monospace;
+
+  --bg: #0a0a0b;
+  --paper: #101013;
+  --paper-border: #1f1f25;
+  --paper-border-hover: #2e2e36;
+  --text: #f2f4f8;
+  --text-muted: #a3abba;
+  --text-subtle: #727a88;
+
+  --accent: #7fb3ff;
+  --accent-strong: #4c8de8;
+  --accent-deep: #1e5baf;
+  --accent-soft: rgba(127, 179, 255, 0.12);
+  --accent-glow: rgba(127, 179, 255, 0.18);
+  --accent-hover: #a6cbff;
+  --success: #3fb950;
+
+  /* GitHub heatmap ramp: a quiet zero below --paper, then even luminance steps. */
+  --gh-0: #16161c;
+  --gh-1: #143f74;
+  --gh-2: #2361ab;
+  --gh-3: #3f87e2;
+  --gh-4: #86baff;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --motion-fast: 150ms;
+  --motion-med: 220ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --container: 1100px;
+  /** Minimum comfortable touch target. */
+  --tap: 44px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Clearance for the phone-only action bar (components/StickyCta.astro) so it
+   never covers the last line of the footer. */
+@media (max-width: 899px) {
+  body {
+    padding-bottom: 76px;
+  }
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #a6cbff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Links embedded in prose must be distinguishable without color. */
+p a,
+li a,
+.caption a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-link:hover {
+  color: #a6cbff;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+}
+
+.skip-link:focus {
+  left: var(--space-4);
+  top: var(--space-4);
+  z-index: 20;
+  background: var(--paper);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .container {
+    padding-inline: var(--space-6);
+  }
+}
+
+/* The header wraps to two rows below 600px, so anchored sections need more
+   clearance than the single-row desktop height. */
+@media (max-width: 599px) {
+  html {
+    scroll-padding-top: 132px;
+  }
+}
+
+section {
+  padding-block: var(--space-8);
+}
+
+@media (min-width: 900px) {
+  section {
+    padding-block: var(--space-9);
+  }
+}
+
+/* Numbered section headings, carried over from the previous design. */
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.section-heading .number {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.section-heading h2 {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--motion-fast) var(--motion-ease);
+}
+
+.card:hover {
+  border-color: var(--paper-border-hover);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--paper-border);
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.btn-contained {
+  border-color: var(--accent-deep);
+  background: var(--accent-deep);
+  color: #fff;
+}
+
+.btn-contained:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 3px 9px;
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-pill);
+}
+
+.chip img {
+  width: 12px;
+  height: 12px;
+}
+
+/* Opens the shared gallery dialog. Lives here, not in a component, because the
+   projects grid, the work cards and the archive page all render one. */
+.gallery-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+}
+.gallery-btn:hover {
+  color: var(--accent-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

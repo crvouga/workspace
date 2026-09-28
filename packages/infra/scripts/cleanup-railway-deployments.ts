@@ -12,20 +12,15 @@ import { assert, hotAssert, type Assert } from "@pkgs/assert";
 
 const ha: Assert = hotAssert();
 import {
-  ensureProject,
   isRailwayRateLimitError,
   listDeployments,
   removeDeployment,
-  resolveEnvironment,
   waitForRailwayRateLimit,
   type RailwayProject,
 } from "../lib/railway-api.js";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayToken } from "../lib/railway-token.js";
-import {
-  loadServicesConfig,
-  railwayEnvironmentName,
-  railwayProjectName,
-} from "../lib/services.js";
+import { loadServicesConfig, railwayProjectName } from "../lib/services.js";
 
 const CLEANUP_STATUSES = new Set(["FAILED", "CRASHED"]);
 
@@ -183,10 +178,16 @@ async function main(): Promise<void> {
 
   await ensureRailwayToken();
 
-  const project = await withRateLimitRetry(args.waitOnRateLimit, () =>
-    ensureProject(railwayProjectName(config)),
+  const opened = await withRateLimitRetry(args.waitOnRateLimit, () =>
+    convergeRailwayProject(config, { apply: args.apply, allowCreate: false }),
   );
-  const environment = resolveEnvironment(project, railwayEnvironmentName(config));
+  if (!opened.project || !opened.environmentId) {
+    throw new Error(
+      `Railway project "${railwayProjectName(config)}" not found — run provision-railway --apply`,
+    );
+  }
+  const project = opened.project;
+  const environment = { id: opened.environmentId };
   assert.nonEmptyString(environment.id, "environment id must be non-empty");
   const services = filterServices(projectServices(project), args.ids);
   assert.array(services, "services must be an array");

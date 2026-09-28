@@ -19,7 +19,9 @@ cloudflare:
       status: 301
 
 railway:
-  project: infra
+  # Desired name. Reconcile renames the project that already hosts these
+  # services, and creates one only when no project does.
+  project: Workspace
   environment: production
   region: us-east4
   replicas: 1
@@ -30,7 +32,6 @@ github:
   org: crvouga
   infra_repo: crvouga/workspace
   skip_rollout_repos:
-    - crvouga/portfolio
     - crvouga/workspace
   org_secrets:
     - name: DEPLOY_DISPATCH_TOKEN
@@ -166,6 +167,10 @@ vault:
     - name: RAILWAY_TOKEN
       configs: [dev, prd]
       used_by: [ci, infra]
+    - name: PORTFOLIO_GITHUB_TOKEN
+      configs: [dev, prd]
+      used_by: [ci, portfolio]
+      required: true
     - name: OPENAI_API_KEY
       configs: [dev, prd]
       used_by: [ci, opencode]
@@ -242,9 +247,9 @@ services:
   - id: portfolio
     kind: railway
     hostname: www.chrisvouga.dev
-    github_repo: crvouga/portfolio
-    source_code_url: https://github.com/crvouga/portfolio
-    dockerfile: ./Dockerfile
+    github_repo: crvouga/workspace
+    source_code_url: https://github.com/crvouga/workspace/tree/main/packages/portfolio
+    dockerfile: packages/portfolio/Dockerfile
     build_context: .
     port: 80
     health_check: true
@@ -418,6 +423,34 @@ services:
     health_check: true
     ghcr:
       visibility: public
+
+  - id: violets-garden
+    kind: railway
+    hostname: violetsgarden.chrisvouga.dev
+    github_repo: crvouga/violets-garden
+    source_code_url: https://github.com/crvouga/violets-garden
+    dockerfile: ./Dockerfile
+    build_context: .
+    port: 80
+    health_check: true
+    ghcr:
+      visibility: public
+    env:
+      PORT: '80'
+
+  - id: mockingbird-docs
+    kind: railway
+    hostname: mockingbird.chrisvouga.dev
+    github_repo: crvouga/mockingbird
+    source_code_url: https://github.com/crvouga/mockingbird/tree/main/sites/docs
+    dockerfile: sites/docs/Dockerfile
+    build_context: .
+    port: 80
+    health_check: true
+    ghcr:
+      visibility: public
+    env:
+      PORT: '80'
 
   - id: turborepo
     kind: railway

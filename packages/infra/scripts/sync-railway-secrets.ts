@@ -9,11 +9,13 @@
  */
 import { syncServiceVariablesToRailway } from "../lib/railway-secrets.js";
 import { assert, hotAssert, type Assert } from "@pkgs/assert";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayToken } from "../lib/railway-token.js";
 import {
   deployableServices,
   findService,
   loadServicesConfig,
+  railwayProjectName,
 } from "../lib/services.js";
 
 const ha: Assert = hotAssert();
@@ -62,6 +64,12 @@ async function main(): Promise<void> {
   const config = loadServicesConfig();
   assert.defined(config, "sync-railway-secrets services config must be defined");
   await ensureRailwayToken();
+  const opened = await convergeRailwayProject(config, { apply: true, allowCreate: false });
+  if (!opened.project) {
+    throw new Error(
+      `Railway project "${railwayProjectName(config)}" not found — run provision-railway --apply`,
+    );
+  }
 
   const services =
     args.ids.length === 0

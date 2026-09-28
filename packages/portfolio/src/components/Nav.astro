@@ -1,0 +1,124 @@
+---
+import { CONTENT } from '../content/content';
+import { RESUME_HREF } from '../constants/resume';
+
+interface Props {
+  /** Sub-pages need absolute anchors; the homepage keeps same-page ones. */
+  variant?: 'home' | 'sub';
+}
+const { variant = 'home' } = Astro.props;
+
+const links = CONTENT.SECTIONS.filter((section) => section.nav);
+const sectionHref = (id: string): string =>
+  variant === 'home' ? `#${id}` : `/#${id}`;
+const homeHref = variant === 'home' ? '#top' : '/';
+const homeLabel =
+  variant === 'home'
+    ? `${CONTENT.MONOGRAM_INITIALS} — back to top`
+    : `${CONTENT.MONOGRAM_INITIALS} — Chris Vouga home`;
+---
+
+<header class="nav">
+  <div class="container inner">
+    <a href={homeHref} class="monogram" aria-label={homeLabel}>
+      {CONTENT.MONOGRAM_INITIALS}
+    </a>
+    <nav aria-label="Site sections">
+      {
+        links.map((section) => (
+          <a href={sectionHref(section.id)}>{section.navLabel}</a>
+        ))
+      }
+    </nav>
+    <a href={RESUME_HREF} class="resume" target="_blank" rel="noopener">Résumé</a>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(10, 10, 11, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--paper-border);
+  }
+  .inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    height: 64px;
+  }
+  .monogram {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: var(--text-md);
+    color: var(--accent);
+  }
+  .monogram:hover {
+    color: #a6cbff;
+  }
+  nav {
+    display: flex;
+    gap: var(--space-5);
+    margin-left: auto;
+  }
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+  nav a:hover {
+    color: var(--accent);
+  }
+  .resume {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--paper-border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+  }
+  .resume:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  /* Two rows on phones: identity + résumé, then a scrollable section row. */
+  @media (max-width: 599px) {
+    .inner {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      height: auto;
+      padding-block: var(--space-2);
+      row-gap: var(--space-1);
+    }
+    .monogram {
+      grid-column: 1;
+    }
+    .resume {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+    }
+    nav {
+      grid-column: 1 / -1;
+      margin-left: 0;
+      gap: var(--space-4);
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-block: var(--space-1);
+    }
+  }
+</style>

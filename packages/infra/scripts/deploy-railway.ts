@@ -12,13 +12,14 @@ import { assert, hotAssert, type Assert } from "@pkgs/assert";
 const ha: Assert = hotAssert();
 import {
   connectServiceImage,
-  ensureProject,
   findServiceByName,
   latestDeploymentId,
   resolveEnvironment,
+  resolveProjectContext,
   updateServiceInstance,
   waitForLatestDeploymentSuccess,
 } from "../lib/railway-api.js";
+import { convergeRailwayProject } from "../lib/railway-project.js";
 import { ensureRailwayToken } from "../lib/railway-token.js";
 import { waitForServiceHealthy } from "../lib/service-health.js";
 import {
@@ -99,7 +100,8 @@ async function deployOne(
 
   console.log(`\nDeploy ${service.id} → ${image}`);
 
-  const project = await ensureProject(projectName);
+  const ctx = await resolveProjectContext(projectName, environmentName);
+  const project = ctx.project;
   const environment = resolveEnvironment(project, environmentName);
   assert.nonEmptyString(environment.id, "environment id must be non-empty");
   const railwayService = findServiceByName(project, serviceName);
@@ -153,6 +155,12 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const config = loadServicesConfig();
   await ensureRailwayToken();
+  const opened = await convergeRailwayProject(config, { apply: true, allowCreate: false });
+  if (!opened.project) {
+    throw new Error(
+      `Railway project "${railwayProjectName(config)}" not found — run provision-railway --apply`,
+    );
+  }
 
   const services =
     args.ids.length === 0

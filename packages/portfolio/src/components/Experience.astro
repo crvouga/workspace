@@ -1,0 +1,158 @@
+---
+import { CONTENT } from '../content/content';
+import {
+  WORK_GALLERY_OFFSET,
+  workDateRange,
+  workGalleryFor,
+} from '../lib/work-view';
+
+const section = CONTENT.GET_SECTION('work');
+---
+
+<section id="work">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
+    </div>
+    <div class="jobs">
+      {
+        CONTENT.WORK.map((job, index) => {
+          const gallery = workGalleryFor(job);
+          return (
+            <article class="card job">
+              {/* No inline screenshot: the cards carry different amounts of
+                  text, so any image column either stretched to match its
+                  neighbour's prose or left dead space beside it. The gallery
+                  button below still reaches the same media. */}
+              <div class="body">
+                <div class="head">
+                  <h3>
+                    {job.infoUrl ? (
+                      <a href={job.infoUrl} rel="noopener" target="_blank">
+                        {job.name}
+                      </a>
+                    ) : (
+                      job.name
+                    )}
+                  </h3>
+                  <span class="years">{workDateRange(job)}</span>
+                </div>
+                <p class="role">{job.jobTitle}</p>
+                <ul class="highlights">
+                  {job.highlights.map((highlight) => (
+                    <li set:html={highlight} />
+                  ))}
+                </ul>
+                {job.awards !== undefined && (
+                  <ul class="awards">
+                    {job.awards.map((award) => (
+                      <li>{award}</li>
+                    ))}
+                  </ul>
+                )}
+                {gallery.length > 0 && (
+                  <div class="links">
+                    <button
+                      type="button"
+                      class="gallery-btn"
+                      data-gallery={WORK_GALLERY_OFFSET + index}
+                    >
+                      Images
+                    </button>
+                  </div>
+                )}
+              </div>
+            </article>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .jobs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+  .job {
+    display: block;
+  }
+  .body {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .years {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  h3 {
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+  .role {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--accent);
+  }
+  .highlights {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .highlights li {
+    position: relative;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  .highlights li::before {
+    content: '\203A';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  /* Recognition as crawlable text. The certificates themselves live in the
+     gallery, where no crawler and no LLM researcher will ever see them. */
+  .awards {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .awards li {
+    position: relative;
+    padding-left: 20px;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text);
+  }
+  .awards li::before {
+    content: '\2605';
+    position: absolute;
+    left: 0;
+    color: var(--success);
+  }
+  .links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+</style>

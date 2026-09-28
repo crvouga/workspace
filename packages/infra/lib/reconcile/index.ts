@@ -1,18 +1,21 @@
 import { assert } from "@pkgs/assert";
 import { $ } from "bun";
 import { join } from "node:path";
-import { resolveProjectContext } from "../railway-api.js";
+import {
+	convergeRailwayProject,
+	describeRailwayProjectPlan,
+	RailwayProjectConflictError,
+} from "../railway-project.js";
 import { ensureRailwayToken } from "../railway-token.js";
 import {
-    cloudflareConfigOrDefault,
-    fleetServices,
-    type InfraConfig,
-    loadServicesConfig,
-    railwayEnvironmentName,
-    railwayProjectName,
-    railwayServiceName,
-    railwayServices,
-    resolveRedirectTarget,
+	cloudflareConfigOrDefault,
+	fleetServices,
+	type InfraConfig,
+	loadServicesConfig,
+	railwayProjectName,
+	railwayServiceName,
+	railwayServices,
+	resolveRedirectTarget,
 } from "../services.js";
 import {
     makeAction,
@@ -48,22 +51,47 @@ function phaseEnabled(options: ReconcileOptions, phase: string): boolean {
 	);
 }
 
-async function planRailwayStatefulDrift(
+async function planRailway(
 	config: InfraConfig,
 	options: ReconcileOptions,
 ): Promise<PlanAction[]> {
 	const actions: PlanAction[] = [];
 	try {
 		await ensureRailwayToken();
-		const projectName = railwayProjectName(config);
-		const environmentName = railwayEnvironmentName(config);
-		const ctx = await resolveProjectContext(projectName, environmentName);
+		const opened = await convergeRailwayProject(config, { apply: false });
+		const namePlan = opened.plan;
+		const nameId =
+			namePlan.op === "rename"
+				? namePlan.projectId
+				: namePlan.op === "noop"
+					? namePlan.name
+					: railwayProjectName(config);
+		actions.push(
+			makeAction({
+				phase: "railway",
+				kind: "railway_project",
+				op:
+					namePlan.op === "rename"
+						? "update"
+						: namePlan.op === "create"
+							? "create"
+							: "noop",
+				id: nameId,
+				summary: describeRailwayProjectPlan(namePlan),
+				apply: async () => {
+					if (namePlan.op === "noop") return;
+					await convergeRailwayProject(config, { apply: true });
+				},
+			}),
+		);
+
+		if (!opened.project) return actions;
 		const desired = new Set(
 			(options.fleetOnly ? fleetServices(config) : railwayServices(config))
 				.filter((s) => !options.idFilter || s.id === options.idFilter)
 				.map((s) => railwayServiceName(config, s.id)),
 		);
-		for (const svc of ctx.project.services?.edges ?? []) {
+		for (const svc of opened.project.services?.edges ?? []) {
 			const name = svc.node.name;
 			if (!name || desired.has(name)) continue;
 			if (options.fleetOnly && name === "vault") continue;
@@ -80,6 +108,7 @@ async function planRailwayStatefulDrift(
 			);
 		}
 	} catch (err) {
+		if (err instanceof RailwayProjectConflictError) throw err;
 		const msg = err instanceof Error ? err.message : String(err);
 		console.warn(
 			`[warn] [railway] could not list services for drift check: ${msg}`,
@@ -250,7 +279,7 @@ export async function reconcile(options: ReconcileOptions): Promise<void> {
 		plan.push(...(await planNeonAndObjectStores(config)));
 	}
 	if (phaseEnabled(options, "railway")) {
-		plan.push(...(await planRailwayStatefulDrift(config, options)));
+		plan.push(...(await planRailway(config, options)));
 	}
 	if (phaseEnabled(options, "legacy") || phaseEnabled(options, "tunnels")) {
 		plan.push(...(await planLegacyWarnings(config)));

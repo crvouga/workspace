@@ -23,7 +23,7 @@
     },
     "lint": {
       "dependsOn": ["^tc"],
-      "inputs": ["**/*.ts", "eslint.config.js"],
+      "inputs": ["**/*.ts", "eslint.config.js", "eslint.config.cjs"],
       "outputLogs": "new-only",
       "outputs": []
     },
@@ -36,6 +36,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**/*.ts", "Dockerfile"],
+      "passThroughEnv": ["PORTFOLIO_GITHUB_TOKEN"],
       "outputLogs": "new-only",
       "outputs": []
     },

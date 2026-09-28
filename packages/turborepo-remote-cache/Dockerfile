@@ -15,6 +15,7 @@ COPY packages/vault/package.json ./packages/vault/
 COPY packages/workstation/package.json ./packages/workstation/
 COPY packages/9router/package.json ./packages/9router/
 COPY packages/openrouter/package.json ./packages/openrouter/
+COPY packages/portfolio/package.json ./packages/portfolio/
 
 RUN bun install --frozen-lockfile
 

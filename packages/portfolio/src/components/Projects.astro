@@ -1,0 +1,62 @@
+---
+import { CONTENT } from '../content/content';
+import ProjectCard from './ProjectCard.astro';
+import { LISTED_PROJECTS, VISIBLE_PROJECTS } from '../lib/projects-view';
+
+const section = CONTENT.GET_SECTION('projects');
+const archiveCount = LISTED_PROJECTS.length;
+---
+
+<section id="projects">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
+    </div>
+    <div class="grid">
+      {
+        VISIBLE_PROJECTS.map((project, index) => (
+          <ProjectCard
+            project={project}
+            galleryIndex={index}
+          />
+        ))
+      }
+    </div>
+    <p class="archive">
+      <a href="/projects/">Browse all {archiveCount} projects &#8594;</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+  @media (min-width: 700px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1000px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .archive {
+    margin-top: var(--space-5);
+  }
+  .archive a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--accent);
+  }
+  .archive a:hover {
+    color: var(--accent-hover);
+  }
+</style>

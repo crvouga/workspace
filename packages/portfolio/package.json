@@ -1,0 +1,40 @@
+{
+  "name": "@pkgs/portfolio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assets:optimize": "bun run ./scripts/optimize-images.ts",
+    "assets:prune": "bun run ./scripts/prune-unused-assets.ts",
+    "build": "astro build",
+    "dev": "astro dev --force",
+    "gen": "bun run generate-all",
+    "generate-all": "bun run ./src/generate-all.ts",
+    "gh": "open https://github.com/crvouga/workspace/actions",
+    "health-check-urls": "bun run scripts/health-check-urls.ts",
+    "lint": "astro sync && eslint . --max-warnings 0",
+    "preview": "docker build -f packages/portfolio/Dockerfile --secret id=github_token,env=PORTFOLIO_GITHUB_TOKEN -t portfolio-app .. && docker run --rm -p 8080:80 portfolio-app",
+    "refresh-github": "bun run scripts/refresh-github-insights.ts",
+    "check-github-freshness": "bun run scripts/refresh-github-insights.ts --check",
+    "sync": "astro sync",
+    "screenshot-main": "bun run ./src/screenshot-main-site.ts",
+    "screenshot-projects": "bun run ./src/screenshot-project-websites.ts",
+    "screenshot-work": "bun run ./src/screenshot-work-websites.ts",
+    "tc": "astro check",
+    "test": "bun test src --pass-with-no-tests",
+    "test:docker": "bun test test/server.test.ts"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/sitemap": "^3.7.4",
+    "@types/bun": "catalog:",
+    "astro": "^7.3.3",
+    "listr2": "^10.2.1",
+    "p-limit": "^7.3.0",
+    "pdf-lib": "^1.17.1",
+    "picocolors": "^1.1.1",
+    "playwright": "^1.48.0",
+    "pretty-ms": "^9.3.0",
+    "typescript": "catalog:"
+  }
+}

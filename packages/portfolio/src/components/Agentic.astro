@@ -1,0 +1,124 @@
+---
+import { CONTENT } from '../content/content';
+
+const section = CONTENT.GET_SECTION('agentic');
+---
+
+<section id="agentic">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
+    </div>
+    <div class="grid">
+      <div class="card workflow-card">
+        <h3>{CONTENT.AGENTIC_WORKFLOW_TITLE}</h3>
+        <ul>
+          {
+            CONTENT.AGENTIC_WORKFLOW_POINTS.map((point) => (
+              <li set:html={point} />
+            ))
+          }
+        </ul>
+      </div>
+      <aside class="card cursor-card">
+        <div class="frame">
+          <iframe
+            src={CONTENT.ABOUT_YOUTUBE_EMBED_URL}
+            title={CONTENT.ABOUT_YOUTUBE_VIDEO_TITLE}
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen></iframe>
+        </div>
+        <div class="card-body">
+          <span class="badge">{CONTENT.AGENTIC_CURSOR_BADGE}</span>
+          <p>{CONTENT.AGENTIC_CURSOR_TEXT}</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    align-items: start;
+  }
+  /* The gates are the argument; the Cursor aside is a footnote, so it gets the
+     narrow column rather than equal billing. */
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: 1.6fr 1fr;
+    }
+  }
+  .workflow-card {
+    padding: var(--space-6);
+  }
+  .workflow-card h3 {
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+  }
+  .workflow-card ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .workflow-card li {
+    position: relative;
+    padding-left: 20px; /* bullet hanging indent, matches Experience */
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  .workflow-card li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .cursor-card {
+    overflow: hidden;
+  }
+  .frame {
+    aspect-ratio: 16 / 9;
+    background: #000;
+  }
+  .frame :global(iframe) {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .card-body {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: var(--space-1) var(--space-2);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    border-radius: var(--radius-pill);
+    align-self: flex-start;
+  }
+  .card-body p {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+</style>

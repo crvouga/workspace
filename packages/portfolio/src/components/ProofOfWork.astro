@@ -1,0 +1,175 @@
+---
+import { CONTENT } from '../content/content';
+import { loadGitHubInsights } from '../lib/github-insights';
+import ContributionCalendar from './ContributionCalendar.astro';
+
+// Uptime policy lives in lib/github-insights.ts: live GitHub data first, the
+// committed snapshot when GitHub is unreachable, and only then a failure. In
+// `astro dev` a missing token degrades to a notice card instead of failing.
+const envToken = import.meta.env.PORTFOLIO_GITHUB_TOKEN;
+const isDev = import.meta.env.DEV;
+
+const { insights, freshness } = await loadGitHubInsights('crvouga', {
+  ...(envToken ? { token: envToken } : {}),
+  allowMissing: isDev,
+  // A dev server rebuilds on every edit; only real builds move the fallback.
+  persist: !isDev,
+});
+
+const section = CONTENT.GET_SECTION('proof');
+const count = (value: number): string => value.toLocaleString('en-US');
+
+/**
+ * Deliberately three tiles, not five.
+ *
+ * A follower count in the double digits and an eight-day "current streak" are
+ * numbers that argue against you; publishing them volunteers a weakness for no
+ * gain. What is left is volume, which is honest but is not by itself a virtue —
+ * the lede says so, and links to the harness that makes the volume defensible.
+ */
+const tiles =
+  insights === null
+    ? []
+    : [
+        {
+          value: count(insights.totalContributions),
+          label: 'Contributions (12mo)',
+        },
+        { value: count(insights.longestStreak), label: 'Longest streak (days)' },
+        { value: count(insights.publicRepos), label: 'Public repos' },
+      ];
+
+const fetchedDate = insights === null ? '' : insights.fetchedAt.slice(0, 10);
+
+/**
+ * The caption always states where the numbers came from and how old they are.
+ *
+ * Age is not decoration. A cached render is honest only if it says the account
+ * may have moved since — "Last known snapshot · 2026-03-04" reads as current to
+ * anyone who does not stop to subtract, so the age is spelled out, and once the
+ * data is old enough that "Contributions (12mo)" describes a window that has
+ * already slid out from under it, the caption says so outright.
+ */
+const provenance = ((): string => {
+  if (insights === null) return '';
+  if (insights.source === 'live') {
+    return `Live data from the GitHub API at build time · ${fetchedDate} · `;
+  }
+  const age = freshness === null ? '' : ` (${freshness.label})`;
+  const caveat =
+    freshness?.level === 'very-stale'
+      ? 'these are the figures as of that date · '
+      : '';
+  return `Last known snapshot · ${fetchedDate}${age} · GitHub was unreachable at build time · ${caveat}`;
+})();
+---
+
+<section id="proof">
+  <div class="container">
+    <div class="section-heading">
+      <span class="number">{section.number}</span>
+      <h2>{section.title}</h2>
+    </div>
+    <p class="lede" set:html={CONTENT.PROOF_LEDE} />
+    {
+      insights === null ? (
+        <div class="card heatmap-card">
+          <p class="notice">
+            GitHub proof data unavailable in dev. Set <code>PORTFOLIO_GITHUB_TOKEN</code> in
+            packages/portfolio/.env, or run <code>bun portfolio</code>.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div class="card heatmap-card">
+            <ContributionCalendar ranges={insights.ranges} />
+            <p class="visually-hidden">
+              {CONTENT.ABOUT_GITHUB_HEATMAP_TEXT} {count(insights.totalContributions)}{' '}
+              contributions in the last 12 months.
+            </p>
+          </div>
+          <div class="tiles">
+            {tiles.map((tile) => (
+              <div class="card tile">
+                <span class="value">{tile.value}</span>
+                <span class="label">{tile.label}</span>
+              </div>
+            ))}
+          </div>
+          <p class="caption">
+            {provenance}
+            <a href={CONTENT.GITHUB_URL} rel="me noopener" target="_blank">
+              verify on GitHub
+            </a>
+          </p>
+        </>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .lede {
+    max-width: 62ch;
+    color: var(--text-muted);
+    margin-bottom: var(--space-5);
+  }
+  .heatmap-card {
+    padding: var(--space-5);
+  }
+  .notice {
+    color: var(--text-muted);
+    font-size: var(--text-base);
+  }
+  .notice code {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--accent);
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+  .tile {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .tile .value {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+  .tile .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .caption {
+    margin-top: var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+  }
+  /* Two tiles per row on phones instead of one tall column. */
+  @media (max-width: 599px) {
+    .heatmap-card {
+      padding: var(--space-4);
+    }
+    .tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    /* An odd tile count would otherwise leave a lone half-width card. */
+    .tile:last-child:nth-child(odd) {
+      grid-column: span 2;
+    }
+    .tile .value {
+      font-size: var(--text-xl);
+    }
+  }
+</style>

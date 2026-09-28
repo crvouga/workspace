@@ -1,0 +1,86 @@
+---
+import '../styles/global.css';
+import { HOME_SEO, absoluteUrl } from '../lib/seo';
+import { buildJsonLd } from '../lib/seo-json-ld';
+import type { Seo } from '../lib/seo-types';
+
+interface Props {
+  /** Omitted by the homepage, which is the canonical Person + WebSite page. */
+  seo?: Seo;
+}
+const { seo = HOME_SEO } = Astro.props;
+const canonical = absoluteUrl(seo.path);
+const jsonLd = buildJsonLd(seo);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{seo.title}</title>
+    <meta name="description" content={seo.description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta name="theme-color" content="#0A0A0B" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="generator" content={Astro.generator} />
+    {seo.noindex === true && <meta name="robots" content="noindex" />}
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-variable.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/jetbrains-mono-variable.woff2" crossorigin />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Chris Vouga" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={seo.title} />
+    <meta property="og:description" content={seo.description} />
+    <meta property="og:image" content={seo.image.url} />
+    <meta property="og:image:alt" content={seo.image.alt} />
+    <meta property="og:image:width" content={String(seo.image.width)} />
+    <meta property="og:image:height" content={String(seo.image.height)} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={seo.title} />
+    <meta name="twitter:description" content={seo.description} />
+    <meta name="twitter:image" content={seo.image.url} />
+    {jsonLd !== null && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    )}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <p class="visually-hidden" role="status" aria-live="polite" data-copy-status></p>
+    <slot />
+  </body>
+</html>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const status = document.querySelector('[data-copy-status]');
+    const announce = (message) => {
+      if (status) status.textContent = message;
+    };
+
+    document.querySelectorAll('[data-copy]').forEach((el) => {
+      el.addEventListener('click', (event) => {
+        event.preventDefault();
+        const value = el.getAttribute('data-copy') || '';
+        const label = el.querySelector('.btn-label');
+        const original = label ? label.textContent : null;
+        navigator.clipboard.writeText(value).then(
+          () => {
+            if (label && original !== null) {
+              label.textContent = 'Copied';
+              window.setTimeout(() => {
+                label.textContent = original;
+              }, 2000);
+            }
+            announce('Copied ' + value + ' to the clipboard');
+          },
+          () => {
+            window.location.href = 'mailto:' + value;
+          }
+        );
+      });
+    });
+  });
+</script>
