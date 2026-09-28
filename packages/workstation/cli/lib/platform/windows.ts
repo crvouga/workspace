@@ -7,6 +7,7 @@ import type {
   NotifierCapability,
   NotifierTestResult,
   Platform,
+  ProcessInfo,
 } from './types';
 
 export class WindowsPlatform implements Platform {
@@ -94,5 +95,9 @@ export class WindowsPlatform implements Platform {
       ok: false,
       detail: 'sounds unsupported on Windows (toast fallback has no sound API)',
     };
+  }
+
+  listProcesses(): ProcessInfo[] | null {
+    return null;
   }
 }

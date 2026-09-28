@@ -34,6 +34,23 @@ export type GlobalInstallResult = {
   readonly alreadyOnPath: boolean;
 };
 
+/** One row of the OS process table (see `listProcesses`). */
+export type ProcessInfo = {
+  readonly pid: number;
+  readonly ppid: number;
+  /** Process group (a shell pipeline / job shares one). */
+  readonly pgid: number;
+  readonly uid: number;
+  /** Resident memory in KiB. */
+  readonly rssKb: number;
+  /** Recent CPU percent (may exceed 100 on multi-core). */
+  readonly cpu: number;
+  /** `ps` state flags; a leading `Z` marks a zombie. */
+  readonly state: string;
+  /** Full command line (executable + args). */
+  readonly command: string;
+};
+
 export type Platform = {
   readonly name: PlatformName;
   readonly label: string;
@@ -67,4 +84,7 @@ export type Platform = {
   availableSystemSounds(): string[];
   /** Preview a system sound by name. Never throws — returns a result. */
   playSystemSound(name: string): Promise<NotifierTestResult>;
+
+  /** Snapshot of every process, or `null` when unsupported on this OS. */
+  listProcesses(): ProcessInfo[] | null;
 };

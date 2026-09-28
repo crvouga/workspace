@@ -6,6 +6,7 @@ import type {
   NotifierCapability,
   NotifierTestResult,
   Platform,
+  ProcessInfo,
 } from './types';
 
 /** Safe default for unrecognized platforms — filesystem converges, notify degrades. */
@@ -65,5 +66,9 @@ export class FallbackPlatform implements Platform {
   async playSystemSound(name: string): Promise<NotifierTestResult> {
     void name;
     return { ok: false, detail: 'sounds unsupported on this platform' };
+  }
+
+  listProcesses(): ProcessInfo[] | null {
+    return null;
   }
 }

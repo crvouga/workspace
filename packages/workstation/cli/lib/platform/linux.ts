@@ -7,7 +7,9 @@ import type {
   NotifierCapability,
   NotifierTestResult,
   Platform,
+  ProcessInfo,
 } from './types';
+import { psProcesses } from './ps';
 
 export class LinuxPlatform implements Platform {
   readonly name = 'linux' as const;
@@ -93,5 +95,9 @@ export class LinuxPlatform implements Platform {
       ok: false,
       detail: 'sounds unsupported on Linux (notify-send has no sound API)',
     };
+  }
+
+  listProcesses(): ProcessInfo[] | null {
+    return psProcesses();
   }
 }

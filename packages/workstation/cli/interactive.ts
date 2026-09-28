@@ -16,6 +16,7 @@ import {
   section,
 } from './lib/output-and-theme';
 import { cmdBackup } from './commands/backup-cmds';
+import { cmdCleanup } from './commands/cleanup-cmd';
 import { cmdDoctor } from './commands/doctor-cmd';
 import { cmdInstall } from './commands/install-cmds';
 import {
@@ -129,6 +130,13 @@ function wsItems(): Item[] {
       name: 'ws › Doctor',
       description: 'Checks with fixes',
       run: () => cmdDoctor({}),
+    },
+    {
+      id: 'cleanup',
+      domain: 'ws',
+      name: 'ws › Clean up dev processes',
+      description: 'Kill leaked tests, dev servers, builds, headless browsers',
+      run: () => cmdCleanup({}),
     },
     {
       id: 'backup',
