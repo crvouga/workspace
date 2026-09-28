@@ -8,7 +8,9 @@ import type {
   NotifierCapability,
   NotifierTestResult,
   Platform,
+  ProcessInfo,
 } from './types';
+import { psProcesses } from './ps';
 
 function appleScriptString(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n')}"`;
@@ -154,5 +156,9 @@ export class DarwinPlatform implements Platform {
       ok: false,
       detail: `unknown sound "${trimmed}" (see \`ws opencode notifications sounds list\`)`,
     };
+  }
+
+  listProcesses(): ProcessInfo[] | null {
+    return psProcesses();
   }
 }

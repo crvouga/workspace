@@ -34,6 +34,7 @@ ws status --json     # machine-readable state (LLM-friendly, secrets redacted)
 ws sync              # converge home directory to the checked-in spec
 ws update            # pull latest from GitHub + reinstall deps/launcher + sync
 ws doctor [--fix]    # checks with actionable fixes
+ws cleanup           # kill leaked dev processes (tests, servers, builds)
 ```
 
 Global flags: `--json` (parseable output, never prints secret values), `--yes` (skip confirmations), `--non-interactive` (fail instead of prompting). Exit codes: `0` ok, `1` error, `2` refusal/conflict.
@@ -45,6 +46,7 @@ Commands are namespaced by **domain** — every leaf states its domain in `--hel
 | `ws status`                                                                  | ws version, launcher, links, notifier, providers, model, Vault   |
 | `ws sync`                                                                    | links + sounds + notifier build + providers (best-effort Vault)  |
 | `ws doctor [--fix]`                                                          | pass/warn/fail checks with fixes                                 |
+| `ws cleanup [--dry-run] [--include-tools] [--protect <re…>]`                 | kill leaked dev process trees (see **Process cleanup**)          |
 | `ws opencode status\|sync\|set-model\|reset-model\|disable\|list`            | OpenCode config management (set-model picks build + plan models) |
 | `ws opencode providers list\|sync`                                           | Vault-backed provider status + sync                              |
 | `ws opencode backup\|backups\|reset`                                         | timestamped backup, list, reset config                           |
@@ -72,6 +74,39 @@ launcher and converges, exactly like `ws install`. It refuses to pull with
 uncommitted changes (commit or stash first) and refuses a diverged branch
 (reconcile manually, e.g. `git pull --rebase`). `ws update --json` reports
 `{ ok, before, after, updated, launcher, sync }`.
+
+### Process cleanup
+
+`ws cleanup` replaces hand-picking processes in Activity Monitor. One `ps`
+snapshot is grouped into dev process **trees** (node/bun/deno/pnpm/turbo/
+vite/tsx/python/…, native binaries under `node_modules`, Playwright/Puppeteer
+browsers), each rooted at its topmost dev ancestor, and every tree is labelled
+by owner:
+
+| Owner    | Meaning                                                    | Default |
+| -------- | ---------------------------------------------------------- | ------- |
+| `orphan` | parent is launchd — leaked after its shell/agent exited    | killed  |
+| `shell`  | started from a terminal or an agent's shell tool           | killed  |
+| `tool`   | spawned directly by an agent CLI/editor (MCP, LSP servers) | kept    |
+
+Never killed: `ws` itself, its ancestors and its own pipeline, agent CLIs
+(`claude`, `opencode`, `codex`, …), GUI app bundles, other users' processes,
+local infra (`9router`, `cloudflared`, colima/docker, the notifier) and
+anything matching `--protect <regex>`. A tree containing any of those is
+skipped whole.
+
+Kill sequence: SIGSTOP the whole set (so watchers and test runners cannot
+respawn), freeze any children forked in the meantime, SIGTERM + SIGCONT
+everything at once, then SIGKILL whatever is left after `--grace` seconds
+(default 3). It reports the SIGKILLed and surviving PIDs.
+
+```bash
+ws cleanup --dry-run          # show trees, memory, CPU; kill nothing
+ws cleanup                    # confirm, then kill
+ws cleanup --yes              # no prompt (scripts, aliases)
+ws cleanup --include-tools    # also agent-owned MCP/language servers
+ws cleanup --protect 'vite' --protect 'storybook'
+```
 
 ### Platform design
 
