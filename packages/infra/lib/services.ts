@@ -5,7 +5,6 @@ import { assert, hotAssert, type Assert } from "@pkgs/assert";
 const ha: Assert = hotAssert();
 
 export type {
-  AliasSpec,
   CloudflareConfig,
   CloudflareRedirectSpec,
   GithubConfig,
@@ -14,7 +13,6 @@ export type {
   ObjectStoreSpec,
   RailwayPlatformConfig,
   RailwayServiceConfig,
-  RailwayVolumeConfig,
   SecretSource,
   SecretSpec,
   ServiceKind,

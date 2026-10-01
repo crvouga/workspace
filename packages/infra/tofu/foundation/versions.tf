@@ -8,6 +8,7 @@ terraform {
     neon       = { source = "kislerdm/neon", version = "= 0.18.0" }
     atlas      = { source = "ariga/atlas", version = "= 0.10.3" }
     time       = { source = "hashicorp/time", version = "= 0.13.1" }
+    random     = { source = "hashicorp/random", version = "= 3.8.1" }
   }
   backend "s3" {}
   encryption {

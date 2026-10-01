@@ -113,9 +113,14 @@ resource "cloudflare_account_token" "r2" {
   }]
 }
 
+resource "random_password" "router_tunnel" {
+  length  = 64
+  special = false
+}
 resource "cloudflare_zero_trust_tunnel_cloudflared" "router" {
-  account_id = var.cloudflare_account_id
-  name       = one(local.config.tunnels).name
+  account_id    = var.cloudflare_account_id
+  name          = one(local.config.tunnels).name
+  tunnel_secret = base64encode(random_password.router_tunnel.result)
   lifecycle { prevent_destroy = true }
 }
 

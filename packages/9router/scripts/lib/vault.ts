@@ -158,11 +158,3 @@ export function applyVaultRunEnv(): void {
     }
   }
 }
-
-function vaultAddr(): string {
-  return (
-    process.env.VAULT_ADDR?.trim() || "https://vault.chrisvouga.dev"
-  ).replace(/\/$/, "");
-}
-
-/** Patch KV via HTTP merge-patch (requires VAULT_TOKEN). */

@@ -2,8 +2,6 @@
  * Desired-state schema for OpenTofu inventory.
  * Every infrastructure resource is declared here; OpenTofu manages its resources.
  */
-export type ResourceDurability = "stateless" | "stateful";
-
 export type SecretSource =
   | { readonly source: "vault" }
   | { readonly source: "env" }
@@ -15,12 +13,6 @@ export type SecretSpec = {
   readonly name: string;
 } & SecretSource;
 
-export type AliasSpec = {
-  readonly zone: string;
-  readonly hosts: readonly string[];
-  readonly target: string;
-};
-
 export type CloudflareRedirectSpec = {
   readonly from: string;
   /** Prefer to_service; hostname used when set. */
@@ -31,7 +23,6 @@ export type CloudflareRedirectSpec = {
 
 export type CloudflareDnsConfig = {
   readonly proxied?: boolean;
-  readonly prune_orphans?: boolean;
 };
 
 export type CloudflareConfig = {
@@ -41,19 +32,12 @@ export type CloudflareConfig = {
   readonly redirects?: readonly CloudflareRedirectSpec[];
 };
 
-export type RailwayVolumeConfig = {
-  readonly name: string;
-  readonly mount_path: string;
-  readonly size_gb?: number;
-};
-
 export type RailwayServiceConfig = {
   readonly sleep?: boolean;
   readonly public?: boolean;
   readonly health_path?: string;
   readonly health_check?: boolean;
   readonly start_command?: string;
-  readonly volume?: RailwayVolumeConfig;
   readonly replicas?: number;
 };
 
@@ -64,12 +48,6 @@ export type RailwayPlatformConfig = {
   readonly region: string;
   readonly service_prefix?: string;
   readonly replicas?: number;
-  readonly cleanup_statuses?: readonly string[];
-  readonly ghcr_credentials?: boolean;
-};
-
-export type GhcrServiceConfig = {
-  readonly visibility?: "public" | "private";
 };
 
 export type ServiceKind = "railway" | "tunnel";
@@ -81,7 +59,6 @@ export type ServiceSpec = {
   readonly internal?: boolean;
   readonly standalone?: boolean;
   readonly railway?: RailwayServiceConfig;
-  readonly ghcr?: GhcrServiceConfig;
   readonly github_repo?: string;
   readonly source_code_url?: string;
   readonly dockerfile?: string;
@@ -104,16 +81,10 @@ export type VaultKvConfig = {
 export type VaultInitConfig = {
   readonly key_shares: number;
   readonly key_threshold: number;
-  readonly keys_store?: string;
 };
 
 export type VaultUnsealConfig = {
   readonly on_deploy?: boolean;
-};
-
-export type VaultMountSpec = {
-  readonly type: string;
-  readonly path: string;
 };
 
 export type VaultPolicySpec = {
@@ -171,24 +142,15 @@ export type VaultConfig = {
   readonly kv: VaultKvConfig;
   readonly init?: VaultInitConfig;
   readonly unseal?: VaultUnsealConfig;
-  readonly mounts?: readonly VaultMountSpec[];
   readonly policies?: readonly VaultPolicySpec[];
   readonly auth?: VaultAuthConfig;
   readonly tokens?: readonly VaultTokenSpec[];
   readonly kv_keys?: readonly VaultKvKeySpec[];
-  readonly readiness?: { readonly wait_unsealed?: boolean };
 };
-
-export type GithubSecretSpec = {
-  readonly name: string;
-} & SecretSource;
 
 export type GithubConfig = {
   readonly org: string;
   readonly infra_repo: string;
-  readonly skip_rollout_repos?: readonly string[];
-  readonly org_secrets?: readonly GithubSecretSpec[];
-  readonly repo_secrets?: readonly GithubSecretSpec[];
 };
 
 export type NeonProjectSpec = {
@@ -196,7 +158,6 @@ export type NeonProjectSpec = {
   readonly neon_project_id?: string;
   readonly purpose: string;
   readonly secret_name: string;
-  readonly migrations?: string;
 };
 
 export type NeonConfig = {
@@ -239,8 +200,6 @@ export type InfraConfig = {
   readonly image_prefix?: string;
   /** @deprecated Prefer github.infra_repo */
   readonly infra_github_repo?: string;
-  /** @deprecated Prefer github.skip_rollout_repos */
-  readonly skip_rollout_repos?: readonly string[];
   readonly cloudflare?: CloudflareConfig;
   readonly railway: RailwayPlatformConfig;
   readonly github?: GithubConfig;
@@ -248,7 +207,6 @@ export type InfraConfig = {
   readonly neon?: NeonConfig;
   readonly object_stores?: readonly ObjectStoreSpec[];
   readonly tunnels?: readonly TunnelSpec[];
-  readonly aliases?: readonly AliasSpec[];
   readonly services: readonly ServiceSpec[];
 };
 

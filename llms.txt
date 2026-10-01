@@ -549,7 +549,7 @@ Working examples to copy from — each links to its source repo:
 | `headless-combobox-svelte-example` | https://svelte-headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `example/svelte/Dockerfile` (`example/svelte`) | 80 | `/` |
 | `headless-combobox-docs` | https://headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `./Dockerfile` (`.`) | 80 | `/` |
 | `todo-app` | https://todo.chrisvouga.dev | [crvouga/todo-v1](https://github.com/crvouga/todo-v1) | `./Dockerfile` (`.`) | 8080 | `/` |
-| `image-service` | https://imageservice.chrisvouga.dev | [crvouga/image-service](https://github.com/crvouga/image-service) | `./Dockerfile` (`.`) | 80 | `/login/send-link` |
+| `image-service` | https://imageservice.chrisvouga.dev | [crvouga/image-service](https://github.com/crvouga/image-service) | `./Dockerfile` (`.`) | 80 | `/login/send_link` |
 | `connect-four` | https://connectfour.chrisvouga.dev | [crvouga/connect-four](https://github.com/crvouga/connect-four) | `./Dockerfile` (`.`) | 8080 | `/` |
 | `anime-blog` | https://anime.chrisvouga.dev | [crvouga/anime](https://github.com/crvouga/anime) | `./Dockerfile` (`.`) | 80 | `/` |
 | `snake-game` | https://snake.chrisvouga.dev | [crvouga/snake](https://github.com/crvouga/snake) | `./Dockerfile` (`.`) | 80 | `/` |

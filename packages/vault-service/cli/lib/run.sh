@@ -125,17 +125,22 @@ vault_run() {
     echo "Secret path: ${SECRET_PATH}"
     echo "Would inject ${key_count} environment variable(s):"
     echo "$secret_json" | jq -r '.data.data | keys[]' | sed 's/^/  /'
-    echo "Command: ${cmd[*]}"
+    echo "Command: ${cmd[0]}"
     return 0
   fi
 
-  eval "$(
-    echo "$secret_json" \
-      | jq -r '.data.data | to_entries[] | "export \(.key)=\(.value|@sh)"'
-  )"
+  if ! printf '%s' "$secret_json" | jq -e '.data.data | keys | all(.[]; test("^[A-Za-z0-9_]+$"))' >/dev/null; then
+    echo "ERROR: Secret names must contain only letters, digits and underscores." >&2
+    return 1
+  fi
+  local -a secret_env=()
+  local binding
+  while IFS= read -r -d '' binding; do
+    secret_env+=("$binding")
+  done < <(printf '%s' "$secret_json" | jq -j '.data.data | to_entries[] | .key + "=" + (.value | tostring) + "\u0000"')
 
-  echo "==> Injected ${key_count} secret(s). Running: ${cmd[*]}"
-  exec "${cmd[@]}"
+  echo "==> Injected ${key_count} secret(s). Running: ${cmd[0]}"
+  exec env "${secret_env[@]}" "${cmd[@]}"
 }
 
 vault_setup_usage() {

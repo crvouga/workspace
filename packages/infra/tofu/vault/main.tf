@@ -1,8 +1,9 @@
 module "inventory" { source = "../modules/inventory" }
 locals {
-  config     = module.inventory.config
-  vault      = local.config.vault
-  vault_addr = "https://${local.vault.hostname}"
+  config        = module.inventory.config
+  vault         = local.config.vault
+  vault_addr    = "https://${local.vault.hostname}"
+  router_values = { for key, password in random_password.router : key => lookup(var.secrets["prd"], key, password.result) }
 }
 
 data "terraform_remote_state" "foundation" {
@@ -105,8 +106,14 @@ resource "vault_kv_secret_v2" "personal" {
   name     = "${local.vault.kv.project}/${each.key}"
   data_json = jsonencode(merge(
     { TURBO_TOKEN = random_password.turbo.result },
-    each.key == "prd" ? { for key, value in random_password.router : key => value.result } : {},
     var.secrets[each.key],
+    each.key == "prd" ? local.router_values : {},
+    each.key == "prd" ? {
+      INITIAL_PASSWORD = local.router_values["9ROUTER_PASSWORD"]
+      JWT_SECRET       = local.router_values["9ROUTER_JWT_SECRET"]
+      API_KEY_SECRET   = local.router_values["9ROUTER_API_KEY_SECRET"]
+      MACHINE_ID_SALT  = local.router_values["9ROUTER_MACHINE_ID_SALT"]
+    } : {},
     {
       TURBO_API                = "https://${one([for service in local.config.services : service.hostname if service.id == "turborepo"])}"
       TURBO_TEAM               = "local"

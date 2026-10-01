@@ -693,7 +693,7 @@
           "build_context": ".",
           "port": 80,
           "health_check": true,
-          "health_path": "/login/send-link",
+          "health_path": "/login/send_link",
           "env": {
             "PORT": "80"
           }
