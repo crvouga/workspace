@@ -18,6 +18,6 @@ export const AGENTIC_WORKFLOW_POINTS: readonly string[] = [
   'Types that actually constrain: <code>strict</code>, plus <code>noUncheckedIndexedAccess</code> and <code>exactOptionalPropertyTypes</code> — the two that catch what generated code gets wrong most.',
   'Structural limits enforced as errors, not warnings: caps on file length, function length, parameters, and cyclomatic complexity, with a standing rule that they may never be disabled to make a change fit.',
   'Invariant tests over unit tests: assertions that the content model is coherent — every asset path resolves, every cross-reference points at something real — because that is the class of error a fast contributor actually introduces.',
-  'Infrastructure, CI, and deploys are code: a reconcile loop plans and converges environments on push, and is forbidden from deleting anything stateful.',
+  'Infrastructure, CI, and deploys are code: OpenTofu plans and applies infrastructure on push, with deletion guards on stateful resources.',
   'I own the outcome end-to-end — data model, API, infrastructure, interface. Agents remove the repeatable parts. When something wrong ships, it is mine.',
 ];

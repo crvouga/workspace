@@ -104,13 +104,13 @@ Watch the **full** workflow for the push you just made
 **Repeat until the watched run is green.** Never declare done after local green
 or push alone.
 
-| Job / area                 | Typical cause                                                  | Where to look                                                                                      |
-| -------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `check` (Vault OIDC)       | Missing/invalid Vault `dev` secrets                            | `vault-secrets-registry.ts`, `check:vault-secrets`                                                 |
-| `publish-plan` / `publish` | `services.yaml` inventory / Docker / context / `.dockerignore` | `list-publish-service-ids.ts`, `print-publish-inputs.ts`, `packages/*/Dockerfile`, `.dockerignore` |
-| `vault`                    | Image / migrate / unseal                                       | `packages/vault-service/**`                                                                        |
-| `deploy-*`                 | Reconcile / Railway / DNS / health                             | `packages/infra/services.yaml`, deploy logs                                                        |
-| `smoke` (dispatch)         | Prod mid-redeploy                                              | Wait for deploy; smoke waits on `health-check-all` in `ci.yml`                                     |
+| Job / area                 | Typical cause                                             | Where to look                                                                                      |
+| -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `check` (Vault OIDC)       | Missing/invalid Vault `dev` secrets                       | `vault-secrets-registry.ts`, `check:vault-secrets`                                                 |
+| `publish-plan` / `publish` | `OpenTofu` inventory / Docker / context / `.dockerignore` | `list-publish-service-ids.ts`, `print-publish-inputs.ts`, `packages/*/Dockerfile`, `.dockerignore` |
+| `vault`                    | Image / migrate / unseal                                  | `packages/vault-service/**`                                                                        |
+| `deploy-*`                 | Reconcile / Railway / DNS / health                        | `packages/infra/tofu/modules/inventory/inventory.tf.json`, deploy logs                             |
+| `smoke` (dispatch)         | Prod mid-redeploy                                         | Wait for deploy; smoke waits on `health-check-all` in `ci.yml`                                     |
 
 ### 4. Done
 
@@ -152,7 +152,7 @@ changes → vault-state → vault? → check → portfolio-health-check? → pub
 `.github/workflows/ci.yml` is the **only** workflow. It serves every path:
 
 - `push` on `main` and production dispatches — `vault-state` checks readiness first; if Vault is sealed or unavailable, `vault` deploys and unseals it before checks. PRs never mutate production and use the existing Vault.
-- `workflow_dispatch` — manual `check` / `publish` / vault rebuild / fleet redeploy (`service_id`, `image_tag`, `apply_dns`)
+- `workflow_dispatch` — manual `check` / `publish` / vault rebuild / fleet redeploy (`service_id`, `image_tag`)
 - `workflow_call` — sibling repos publish their GHCR image (`service_id`, `dockerfile`, `context`, `image_prefix`); `notify_deploy: true` dispatches the deploy back to infra
 - monorepo pushes publish every service whose `github_repo` is this repo (`publish-plan` → `publish` matrix; currently `portfolio` + `turborepo`) and redeploy exactly those at the pushed SHA
 - `repository_dispatch deploy-service` — sibling publish notify → single-service fleet deploy
@@ -167,15 +167,6 @@ Composite actions under `.github/actions/` (`vault-secrets`, `turborepo-vault-se
 - Don’t force-push or amend a pushed commit; create a new commit.
 - **Always:** local checks → commit & push → watch GitHub Actions until green.
 
-## Infra reconcile
+## OpenTofu infrastructure
 
-Desired state: [`packages/infra/services.yaml`](../../packages/infra/services.yaml).
-
-```bash
-bun run reconcile                 # dry-run
-bun run reconcile --apply --fleet-only
-bun run reconcile destroy railway --id <id> --i-understand-stateful
-```
-
-`--apply` prunes **stateless** drift only. Stateful deletes need the explicit
-destroy flag (never in CI).
+Infrastructure resources are owned exclusively by `packages/infra/tofu`. Validate with `bun run check:infra`. Review plans with `bun run infra plan`, `bun run infra:bootstrap plan`, `bun run infra:vault plan` and `bun run infra:fleet plan`. Import existing resources before applying; see `packages/infra/tofu/README.md`. Apply reviewed saved plans with `-parallelism=1`.

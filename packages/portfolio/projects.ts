@@ -2,10 +2,10 @@
  * Single source of truth for portfolio content.
  *
  *   PROJECTS[] feeds the website, resume, and screenshots.
- *   Runtime hosting for side projects lives in packages/infra/services.yaml.
+ *   Runtime hosting for side projects lives in packages/infra/tofu/modules/inventory/inventory.tf.json.
  *
  * Adding a hosted side project:
- *   - Add the service in packages/infra/services.yaml and its project repo.
+ *   - Add the service in packages/infra/tofu/modules/inventory/inventory.tf.json and its project repo.
  *   - Append a Project to src/content/projects/entries-part-2.ts with display
  *     fields and `deployment.url`.
  */

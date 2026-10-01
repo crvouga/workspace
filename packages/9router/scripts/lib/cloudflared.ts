@@ -1,11 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { assert } from "@pkgs/assert";
 
-export const CLOUDFLARED_HOME = join(homedir(), ".cloudflared");
-export const CLOUDFLARED_CERT = join(CLOUDFLARED_HOME, "cert.pem");
 
 let cachedBin: string | null | undefined;
 
@@ -39,7 +35,7 @@ function probeBin(bin: string): boolean {
     stdio: ["ignore", "pipe", "pipe"],
   });
   if (probe.error || probe.status !== 0) return false;
-  const text = `${probe.stderr ?? ""}${probe.error?.message ?? ""}`;
+  const text = `${probe.stderr ?? ""}`;
   if (/exec format error|bad CPU type|cannot execute/i.test(text)) return false;
   return true;
 }
@@ -95,93 +91,15 @@ export function ensureCloudflared(): void {
   resolveCloudflaredBin();
 }
 
-export function ensureCloudflaredCert(): void {
-  if (existsSync(CLOUDFLARED_CERT)) return;
-  console.error(
-    [
-      `Missing Cloudflare tunnel cert: ${CLOUDFLARED_CERT}`,
-      "Run once (opens browser):",
-      "  cloudflared tunnel login",
-      "Then re-run: npm start → Tunnel: Provision",
-    ].join("\n"),
-  );
-  process.exit(1);
-}
-
-export function cloudflared(
-  args: string[],
-  opts?: { inheritStdio?: boolean },
-): {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-} {
-  assert.array(args, "cloudflared args must be an array");
-  assert.ok(
-    opts === undefined || typeof opts === "object",
-    "cloudflared opts must be an object when provided",
-  );
-  const bin = resolveCloudflaredBin();
-  assert.nonEmptyString(bin, "cloudflared bin must be non-empty");
-  const inherit = opts?.inheritStdio === true;
-  const result = spawnSync(bin, args, {
-    encoding: "utf8",
-    stdio: inherit ? "inherit" : ["ignore", "pipe", "pipe"],
-  });
-  if (result.error) {
-    throw result.error;
-  }
-  assert.record(
-    { status: result.status, stdout: result.stdout, stderr: result.stderr },
-    "cloudflared result must be a record",
-  );
-  return {
-    status: result.status,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-  };
-}
-
 export function spawnCloudflared(
   args: string[],
-  opts?: { stdio?: "inherit" | "pipe" },
+  opts?: { stdio?: "inherit" | "pipe"; env?: NodeJS.ProcessEnv },
 ): ChildProcess {
   assert.array(args, "cloudflared args must be an array");
   const bin = resolveCloudflaredBin();
   assert.nonEmptyString(bin, "cloudflared bin must be non-empty");
   return spawn(bin, args, {
     stdio: opts?.stdio ?? "inherit",
+    env: opts?.env ?? process.env,
   });
-}
-
-/** List named tunnels: Map name → uuid */
-export function listTunnels(): Map<string, string> {
-  const { status, stdout, stderr } = cloudflared(["tunnel", "list"]);
-  assert.ok(
-    status === null || typeof status === "number",
-    "tunnel list status must be a number or null on signal",
-  );
-  if (status !== 0) {
-    throw new Error(
-      `cloudflared tunnel list failed:\n${stderr || stdout || `exit ${status}`}`,
-    );
-  }
-  const map = new Map<string, string>();
-  for (const line of stdout.split(/\r?\n/)) {
-    // ID (uuid) then NAME …
-    const m =
-      /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s+(\S+)/i.exec(
-        line.trim(),
-      );
-    if (m) map.set(m[2]!, m[1]!);
-  }
-  assert.ok(map instanceof Map, "tunnel list must materialize to a Map");
-  return map;
-}
-
-export function credentialsPathForTunnel(tunnelId: string): string {
-  assert.nonEmptyString(tunnelId, "tunnel id must be non-empty");
-  const path = join(CLOUDFLARED_HOME, `${tunnelId}.json`);
-  assert.nonEmptyString(path, "tunnel credentials path must be non-empty");
-  return path;
 }

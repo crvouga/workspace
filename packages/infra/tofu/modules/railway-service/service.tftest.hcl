@@ -1,0 +1,50 @@
+mock_provider "railway" {
+  mock_resource "railway_service" {
+    defaults = { id = "12345678-1234-4234-8234-123456789014" }
+  }
+  mock_resource "railway_custom_domain" {
+    defaults = {
+      dns_record_value          = "service.up.railway.app"
+      verification_host_label   = "_railway-verify.app.example.com"
+      verification_record_value = "verification-value"
+    }
+  }
+}
+mock_provider "graphql" {}
+mock_provider "cloudflare" {}
+
+variables {
+  project_id     = "12345678-1234-4234-8234-123456789012"
+  environment_id = "12345678-1234-4234-8234-123456789013"
+  zone_id        = "zone-id"
+  region         = "us-east4"
+  image          = "ghcr.io/example/app:revision"
+  variables      = { PORT = "8080", DATABASE_URL = "test-credential" }
+  service = {
+    id          = "app"
+    hostname    = "app.example.com"
+    port        = 8080
+    health_path = "/health"
+    railway     = { sleep = false }
+  }
+}
+
+run "image_and_environment" {
+  command = plan
+  assert {
+    condition     = railway_service.this.source_image == "ghcr.io/example/app:revision"
+    error_message = "An image revision must be owned by OpenTofu, not a deployment script."
+  }
+  assert {
+    condition     = railway_custom_domain.this.target_port == 8080 && railway_custom_domain.this.environment_id == "12345678-1234-4234-8234-123456789013"
+    error_message = "Domain routing must use the declared port and environment."
+  }
+  assert {
+    condition     = graphql_mutation.settings.mutation_variables.sleepApplication == "false"
+    error_message = "Always-on services must retain their sleep setting."
+  }
+  assert {
+    condition     = graphql_mutation.settings.mutation_variables.healthcheckPath == "/health"
+    error_message = "Healthcheck configuration must be managed by OpenTofu."
+  }
+}

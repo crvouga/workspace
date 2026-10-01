@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Print platform env vars derived from services.yaml (for CI GITHUB_ENV).
+ * Print platform env vars derived from tofu/modules/inventory/inventory.tf.json (for CI GITHUB_ENV).
  *
  * Usage:
  *   bun run scripts/print-platform-env.ts

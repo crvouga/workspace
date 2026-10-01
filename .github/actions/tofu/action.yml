@@ -1,0 +1,91 @@
+name: OpenTofu
+description: Initialize, plan and apply one OpenTofu root with encrypted R2 state.
+inputs:
+  root:
+    required: true
+    description: OpenTofu root (foundation, bootstrap, vault or fleet)
+  vault_image_tag:
+    default: ''
+    description: New vault image revision; empty preserves the deployed revision.
+  service_ids:
+    default: '[]'
+    description: JSON array of services receiving a new image revision.
+  image_tag:
+    default: ''
+    description: Image revision for service_ids; empty preserves all revisions.
+runs:
+  using: composite
+  steps:
+    - name: Require completed state adoption
+      shell: bash
+      run: |
+        if [ "${TOFU_MIGRATION_READY:-false}" != true ]; then
+          echo "::error::Import and verify every OpenTofu root before enabling TOFU_MIGRATION_READY."
+          exit 1
+        fi
+    - uses: opentofu/setup-opentofu@v1
+      with:
+        tofu_version: 1.13.0
+        tofu_wrapper: false
+    - uses: ariga/setup-atlas@v0
+      if: inputs.root == 'foundation'
+    - name: Configure backend and inputs
+      shell: bash
+      env:
+        TOFU_ROOT: ${{ inputs.root }}
+      run: |
+        set -euo pipefail
+        case "${TOFU_ROOT}" in foundation|bootstrap|vault|fleet) ;; *) exit 1 ;; esac
+        ROOT="packages/infra/tofu/${TOFU_ROOT}"
+        umask 077
+        jq -n --arg account "${TF_VAR_cloudflare_account_id}" '{
+          bucket: "crvouga-tofu-state", region: "auto",
+          endpoints: {s3: ("https://" + $account + ".r2.cloudflarestorage.com")},
+          skip_credentials_validation: true, skip_region_validation: true,
+          skip_requesting_account_id: true, skip_metadata_api_check: true,
+          use_path_style: true, use_lockfile: true
+        }' > /tmp/tofu-backend.json
+        echo "TF_VAR_state_backend=$(cat /tmp/tofu-backend.json | jq -c .)" >> "$GITHUB_ENV"
+        jq --arg key "${TOFU_ROOT}.tfstate" '. + {key: $key}' /tmp/tofu-backend.json > "${ROOT}/backend.backend.json"
+        if [ "${TOFU_ROOT}" = vault ]; then
+          test -n "${TOFU_VAULT_INPUTS}"
+          printf '%s' "${TOFU_VAULT_INPUTS}" > "${ROOT}/inputs.auto.tfvars.json"
+        elif [ "${TOFU_ROOT}" = foundation ]; then
+          echo "TF_VAR_migration_ready=${TOFU_MIGRATION_READY}" >> "$GITHUB_ENV"
+        fi
+    - name: Initialize
+      shell: bash
+      env:
+        TOFU_ROOT: ${{ inputs.root }}
+      run: tofu -chdir="packages/infra/tofu/${TOFU_ROOT}" init -input=false -lockfile=readonly -backend-config=backend.backend.json
+    - name: Preserve deployed image revisions
+      shell: bash
+      env:
+        TOFU_ROOT: ${{ inputs.root }}
+        VAULT_IMAGE_TAG: ${{ inputs.vault_image_tag }}
+        SERVICE_IDS: ${{ inputs.service_ids }}
+        IMAGE_TAG: ${{ inputs.image_tag }}
+      run: |
+        set -euo pipefail
+        ROOT="packages/infra/tofu/${TOFU_ROOT}"
+        if [ "${TOFU_ROOT}" = foundation ]; then
+          TAG="${VAULT_IMAGE_TAG}"
+          if [ -z "${TAG}" ]; then TAG="$(tofu -chdir="${ROOT}" output -raw vault_image_tag)"; fi
+          echo "TF_VAR_vault_image_tag=${TAG}" >> "$GITHUB_ENV"
+        elif [ "${TOFU_ROOT}" = fleet ]; then
+          tofu -chdir="${ROOT}" output -json image_tags > /tmp/tofu-image-tags.json
+          jq -c --argjson ids "${SERVICE_IDS}" --arg tag "${IMAGE_TAG}" \
+            'if $tag == "" then . else reduce $ids[] as $id (. ; .[$id] = $tag) end' \
+            /tmp/tofu-image-tags.json > /tmp/tofu-next-tags.json
+          echo "TF_VAR_image_tags=$(cat /tmp/tofu-next-tags.json)" >> "$GITHUB_ENV"
+        fi
+    - name: Plan
+      shell: bash
+      env:
+        TOFU_ROOT: ${{ inputs.root }}
+      run: tofu -chdir="packages/infra/tofu/${TOFU_ROOT}" plan -input=false -parallelism=1 -out=apply.tfplan
+    - name: Apply
+      shell: bash
+      env:
+        TOFU_ROOT: ${{ inputs.root }}
+      run: tofu -chdir="packages/infra/tofu/${TOFU_ROOT}" apply -input=false -parallelism=1 apply.tfplan

@@ -127,7 +127,7 @@ export_vault_auth() {
     echo "Authenticate with one of:" >&2
     echo "  vault login -address=\"${VAULT_ADDR}\"" >&2
     echo "  export VAULT_TOKEN='...'" >&2
-    echo "  ./scripts/create-dev-token.sh   # scoped read token" >&2
+    echo "  tofu -chdir=packages/infra/tofu/vault apply   # scoped read token" >&2
     return 1
   fi
 

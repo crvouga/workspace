@@ -23,7 +23,7 @@ Environment:
   VAULT_ADDR   Vault API address (default: https://vault.chrisvouga.dev)
 
 Examples:
-  $(basename "$0") -- ./scripts/smoke-test.sh
+  $(basename "$0") -- bun run smoke:prd
   $(basename "$0") -- ./scripts/sync-dev-keys-to-prd.sh --dry-run
 EOF
 }

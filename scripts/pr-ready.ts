@@ -97,8 +97,8 @@ const COMMANDS: Record<string, Command> = {
     },
     run: checksCommand,
   },
-  repo: { spec: { booleans: { apply: 'apply' } }, run: repoCommand },
-  ruleset: { spec: { booleans: { apply: 'apply' } }, run: rulesetCommand },
+  repo: { spec: {}, run: repoCommand },
+  ruleset: { spec: {}, run: rulesetCommand },
   merge: { spec: { booleans: { auto: 'auto' } }, run: mergeCommand },
 };
 

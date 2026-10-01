@@ -114,7 +114,7 @@ export const PROJECT_ENTRIES_PART_1: readonly Project[] = [
       url: 'https://github.com/crvouga/workspace/tree/main/packages/infra',
     },
     description:
-      'One <code>services.yaml</code> is the desired state for a personal production fleet — Railway services, Cloudflare DNS and redirects, Neon databases, R2 buckets, GitHub secrets, and tunnels. A reconcile loop plans every phase and applies it. Stateless drift is removed freely; stateful resources are never auto-deleted, only reported with the explicit destroy command to run by hand. CI gates on Vault readiness before it will deploy anything. This is the fleet this site is served from, alongside a self-hosted OpenBao secrets service and a Turborepo remote cache backed by Cloudflare R2.',
+      'OpenTofu manages a personal production fleet: Railway services and image revisions, Cloudflare DNS and redirects, Neon storage, R2 buckets, GitHub publishing configuration, tunnels, and OpenBao authentication and secrets. Encrypted state and import declarations adopt existing resources, with deletion guards on stateful infrastructure. CI validates and applies the same definitions before probing the deployed services. This is the fleet serving this site, alongside a self-hosted OpenBao secrets service and a Turborepo remote cache backed by Cloudflare R2.',
     imageAlt: IMAGE_ALT,
     imageSrc: [],
     galleryImageSrc: [],

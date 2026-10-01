@@ -1,9 +1,9 @@
 /**
  * Merge-gate commands for `pr-ready`: repository merge settings and the trunk
- * ruleset. One canonical definition each, used for both check and `--apply`.
+ * ruleset. One canonical definition each, read from OpenTofu for checks only.
  */
 import {
-  ACTIONS_INTEGRATION_ID,
+  MERGE_GATE,
   ALLOWED_MERGE_METHODS,
   CommandError,
   EXIT,
@@ -14,13 +14,10 @@ import {
   gh,
   ok,
   parseJson,
-  run,
   type Flags,
   type Json,
   type Outcome,
 } from './lib';
-
-const ADMIN_HINT = 'repo settings writes require admin';
 
 export type Drift = { path: string; expected: unknown; actual: unknown };
 
@@ -64,15 +61,7 @@ export function diffSubset(
 // repo
 // ---------------------------------------------------------------------------
 
-export const DESIRED_REPO_SETTINGS = {
-  default_branch: TRUNK_BRANCH,
-  allow_merge_commit: ALLOWED_MERGE_METHODS.includes('merge'),
-  allow_squash_merge: ALLOWED_MERGE_METHODS.includes('squash'),
-  allow_rebase_merge: ALLOWED_MERGE_METHODS.includes('rebase'),
-  allow_auto_merge: true,
-  allow_update_branch: true,
-  delete_branch_on_merge: true,
-} as const;
+export const DESIRED_REPO_SETTINGS = MERGE_GATE.repo_settings;
 
 async function repoDrift(slug: string): Promise<Drift[]> {
   const actual = parseJson<Json>(
@@ -84,79 +73,24 @@ async function repoDrift(slug: string): Promise<Drift[]> {
 
 export async function repoCommand(flags: Flags): Promise<Outcome> {
   const slug = await repoSlug();
-  const apply = flags.booleans.has('apply');
-  let applied = false;
-  if (apply && (await repoDrift(slug)).length > 0) {
-    await patchJson(
-      'repo-apply',
-      `repos/${slug}`,
-      'PATCH',
-      DESIRED_REPO_SETTINGS
-    );
-    applied = true;
-  }
   const drift = await repoDrift(slug);
-  const body = { repo: slug, applied, drift, desired: DESIRED_REPO_SETTINGS };
+  const body = { repo: slug, drift, desired: DESIRED_REPO_SETTINGS };
   if (drift.length === 0) return ok(body);
   return ok(
-    { step: 'repo', ...body, hint: apply ? ADMIN_HINT : 'run `repo --apply`' },
+    {
+      step: 'repo',
+      ...body,
+      hint: 'Review and apply the OpenTofu foundation plan.',
+    },
     EXIT.fail
   );
-}
-
-async function patchJson(
-  step: string,
-  path: string,
-  method: string,
-  payload: unknown
-): Promise<Json> {
-  const result = await run(['gh', 'api', '-X', method, path, '--input', '-'], {
-    stdin: JSON.stringify(payload),
-  });
-  if (result.code !== 0) {
-    throw new CommandError({ step, output: result.output, hint: ADMIN_HINT });
-  }
-  return result.stdout.trim() ? parseJson<Json>(step, result.stdout) : {};
 }
 
 // ---------------------------------------------------------------------------
 // ruleset
 // ---------------------------------------------------------------------------
 
-export const DESIRED_RULESET = {
-  name: RULESET_NAME,
-  target: 'branch',
-  enforcement: 'active',
-  bypass_actors: [],
-  conditions: {
-    ref_name: { include: [`refs/heads/${TRUNK_BRANCH}`], exclude: [] },
-  },
-  rules: [
-    {
-      type: 'pull_request',
-      parameters: {
-        allowed_merge_methods: [...ALLOWED_MERGE_METHODS],
-        dismiss_stale_reviews_on_push: true,
-        require_code_owner_review: false,
-        require_last_push_approval: false,
-        required_approving_review_count: 0,
-        required_review_thread_resolution: true,
-      },
-    },
-    {
-      type: 'required_status_checks',
-      parameters: {
-        strict_required_status_checks_policy: true,
-        required_status_checks: REQUIRED_CHECK_CONTEXTS.map((context) => ({
-          context,
-          integration_id: ACTIONS_INTEGRATION_ID,
-        })),
-      },
-    },
-    { type: 'deletion' },
-    { type: 'non_fast_forward' },
-  ],
-};
+export const DESIRED_RULESET = MERGE_GATE.ruleset;
 
 type RulesetSummary = { id: number; name: string };
 type Rule = { type: string; parameters?: Json };
@@ -208,56 +142,19 @@ export function rulesetDrift(live: Ruleset | null): {
   return { drift, unexpectedRules };
 }
 
-async function applyRuleset(slug: string, live: Ruleset | null): Promise<void> {
-  if (live)
-    await patchJson(
-      'ruleset-apply',
-      `repos/${slug}/rulesets/${live.id}`,
-      'PUT',
-      DESIRED_RULESET
-    );
-  else
-    await patchJson(
-      'ruleset-apply',
-      `repos/${slug}/rulesets`,
-      'POST',
-      DESIRED_RULESET
-    );
-  const legacy = (await listRulesets(slug)).filter((ruleset) =>
-    LEGACY_RULESET_NAMES.includes(ruleset.name)
-  );
-  for (const ruleset of legacy) {
-    await patchJson(
-      'ruleset-delete-legacy',
-      `repos/${slug}/rulesets/${ruleset.id}`,
-      'DELETE',
-      {}
-    );
-  }
-}
-
 export async function rulesetCommand(flags: Flags): Promise<Outcome> {
   const slug = await repoSlug();
-  const apply = flags.booleans.has('apply');
-  let live = await findRuleset(slug);
-  const before = rulesetDrift(live);
+  const live = await findRuleset(slug);
   const legacy = (await listRulesets(slug)).filter((ruleset) =>
     LEGACY_RULESET_NAMES.includes(ruleset.name)
   );
-  const needsApply =
-    before.drift.length + before.unexpectedRules.length + legacy.length > 0;
-  if (apply && needsApply) {
-    await applyRuleset(slug, live);
-    live = await findRuleset(slug);
-  }
   const { drift, unexpectedRules } = rulesetDrift(live);
   const body = {
     repo: slug,
     ruleset: live ? { id: live.id, name: live.name } : null,
-    applied: apply && needsApply,
     drift,
     unexpectedRules,
-    legacy: apply ? [] : legacy,
+    legacy,
   };
   if (drift.length + unexpectedRules.length + body.legacy.length === 0)
     return ok(body);
@@ -265,7 +162,7 @@ export async function rulesetCommand(flags: Flags): Promise<Outcome> {
     {
       step: 'ruleset',
       ...body,
-      hint: apply ? ADMIN_HINT : 'run `ruleset --apply`',
+      hint: 'Review and apply the OpenTofu foundation plan.',
     },
     EXIT.fail
   );

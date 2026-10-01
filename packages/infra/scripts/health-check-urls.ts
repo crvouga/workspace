@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * HTTP health-check for public services in services.yaml.
+ * HTTP health-check for public services in tofu/modules/inventory/inventory.tf.json.
  *
  * Usage:
  *   bun run scripts/health-check-urls.ts

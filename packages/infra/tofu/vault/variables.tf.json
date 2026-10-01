@@ -1,0 +1,28 @@
+{
+  "variable": {
+    "state_passphrase": {
+      "type": "string",
+      "sensitive": true,
+      "validation": {
+        "condition": "${length(var.state_passphrase) >= 32}",
+        "error_message": "Use at least 32 characters for state encryption."
+      }
+    },
+    "state_backend": {
+      "type": "any",
+      "description": "S3 backend connection settings, excluding the state key. Credentials come from AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY."
+    },
+    "cloudflare_account_id": {
+      "type": "string"
+    },
+    "admin_passwords": {
+      "type": "map(string)",
+      "sensitive": true
+    },
+    "secrets": {
+      "type": "map(map(string))",
+      "sensitive": true,
+      "description": "Complete manually supplied KV data for dev and prd. Import all existing fields before applying; derived keys and generated credentials are owned by OpenTofu."
+    }
+  }
+}

@@ -37,7 +37,7 @@ export function readPidFile(file: string): number | null {
 
 export function writePidFile(file: string, pid: number): void {
   assert.nonEmptyString(file, "pid file path must be non-empty");
-  assert.integer(pid, "pid must be an integer", { file });
+  assert.integer(pid, "pid must be an integer");
   assert.ok(pid > 0, "pid must be positive", { file, pid });
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${pid}\n`, { mode: 0o600 });
@@ -88,10 +88,10 @@ export function pidsOnPort(port: string): number[] {
 export function stopPortOccupants(port: string): boolean {
   assert.nonEmptyString(port, "port must be non-empty");
   const pids = pidsOnPort(port);
-  assert.array(pids, "port pids must be an array", { port });
+  assert.array(pids, "port pids must be an array");
   if (pids.length === 0) return false;
   for (const pid of pids) {
-    ha.integer(pid, "port occupant pid must be an integer", { port });
+    ha.integer(pid, "port occupant pid must be an integer");
     try {
       process.kill(pid, "SIGTERM");
       console.log(`stopped process on :${port} (pid ${pid})`);
@@ -168,7 +168,7 @@ export function spawnDaemon(opts: SpawnDaemonOpts): number {
   if (!child.pid) {
     throw new Error(`failed to spawn ${opts.cmd}`);
   }
-  assert.integer(child.pid, "spawned pid must be an integer", { cmd: opts.cmd });
+  assert.integer(child.pid, "spawned pid must be an integer");
   child.unref();
   writePidFile(opts.pidFile, child.pid);
   return child.pid;

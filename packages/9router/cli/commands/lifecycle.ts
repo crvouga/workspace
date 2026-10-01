@@ -1,3 +1,4 @@
+import { tunnelEnvironment } from "./tunnel.ts";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ensureCloudflared, resolveCloudflaredBin } from "../../scripts/lib/cloudflared.ts";
@@ -14,7 +15,6 @@ import {
   APP_DIR,
   APP_LOG_FILE,
   APP_PID_FILE,
-  CLOUDFLARED_CONFIG,
   CURSOR_PUBLIC_BASE_URL,
   CURSOR_PUBLIC_HOST,
   ENV_FILE,
@@ -66,15 +66,7 @@ export async function startDaemons(): Promise<void> {
       "App not built (missing .next/BUILD_ID). Run App: Build first.",
     );
   }
-  if (!existsSync(CLOUDFLARED_CONFIG)) {
-    throw new CommandError(
-      [
-        `Missing ${CLOUDFLARED_CONFIG}`,
-        "Run Tunnel: Provision once first.",
-        "(requires: brew install cloudflared && cloudflared tunnel login)",
-      ].join("\n"),
-    );
-  }
+  const tunnelEnv = await tunnelEnvironment();
 
   ensureCloudflared();
   mkdirSync(join(ROOT, "data"), { recursive: true });
@@ -171,9 +163,9 @@ export async function startDaemons(): Promise<void> {
   console.log(`==> Starting tunnel daemon → ${CURSOR_PUBLIC_HOST}`);
   const tunnelPid = spawnDaemon({
     cmd: cloudflared,
-    args: ["tunnel", "--config", CLOUDFLARED_CONFIG, "run"],
+    args: ["tunnel", "run"],
     cwd: ROOT,
-    env: process.env,
+    env: tunnelEnv,
     pidFile: TUNNEL_PID_FILE,
     logFile: TUNNEL_LOG_FILE,
   });
@@ -212,11 +204,8 @@ export async function stopDaemons(): Promise<void> {
   }
 }
 
-function tunnelLocalService(): string | null {
-  if (!existsSync(CLOUDFLARED_CONFIG)) return null;
-  const text = readFileSync(CLOUDFLARED_CONFIG, "utf8");
-  const match = text.match(/^\s*service:\s*(https?:\/\/\S+)/m);
-  return match?.[1]?.replace(/\/$/, "") ?? null;
+function tunnelLocalService(): string {
+  return LOCAL_BASE_URL;
 }
 
 function resolveLocalBase(fileEnv: Record<string, string>): string {

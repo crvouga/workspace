@@ -22,5 +22,17 @@ packages/turborepo-remote-cache/.env
 .superset/.run-pid
 .superset/.run-port
 
+# OpenTofu provider cache, credentials, state and plans. Commit provider locks.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+*.auto.tfvars.json
+*.backend.hcl
+*.backend.json
+crash.log
+
 # Superset design-feedback attachments (generated, not source)
 .superset/attachments/

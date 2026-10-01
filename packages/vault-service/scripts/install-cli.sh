@@ -109,7 +109,7 @@ echo "==========================================================================
 echo ""
 echo "Next steps:"
 echo "  1. vault login hvs.your-root-token"
-echo "     (or: ./scripts/create-dev-token.sh  for a scoped read token)"
+echo "     (or: tofu -chdir=packages/infra/tofu/vault apply  for a scoped read token)"
 echo ""
 echo "  2. cd ~/your-app"
 echo "     vault setup --project myapp --config dev"

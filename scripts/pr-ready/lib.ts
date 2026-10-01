@@ -3,15 +3,56 @@
  * the one-JSON-object output contract, and flag parsing.
  */
 
-export const TRUNK_BRANCH = 'main';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Read-only PR checks consume the policy that OpenTofu owns. */
+export const MERGE_GATE = JSON.parse(
+  readFileSync(
+    join(
+      import.meta.dirname,
+      '../../packages/infra/tofu/modules/inventory/inventory.tf.json'
+    ),
+    'utf8'
+  )
+).locals.inventory.github.pr_ready as {
+  repo_settings: {
+    default_branch: string;
+    allow_merge_commit: boolean;
+    allow_squash_merge: boolean;
+    allow_rebase_merge: boolean;
+    allow_auto_merge: boolean;
+    allow_update_branch: boolean;
+    delete_branch_on_merge: boolean;
+  };
+  ruleset: {
+    name: string;
+    target: string;
+    enforcement: string;
+    bypass_actors: unknown[];
+    conditions: Record<string, unknown>;
+    rules: { type: string; parameters?: Record<string, unknown> }[];
+  };
+  legacy_ruleset_names: string[];
+};
+export const TRUNK_BRANCH = MERGE_GATE.repo_settings.default_branch;
 export const REMOTE = 'origin';
-export const RULESET_NAME = 'main';
-/** Rulesets with these names are deleted by `ruleset --apply`. */
-export const LEGACY_RULESET_NAMES: readonly string[] = ['Protect main'];
-export const REQUIRED_CHECK_CONTEXTS: readonly string[] = ['Required'];
-/** GitHub Actions app id — pins required checks to Actions-reported runs. */
-export const ACTIONS_INTEGRATION_ID = 15368;
-export const ALLOWED_MERGE_METHODS: readonly string[] = ['merge'];
+export const RULESET_NAME = MERGE_GATE.ruleset.name;
+export const LEGACY_RULESET_NAMES = MERGE_GATE.legacy_ruleset_names;
+const checkRule = MERGE_GATE.ruleset.rules.find(
+  (rule) => rule.type === 'required_status_checks'
+)!.parameters!;
+const checks = checkRule.required_status_checks as {
+  context: string;
+  integration_id: number;
+}[];
+export const REQUIRED_CHECK_CONTEXTS = checks.map((check) => check.context);
+export const ACTIONS_INTEGRATION_ID = checks[0]!.integration_id;
+export const ALLOWED_MERGE_METHODS = [
+  MERGE_GATE.repo_settings.allow_merge_commit && 'merge',
+  MERGE_GATE.repo_settings.allow_squash_merge && 'squash',
+  MERGE_GATE.repo_settings.allow_rebase_merge && 'rebase',
+].filter((method): method is string => Boolean(method));
 
 export const EXIT = {
   ok: 0,

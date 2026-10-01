@@ -40,8 +40,8 @@ Ask the human for the token, or if they use the same OpenBao as the cache owner:
 
 - Vault KV path: `secret/data/personal/{dev|prd}` key `TURBO_TOKEN`
 - Or from the cache monorepo (when available):  
-  `vault run --config dev -- bun run seed:turbo-client`  
-  which prints `export …` / `vault kv patch …` lines for consumer projects.
+  `vault run --config dev -- <your build command>`
+  which reads OpenTofu-managed cache credentials.
 
 **Never commit `TURBO_TOKEN`.** Prefer Vault, GitHub Actions secrets / OIDC→Vault, or a local untracked `.env` that is already gitignored.
 

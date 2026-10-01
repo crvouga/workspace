@@ -1,0 +1,344 @@
+{
+  "import": [
+    {
+      "to": "module.service[\"portfolio\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/a34829a2533d115d4b3b1d055cc173c6"
+    },
+    {
+      "to": "module.service[\"portfolio\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/60d3c34f81253c03548e0493f15e7486"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-rust\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/e48aa4ba779e6ff2f82adcf04c43392f"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-rust\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/7b76a454dd531f11d020d306dd42123d"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-react\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/69801ebd444e6362ac4a4757e3250957"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-react\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/122d3abda3ebdfd799628b8cf22c65ae"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-clojurescript\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/f2fbb8561f0ae9ec5b8a56efe674c8fc"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-clojurescript\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/440d8af5844e0434af17e5d995d65e55"
+    },
+    {
+      "to": "module.service[\"headless-combobox-svelte-example\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/e63435b44531b56677ac6b82538a70ca"
+    },
+    {
+      "to": "module.service[\"headless-combobox-svelte-example\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/f32109f42b368999e33df07320bed2db"
+    },
+    {
+      "to": "module.service[\"headless-combobox-docs\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/9d47c11d9c5835216dee6bfde2ed14ca"
+    },
+    {
+      "to": "module.service[\"headless-combobox-docs\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/fdfab7ca9563129e7f0a552b9c34e1c0"
+    },
+    {
+      "to": "module.service[\"todo-app\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/7fe3cf5845ef41237b6b18e39e3d658c"
+    },
+    {
+      "to": "module.service[\"todo-app\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/a0cac9f3b3018e50980fc077c4781e78"
+    },
+    {
+      "to": "module.service[\"image-service\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/19102526ef8aab14df6320b86757474e"
+    },
+    {
+      "to": "module.service[\"image-service\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/1bf6d882f2461b60c674657424877034"
+    },
+    {
+      "to": "module.service[\"connect-four\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/4b814967a7011586ce7b78b1e2fab0fc"
+    },
+    {
+      "to": "module.service[\"connect-four\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/bbf64320a0bbf33e73ca9c4f2dc602cb"
+    },
+    {
+      "to": "module.service[\"anime-blog\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/5f6afdf7818fcc1468e7d4b2e99844bc"
+    },
+    {
+      "to": "module.service[\"anime-blog\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/865044f7a4184b3e349b0574d49c9aad"
+    },
+    {
+      "to": "module.service[\"snake-game\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/992e9ceadba826b214a58cf2b3a5ea1e"
+    },
+    {
+      "to": "module.service[\"snake-game\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/cdf87bb468d9828081b97ad82fc28869"
+    },
+    {
+      "to": "module.service[\"match-three\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/7e60a09a9a30ab7586e3548a78c76945"
+    },
+    {
+      "to": "module.service[\"match-three\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/0172946b44f561db56f3125ada9394d6"
+    },
+    {
+      "to": "module.service[\"simon-says\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/f4506a10424782c77eae44e670c85c0b"
+    },
+    {
+      "to": "module.service[\"simon-says\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/71b015d96ba499589f7595bfdba1edb4"
+    },
+    {
+      "to": "module.service[\"violets-garden\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/32d621c30e588613599afcb7c68c13e9"
+    },
+    {
+      "to": "module.service[\"violets-garden\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/65e757f543ab75ae2f0f3bbad4cb422a"
+    },
+    {
+      "to": "module.service[\"mockingbird-docs\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/3a9051d97b975cf2c0850a76be3421f6"
+    },
+    {
+      "to": "module.service[\"mockingbird-docs\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/85e0be0b418b8caef3b8053ed8031269"
+    },
+    {
+      "to": "module.service[\"turborepo\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/f092d38857be39a85178ba625a695438"
+    },
+    {
+      "to": "module.service[\"turborepo\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/b0beae64c0682f6ce3e5dff8b5c2fcd9"
+    },
+    {
+      "to": "module.service[\"llm-proxy\"].cloudflare_dns_record.traffic",
+      "id": "83db052d18159889dd290724ac7d52d9/0c2f1cfd8d3dd2d13fd73969a0fecaa7"
+    },
+    {
+      "to": "module.service[\"llm-proxy\"].cloudflare_dns_record.verification",
+      "id": "83db052d18159889dd290724ac7d52d9/31bb4c8902cbcc55ce49b033688ae08b"
+    },
+    {
+      "to": "module.service[\"todo-app\"].railway_service.this",
+      "id": "031e5fe9-4d44-427f-ba76-0b3804b0873a"
+    },
+    {
+      "to": "module.service[\"todo-app\"].railway_custom_domain.this",
+      "id": "031e5fe9-4d44-427f-ba76-0b3804b0873a:production:todo.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"todo-app\"].railway_variable_collection.this",
+      "id": "031e5fe9-4d44-427f-ba76-0b3804b0873a:production:PORT"
+    },
+    {
+      "to": "module.service[\"simon-says\"].railway_service.this",
+      "id": "05f6ef20-95e8-47e6-9ac8-6b16b7f01dea"
+    },
+    {
+      "to": "module.service[\"simon-says\"].railway_custom_domain.this",
+      "id": "05f6ef20-95e8-47e6-9ac8-6b16b7f01dea:production:simonsays.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"violets-garden\"].railway_service.this",
+      "id": "1a9fc92b-1bad-46b2-b5b5-ed12d5323aca"
+    },
+    {
+      "to": "module.service[\"violets-garden\"].railway_custom_domain.this",
+      "id": "1a9fc92b-1bad-46b2-b5b5-ed12d5323aca:production:violetsgarden.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"violets-garden\"].railway_variable_collection.this",
+      "id": "1a9fc92b-1bad-46b2-b5b5-ed12d5323aca:production:PORT"
+    },
+    {
+      "to": "module.service[\"anime-blog\"].railway_service.this",
+      "id": "20512547-279a-48af-8184-735b0e9d0c43"
+    },
+    {
+      "to": "module.service[\"anime-blog\"].railway_custom_domain.this",
+      "id": "20512547-279a-48af-8184-735b0e9d0c43:production:anime.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-clojurescript\"].railway_service.this",
+      "id": "226ffcaf-34e8-4b88-8939-603bdcc5d427"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-clojurescript\"].railway_custom_domain.this",
+      "id": "226ffcaf-34e8-4b88-8939-603bdcc5d427:production:moviefinder-app-clojurescript.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-clojurescript\"].railway_variable_collection.this",
+      "id": "226ffcaf-34e8-4b88-8939-603bdcc5d427:production:TWILIO_AUTH_TOKEN:TWILIO_SERVICE_SID:DATABASE_URL:PORT:TMDB_API_READ_ACCESS_TOKEN:TWILIO_ACCOUNT_SID"
+    },
+    {
+      "to": "module.service[\"mockingbird-docs\"].railway_service.this",
+      "id": "37036ca1-705e-46b6-a023-f315e664cc7d"
+    },
+    {
+      "to": "module.service[\"mockingbird-docs\"].railway_custom_domain.this",
+      "id": "37036ca1-705e-46b6-a023-f315e664cc7d:production:mockingbird.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"mockingbird-docs\"].railway_variable_collection.this",
+      "id": "37036ca1-705e-46b6-a023-f315e664cc7d:production:PORT"
+    },
+    {
+      "to": "module.service[\"headless-combobox-svelte-example\"].railway_service.this",
+      "id": "3be60adf-7a25-430c-a696-0ef3375e3622"
+    },
+    {
+      "to": "module.service[\"headless-combobox-svelte-example\"].railway_custom_domain.this",
+      "id": "3be60adf-7a25-430c-a696-0ef3375e3622:production:svelte-headlesscombobox.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"portfolio\"].railway_service.this",
+      "id": "3e21278b-4126-4f00-8c06-026904e9dffc"
+    },
+    {
+      "to": "module.service[\"portfolio\"].railway_custom_domain.this",
+      "id": "3e21278b-4126-4f00-8c06-026904e9dffc:production:www.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"snake-game\"].railway_service.this",
+      "id": "50a97d63-b566-4c13-bf77-20067ee53b0d"
+    },
+    {
+      "to": "module.service[\"snake-game\"].railway_custom_domain.this",
+      "id": "50a97d63-b566-4c13-bf77-20067ee53b0d:production:snake.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-rust\"].railway_service.this",
+      "id": "729fa7b1-e1e2-4557-9274-d90c9a854620"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-rust\"].railway_custom_domain.this",
+      "id": "729fa7b1-e1e2-4557-9274-d90c9a854620:production:moviefinder-app-rust.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-rust\"].railway_variable_collection.this",
+      "id": "729fa7b1-e1e2-4557-9274-d90c9a854620:production:DATABASE_URL:PORT:TWILIO_ACCOUNT_SID:TWILIO_SERVICE_SID:TMDB_API_READ_ACCESS_TOKEN:TWILIO_AUTH_TOKEN"
+    },
+    {
+      "to": "module.service[\"headless-combobox-docs\"].railway_service.this",
+      "id": "7bd76947-8608-43fe-90d3-a087306849ee"
+    },
+    {
+      "to": "module.service[\"headless-combobox-docs\"].railway_custom_domain.this",
+      "id": "7bd76947-8608-43fe-90d3-a087306849ee:production:headlesscombobox.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"llm-proxy\"].railway_service.this",
+      "id": "7bed7281-3da0-4994-b1ce-89cd8f0a34bd"
+    },
+    {
+      "to": "module.service[\"llm-proxy\"].railway_custom_domain.this",
+      "id": "7bed7281-3da0-4994-b1ce-89cd8f0a34bd:production:llm-proxy.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"llm-proxy\"].railway_variable_collection.this",
+      "id": "7bed7281-3da0-4994-b1ce-89cd8f0a34bd:production:DATABASE_URL:PORT"
+    },
+    {
+      "to": "module.service[\"connect-four\"].railway_service.this",
+      "id": "808a799d-1c1a-46df-a073-8c667b10a8f9"
+    },
+    {
+      "to": "module.service[\"connect-four\"].railway_custom_domain.this",
+      "id": "808a799d-1c1a-46df-a073-8c667b10a8f9:production:connectfour.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"connect-four\"].railway_variable_collection.this",
+      "id": "808a799d-1c1a-46df-a073-8c667b10a8f9:production:PORT"
+    },
+    {
+      "to": "module.service[\"match-three\"].railway_service.this",
+      "id": "8695940f-25a0-418a-a260-a0404f26db0b"
+    },
+    {
+      "to": "module.service[\"match-three\"].railway_custom_domain.this",
+      "id": "8695940f-25a0-418a-a260-a0404f26db0b:production:matchthree.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"image-service\"].railway_service.this",
+      "id": "92ab18de-e314-4202-aeec-9ba2f1e5206a"
+    },
+    {
+      "to": "module.service[\"image-service\"].railway_custom_domain.this",
+      "id": "92ab18de-e314-4202-aeec-9ba2f1e5206a:production:imageservice.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"turborepo\"].railway_service.this",
+      "id": "cefea7d2-a152-422f-8327-c4598763c7b0"
+    },
+    {
+      "to": "module.service[\"turborepo\"].railway_custom_domain.this",
+      "id": "cefea7d2-a152-422f-8327-c4598763c7b0:production:turborepo.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"turborepo\"].railway_variable_collection.this",
+      "id": "cefea7d2-a152-422f-8327-c4598763c7b0:production:PORT:VAULT_ADDR:VAULT_CONFIG:VAULT_PROJECT:VAULT_TOKEN"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-react\"].railway_service.this",
+      "id": "f373835e-b452-46dc-957b-f7655f1a8418"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-react\"].railway_custom_domain.this",
+      "id": "f373835e-b452-46dc-957b-f7655f1a8418:production:moviefinder-app-react.chrisvouga.dev"
+    },
+    {
+      "to": "module.service[\"moviefinder-app-react\"].railway_variable_collection.this",
+      "id": "f373835e-b452-46dc-957b-f7655f1a8418:production:DATABASE_URL:TWILIO_ACCOUNT_SID:TWILIO_AUTH_TOKEN:TWILIO_SERVICE_SID:PORT:TMDB_API_READ_ACCESS_TOKEN"
+    },
+    {
+      "to": "module.service[\"portfolio\"].railway_variable_collection.this",
+      "id": "3e21278b-4126-4f00-8c06-026904e9dffc:production:PORTFOLIO_GITHUB_TOKEN:PORT"
+    },
+    {
+      "to": "module.service[\"headless-combobox-svelte-example\"].railway_variable_collection.this",
+      "id": "3be60adf-7a25-430c-a696-0ef3375e3622:production:PORT"
+    },
+    {
+      "to": "module.service[\"headless-combobox-docs\"].railway_variable_collection.this",
+      "id": "7bd76947-8608-43fe-90d3-a087306849ee:production:PORT"
+    },
+    {
+      "to": "module.service[\"image-service\"].railway_variable_collection.this",
+      "id": "92ab18de-e314-4202-aeec-9ba2f1e5206a:production:PORT"
+    },
+    {
+      "to": "module.service[\"anime-blog\"].railway_variable_collection.this",
+      "id": "20512547-279a-48af-8184-735b0e9d0c43:production:PORT"
+    },
+    {
+      "to": "module.service[\"snake-game\"].railway_variable_collection.this",
+      "id": "50a97d63-b566-4c13-bf77-20067ee53b0d:production:PORT"
+    },
+    {
+      "to": "module.service[\"match-three\"].railway_variable_collection.this",
+      "id": "8695940f-25a0-418a-a260-a0404f26db0b:production:PORT"
+    },
+    {
+      "to": "module.service[\"simon-says\"].railway_variable_collection.this",
+      "id": "05f6ef20-95e8-47e6-9ac8-6b16b7f01dea:production:PORT"
+    }
+  ]
+}

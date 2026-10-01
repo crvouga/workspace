@@ -36,7 +36,7 @@ export function readS3ConfigFromEnv(): ObjectStoreS3ConnectionConfig | null {
 }
 
 const S3_CREDENTIAL_HINT =
-  'Create a Cloudflare R2 API token with Object Read & Write on the cache bucket, then set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in Vault dev and prd (bun run provision-r2).';
+  'Create a Cloudflare R2 API token with Object Read & Write on the cache bucket, then set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in Vault dev and prd (bun run infra apply).';
 
 function formatS3ProbeError(message: string, bucket: string): string {
   assert.nonEmptyString(message, 'formatS3ProbeError requires message');

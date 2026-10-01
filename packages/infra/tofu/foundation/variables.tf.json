@@ -1,0 +1,60 @@
+{
+  "variable": {
+    "state_passphrase": {
+      "type": "string",
+      "sensitive": true,
+      "validation": {
+        "condition": "${length(var.state_passphrase) >= 32}",
+        "error_message": "Use at least 32 characters for state encryption."
+      }
+    },
+    "railway_token": {
+      "type": "string",
+      "sensitive": true
+    },
+    "cloudflare_api_token": {
+      "type": "string",
+      "sensitive": true
+    },
+    "github_token": {
+      "type": "string",
+      "sensitive": true
+    },
+    "cloudflare_zone_id": {
+      "type": "string"
+    },
+    "cloudflare_account_id": {
+      "type": "string"
+    },
+    "neon_api_key": {
+      "type": "string",
+      "sensitive": true
+    },
+    "vault_image_tag": {
+      "type": "string",
+      "default": "latest"
+    },
+    "state_access_key": {
+      "type": "string",
+      "sensitive": true
+    },
+    "state_secret_key": {
+      "type": "string",
+      "sensitive": true
+    },
+    "schema_dev_url": {
+      "type": "string",
+      "default": "docker://postgres/18/dev?search_path=public"
+    },
+    "vault_inputs": {
+      "type": "string",
+      "sensitive": true,
+      "description": "JSON containing the complete secrets and admin_passwords inputs for the vault root."
+    },
+    "migration_ready": {
+      "type": "bool",
+      "default": false,
+      "description": "Set true through OpenTofu only after all existing roots have been imported, planned and verified."
+    }
+  }
+}

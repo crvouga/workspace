@@ -231,12 +231,13 @@ const extractUrls = (): string[] => {
 
 const SERVICES_YAML = path.resolve(
   import.meta.dir,
-  '../../infra/services.yaml'
+  '../../infra/tofu/modules/inventory/inventory.tf.json'
 );
 
-/** Hostnames the fleet declares in `packages/infra/services.yaml`. */
+/** Hostnames the fleet declares in `packages/infra/tofu/modules/inventory/inventory.tf.json`. */
 async function readFleetHostnames(): Promise<ReadonlySet<string>> {
-  const doc = Bun.YAML.parse(await readFile(SERVICES_YAML, 'utf8')) as {
+  const doc = JSON.parse(await readFile(SERVICES_YAML, 'utf8')).locals
+    .inventory as {
     services?: readonly { hostname?: string }[];
   };
   const hostnames = (doc.services ?? []).flatMap((s) =>
@@ -256,7 +257,7 @@ async function resolves(hostname: string): Promise<boolean> {
 
 /**
  * A service added in the same PR as its portfolio entry is declared in
- * services.yaml but has no DNS record until the post-merge deploy provisions
+ * tofu/modules/inventory/inventory.tf.json but has no DNS record until the post-merge deploy provisions
  * it, so its URL cannot pass yet. Skip exactly those (declared + no DNS
  * record); a provisioned service that is down still resolves and still fails.
  */
@@ -353,7 +354,7 @@ const main = async () => {
   const { live: urls, pending } = await splitPendingUrls(extractUrls());
   for (const url of pending) {
     writeLine(
-      `⏭  Skipping ${url}: declared in services.yaml, not provisioned yet (no DNS record)`
+      `⏭  Skipping ${url}: declared in tofu/modules/inventory/inventory.tf.json, not provisioned yet (no DNS record)`
     );
   }
   const { results, totalDuration } = await runChecks(urls, args);

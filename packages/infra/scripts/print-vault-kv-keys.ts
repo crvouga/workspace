@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Print vault.kv_keys from services.yaml for CI / docs.
+ * Print vault.kv_keys from tofu/modules/inventory/inventory.tf.json for CI / docs.
  *
  * Usage:
  *   bun run scripts/print-vault-kv-keys.ts
@@ -12,7 +12,7 @@ import {
   vaultAddr,
   vaultConfigOrDefault,
 } from "../lib/services.js";
-import { vaultKvDataPath } from "../lib/vault-kv.js";
+
 
 function parseArgs(argv: readonly string[]): {
   format: "list" | "action";
@@ -59,8 +59,8 @@ function main(): void {
   }
 
   // GitHub vault-action secret lines
-  const path = vaultKvDataPath(args.config);
-  console.log(`# Generated from services.yaml vault.kv_keys (config=${args.config})`);
+  const path = `${vault.kv.mount}/data/${vault.kv.project}/${args.config}`;
+  console.log(`# Generated from tofu/modules/inventory/inventory.tf.json vault.kv_keys (config=${args.config})`);
   console.log(`# VAULT_ADDR=${vaultAddr(infra)}`);
   for (const key of keys) {
     console.log(`          ${path} ${key.name} | ${key.name} ;`);

@@ -40,7 +40,7 @@ on:
         type: boolean
         default: false
       unseal_only:
-        description: Skip vault migrate/build/deploy; still DNS + unseal + fleet reconcile
+        description: Apply the OpenTofu bootstrap root without rebuilding Vault
         type: boolean
         default: false
       service_id:
@@ -52,17 +52,13 @@ on:
         required: false
         type: string
         default: latest
-      apply_dns:
-        description: Apply Cloudflare DNS / redirect / alias changes
-        type: boolean
-        default: true
   repository_dispatch:
     types:
       - deploy-service
   workflow_call:
     inputs:
       service_id:
-        description: 'Service id matching services.yaml (e.g. portfolio, todo-app).'
+        description: 'Service id matching OpenTofu inventory (e.g. portfolio, todo-app).'
         required: true
         type: string
       dockerfile:
@@ -81,7 +77,7 @@ on:
         type: string
         default: crvouga
       image_prefix:
-        description: 'GHCR package prefix (from services.yaml image_prefix).'
+        description: 'GHCR package prefix (from OpenTofu inventory image_prefix).'
         required: false
         type: string
         default: chrisvouga
@@ -111,6 +107,16 @@ on:
       DB_CONNECTION_URI:
         description: 'Repo secret — vault bootstrap job only (not passed by callers).'
         required: false
+      NEON_API_KEY:
+        required: false
+      TOFU_STATE_PASSPHRASE:
+        required: false
+      TOFU_STATE_ACCESS_KEY:
+        required: false
+      TOFU_STATE_SECRET_KEY:
+        required: false
+      TOFU_VAULT_INPUTS:
+        required: false
     outputs:
       image_tag:
         description: 'Image tag pushed (commit SHA).'
@@ -125,6 +131,22 @@ concurrency:
 
 env:
   VAULT_ADDR: https://vault.chrisvouga.dev
+
+  TF_VAR_state_passphrase: ${{ secrets.TOFU_STATE_PASSPHRASE }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.TOFU_STATE_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.TOFU_STATE_SECRET_KEY }}
+  AWS_EC2_METADATA_DISABLED: 'true'
+  TF_VAR_state_access_key: ${{ secrets.TOFU_STATE_ACCESS_KEY }}
+  TF_VAR_state_secret_key: ${{ secrets.TOFU_STATE_SECRET_KEY }}
+  TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+  TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+  TF_VAR_cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}
+  TF_VAR_railway_token: ${{ secrets.RAILWAY_TOKEN }}
+  TF_VAR_neon_api_key: ${{ secrets.NEON_API_KEY }}
+  TF_VAR_github_token: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+  TF_VAR_vault_inputs: ${{ secrets.TOFU_VAULT_INPUTS }}
+  TOFU_VAULT_INPUTS: ${{ secrets.TOFU_VAULT_INPUTS }}
+  TOFU_MIGRATION_READY: ${{ vars.TOFU_MIGRATION_READY }}
 
 jobs:
   changes:
@@ -331,8 +353,14 @@ jobs:
         run: |
           cd packages/portfolio
           node node_modules/playwright/cli.js install --with-deps chromium
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.13.0
+          tofu_wrapper: false
       - name: Turbo CI (format, tc, lint, test, build)
         run: bun run check
+        env:
+          TF_VAR_state_passphrase: validation-only-passphrase-never-used-for-real-state
 
   portfolio-health-check:
     needs: [changes]
@@ -533,7 +561,7 @@ jobs:
 
       - uses: actions/checkout@v5
 
-      # The publish inputs come from services.yaml, so the job needs the workspace
+      # The publish inputs come from OpenTofu inventory, so the job needs the workspace
       # toolchain (sibling workflow_call publishes pass their inputs directly).
       - uses: oven-sh/setup-bun@v2
         if: needs.changes.outputs.workflow_call != 'true'
@@ -638,36 +666,6 @@ jobs:
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:latest
             ghcr.io/${{ steps.resolve.outputs.image_owner }}/${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}:${{ github.sha }}
 
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ steps.ghcr_auth.outputs.password }}
-          PKG: ${{ steps.resolve.outputs.image_prefix }}-${{ steps.resolve.outputs.service_id }}
-          OWNER: ${{ steps.resolve.outputs.image_owner }}
-        run: |
-          set -euo pipefail
-          for URL in \
-            "https://api.github.com/user/packages/container/${PKG}/visibility" \
-            "https://api.github.com/orgs/${OWNER}/packages/container/${PKG}/visibility"
-          do
-            STATUS=$(curl -s -o /tmp/ghcr-vis-body.txt -w "%{http_code}" \
-              -X PATCH \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              -H "Content-Type: application/json" \
-              -d '{"visibility":"public"}' \
-              "${URL}")
-            if [ "${STATUS}" -ge 200 ] && [ "${STATUS}" -lt 300 ]; then
-              echo "Package ${PKG} is public (${URL})"
-              exit 0
-            fi
-            if [ "${STATUS}" != "404" ]; then
-              echo "Warning: could not set ${PKG} public via ${URL} (HTTP ${STATUS})"
-              cat /tmp/ghcr-vis-body.txt || true
-            fi
-          done
-          echo "Package ${PKG} visibility not updated (may not exist yet on first push)"
-
       - name: Notify infra deploy
         if: steps.resolve.outputs.notify_deploy == 'true'
         env:
@@ -677,7 +675,7 @@ jobs:
           set -euo pipefail
           if [ -z "${DISPATCH_TOKEN}" ]; then
             echo "ERROR: DEPLOY_DISPATCH_TOKEN is not set on this repo" >&2
-            echo "Run: GITHUB_TOKEN_SUPER=... bun run rollout-publish -- --repo ${{ github.repository }} --set-org-dispatch-secret" >&2
+            echo "Apply the OpenTofu foundation root to provision repository dispatch secrets." >&2
             exit 1
           fi
           HTTP=$(curl -sS -o /tmp/dispatch-body.txt -w "%{http_code}" -X POST \
@@ -721,38 +719,10 @@ jobs:
       GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
       GITHUB_TOKEN: ${{ github.token }}
       DEPLOY_DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-    defaults:
-      run:
-        working-directory: packages/vault-service
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-        working-directory: .
-
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y curl ca-certificates lsb-release jq dnsutils
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          . /etc/os-release
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
-            | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-
-      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
-        working-directory: .
-
-      - name: Run migrations
-        if: inputs.unseal_only != true
-        run: |
-          set -euo pipefail
-          chmod +x scripts/migrate.sh
-          ./scripts/migrate.sh
 
       - uses: docker/setup-buildx-action@v4.0.0
         if: inputs.unseal_only != true
@@ -781,62 +751,21 @@ jobs:
             ghcr.io/crvouga/chrisvouga-vault:latest
             ghcr.io/crvouga/chrisvouga-vault:${{ github.sha }}
 
-      - name: Make package public
+      - uses: ./.github/actions/tofu
         if: inputs.unseal_only != true
-        working-directory: .
-        run: bun run make-ghcr-public --id vault --require
-
-      - name: Provision Railway service
-        if: inputs.unseal_only != true
-        run: |
-          chmod +x scripts/railway-provision.sh
-          ./scripts/railway-provision.sh
-
-      - name: Deploy to Railway
-        if: inputs.unseal_only != true
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          chmod +x scripts/railway-deploy.sh
-          ./scripts/railway-deploy.sh
-
-      - name: Reconcile DNS
-        run: |
-          chmod +x scripts/railway-sync-dns.sh
-          ./scripts/railway-sync-dns.sh
-
-      - name: Verify custom domain (pre-unseal)
-        env:
-          REQUIRE_HEALTHY: 'false'
-        run: |
-          chmod +x scripts/verify-custom-domain.sh
-          ./scripts/verify-custom-domain.sh
-
-      - name: Unseal OpenBao
-        run: |
-          set -euo pipefail
-          chmod +x scripts/install-vault-cli.sh scripts/repair-openbao-auth-mounts.sh scripts/unseal.sh
-          ./scripts/install-vault-cli.sh
-          ./scripts/repair-openbao-auth-mounts.sh
-          ./scripts/unseal.sh
-
-      - name: Smoke test
-        run: |
-          set -euo pipefail
-          VAULT_TOKEN="$(./scripts/fetch-vault-token.sh)"
-          export VAULT_TOKEN
-          ./scripts/smoke-test.sh
-
-      - name: Health check custom domain
-        env:
-          REQUIRE_HEALTHY: 'true'
-        run: ./scripts/verify-custom-domain.sh
-
+        with:
+          root: foundation
+          vault_image_tag: ${{ github.sha }}
+      - uses: ./.github/actions/tofu
+        with:
+          root: bootstrap
+      - uses: ./.github/actions/tofu
+        with:
+          root: vault
       - name: Health-check vault
-        working-directory: .
         run: bun run health-check --id vault
 
-  # Fleet deploy: resolve → reconcile (--apply --fleet-only) → railway-deploy? → health-check-all
+  # Fleet deploy: resolve → OpenTofu foundation/bootstrap/vault → OpenTofu fleet → health-check-all
   deploy-prepare:
     needs: [changes, check, vault, publish, publish-plan]
     if: |
@@ -850,7 +779,6 @@ jobs:
       service_ids: ${{ steps.resolve.outputs.service_ids }}
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       redeploy: ${{ steps.resolve.outputs.redeploy }}
-      apply_dns: ${{ steps.resolve.outputs.apply_dns }}
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -863,16 +791,10 @@ jobs:
           CLIENT_IMAGE_TAG: ${{ github.event.client_payload.image_tag }}
           INPUT_SERVICE_ID: ${{ inputs.service_id }}
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
-          INPUT_APPLY_DNS: ${{ inputs.apply_dns }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           PUBLISH_TARGETS: ${{ needs.publish-plan.outputs.service_ids }}
         run: |
           set -euo pipefail
-          APPLY_DNS=true
-          if [ "${INPUT_APPLY_DNS}" = "false" ]; then
-            APPLY_DNS=false
-          fi
-
           # A monorepo publish in this run redeploys exactly the services it built.
           if [ "${PUBLISH_RESULT}" = "success" ] && [ "${WORKFLOW_CALL}" != "true" ]; then
             SERVICE_IDS="${PUBLISH_TARGETS}"
@@ -897,77 +819,43 @@ jobs:
             echo "service_ids=${SERVICE_IDS}"
             echo "image_tag=${TAG}"
             echo "redeploy=${REDEPLOY}"
-            echo "apply_dns=${APPLY_DNS}"
           } >> "$GITHUB_OUTPUT"
           echo "Deploy: services=${SERVICE_IDS} image_tag='${TAG}' redeploy=${REDEPLOY}"
 
   deploy-reconcile:
     runs-on: ubuntu-latest
     needs: [deploy-prepare]
-    if: |
-      always() &&
-      needs.deploy-prepare.result == 'success'
+    if: always() && needs.deploy-prepare.result == 'success'
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
-      - uses: ./.github/actions/vault-secrets
+      - uses: ./.github/actions/tofu
         with:
-          vault_addr: ${{ env.VAULT_ADDR }}
-      - name: Reconcile fleet desired state
-        env:
-          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
-          APPLY_DNS: ${{ needs.deploy-prepare.outputs.apply_dns }}
-        run: |
-          set -euo pipefail
-          if [ "${APPLY_DNS}" = "true" ]; then
-            bun run reconcile --apply --fleet-only
-          else
-            bun run reconcile --apply --fleet-only --phase railway --phase ghcr
-          fi
-      - name: Wait for TLS certs
-        if: needs.deploy-prepare.outputs.redeploy == 'true' && needs.deploy-prepare.outputs.apply_dns == 'true'
-        env:
-          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
-        run: bun run sync-dns --apply --wait-for-certs
+          root: foundation
+      - uses: ./.github/actions/tofu
+        with:
+          root: bootstrap
+      - uses: ./.github/actions/tofu
+        with:
+          root: vault
 
   deploy-railway:
-    if: |
-      always() &&
-      needs.deploy-prepare.result == 'success' &&
-      needs.deploy-reconcile.result == 'success' &&
-      needs.deploy-prepare.outputs.redeploy == 'true'
     runs-on: ubuntu-latest
     needs: [deploy-prepare, deploy-reconcile]
-    strategy:
-      fail-fast: false
-      matrix:
-        service_id: ${{ fromJson(needs.deploy-prepare.outputs.service_ids) }}
+    if: always() && needs.deploy-prepare.result == 'success' && needs.deploy-reconcile.result == 'success'
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run packages/infra/scripts/print-platform-env.ts --format github >> "$GITHUB_ENV"
       - uses: ./.github/actions/vault-secrets
         with:
           vault_addr: ${{ env.VAULT_ADDR }}
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ env.RAILWAY_TOKEN }}
-          GH_TOKEN: ${{ env.GITHUB_TOKEN_SUPER || github.token }}
-        run: |
-          set -euo pipefail
-          if [ -z "${RAILWAY_TOKEN:-}" ]; then
-            echo "ERROR: RAILWAY_TOKEN is required" >&2
-            exit 1
-          fi
-          bun run deploy-railway \
-            --id "${{ matrix.service_id }}" \
-            --image-tag "${{ needs.deploy-prepare.outputs.image_tag }}"
-      - name: Health-check service
-        if: success()
-        run: bun run health-check --id "${{ matrix.service_id }}"
+      - uses: ./.github/actions/tofu
+        with:
+          root: fleet
+          service_ids: ${{ needs.deploy-prepare.outputs.service_ids }}
+          image_tag: ${{ needs.deploy-prepare.outputs.redeploy == 'true' && needs.deploy-prepare.outputs.image_tag || '' }}
 
   health-check-all:
     runs-on: ubuntu-latest

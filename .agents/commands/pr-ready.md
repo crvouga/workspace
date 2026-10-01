@@ -44,7 +44,7 @@ GitHub outage).
   deploy tokens. `commit` stages everything (`git add --all`) unless you pass
   `--path`, so check `status.worktree.files` first.
 - Merges to `main` publish and deploy. Never run Railway, Cloudflare, DNS, or
-  `reconcile --apply` from a feature branch.
+  `tofu apply` from a feature branch.
 
 ## Steps
 
@@ -56,8 +56,7 @@ to succeed. If the branch is `main`, create a feature branch first.
 ### 2. Merge gate
 
 Run `bun run pr:ready repo` and `bun run pr:ready ruleset`. If either reports
-`ok: false`, run it again with `--apply`. If the apply fails with a permissions
-error, report the drift and **keep going**.
+`ok: false`, review the OpenTofu foundation plan and fix the declared repository policy there. These commands only inspect configuration.
 
 ### 3. Commit and publish
 

@@ -1,6 +1,6 @@
 # crvouga/workspace — shared infrastructure integration guide
 
-> The one file an agent needs to integrate another codebase with the shared infrastructure owned by `crvouga/workspace`: Vault (OpenBao) secrets, the self-hosted Turborepo remote cache, the shared Cloudflare R2 object store, and hosting on the managed Railway fleet — every hosted project is **Dockerized and ships as a prebuilt GHCR image**. Values in this file are generated from `packages/infra/services.yaml`, `.github/workflows/ci.yml` and the Vault secret registry; CI fails whenever it drifts from them.
+> The one file an agent needs to integrate another codebase with the shared infrastructure owned by `crvouga/workspace`: Vault (OpenBao) secrets, the self-hosted Turborepo remote cache, the shared Cloudflare R2 object store, and hosting on the managed Railway fleet — every hosted project is **Dockerized and ships as a prebuilt GHCR image**. Values in this file are generated from `packages/infra/tofu/modules/inventory/inventory.tf.json`, `.github/workflows/ci.yml` and the Vault secret registry; CI fails whenever it drifts from them.
 
 Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
 
@@ -15,7 +15,7 @@ Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga
 
 - Re-fetch it instead of trusting a cached copy — ports, hostnames and the fleet list change.
 - Pick the sections that apply (checklist below); each one is self-contained.
-- If anything here disagrees with `services.yaml` in `crvouga/workspace`, the YAML wins — tell the human the file is stale.
+- If anything here disagrees with `OpenTofu inventory` in `crvouga/workspace`, the OpenTofu definition wins — tell the human the file is stale.
 
 ## Ground rules
 
@@ -61,7 +61,7 @@ Each KV field becomes one env var. Every config must carry the **same key names*
 
 ### Keys that already exist
 
-Reuse these instead of creating duplicates. Adding a key means a human runs `vault kv patch` **and** adds it to `vault.kv_keys` in `services.yaml`.
+Reuse these instead of creating duplicates. Adding a key means a human updates the OpenTofu vault root secrets input **and** adds its name to `vault.kv_keys` in the OpenTofu inventory.
 
 | Key | Configs | Used by | Required |
 | --- | --- | --- | --- |
@@ -93,6 +93,7 @@ Reuse these instead of creating duplicates. Adding a key means a human runs `vau
 | `9ROUTER_JWT_SECRET` | prd | 9router |  |
 | `9ROUTER_API_KEY_SECRET` | prd | 9router |  |
 | `9ROUTER_MACHINE_ID_SALT` | prd | 9router |  |
+| `9ROUTER_TUNNEL_TOKEN` | prd | 9router |  |
 
 ### Local dev — `vault run`
 
@@ -119,7 +120,7 @@ vault run -- bun run dev                  # injects every field as env vars
 vault run --config prd -- <cmd>           # override config
 vault run --dry-run -- <cmd>              # list injected var names only
 vault kv get secret/personal/dev          # inspect (human only)
-vault kv patch secret/personal/dev KEY=…  # add/update a key (human only)
+bun run infra:vault plan  # update the OpenTofu secrets input, then review/apply
 ```
 
 Put `vault run -- …` inside `package.json` scripts rather than asking developers to export variables. List the needed env var **names** (never values) in `.env.example`, and gitignore `.env*` except `.env.example`.
@@ -146,10 +147,10 @@ steps:
         secret/data/personal/prd SOME_KEY     | SOME_KEY
 ```
 
-- JWT auth at `jwt/`, role `github-actions` → policy `ci-read`, TTL 10m.
-- The role is bound to `refs/heads/main`: pull-request and branch runs **cannot** read Vault. Keep Vault-dependent steps on the default branch, or ask the human to widen the binding. Never work around it with a stored token.
+- JWT auth at `jwt/`, role `github-actions` → policy `ci-read`, TTL 15m.
+- Repository claims restrict access to `crvouga/*`. The existing role permits branch and pull-request jobs in these repositories. Never substitute a stored `VAULT_TOKEN` for OIDC.
 - Vault restarts **sealed** and auto-unseals on deploy. If calls return 503, poll `GET https://vault.chrisvouga.dev/v1/sys/health?standbyok=true` until 200 before failing — [`.github/actions/vault-secrets/action.yml`](https://github.com/crvouga/workspace/blob/main/.github/actions/vault-secrets/action.yml) is a wait + retry pattern to copy.
-- A repo outside `crvouga/*` or a project outside `personal` needs [`packages/vault-service/scripts/setup-oidc-auth.sh`](https://github.com/crvouga/workspace/blob/main/packages/vault-service/scripts/setup-oidc-auth.sh) / a policy change — tell the human.
+- A repo outside `crvouga/*` or a project outside `personal` needs [`packages/infra/tofu/vault/main.tf`](https://github.com/crvouga/workspace/blob/main/packages/infra/tofu/vault/main.tf) / a policy change — tell the human.
 
 ### App runtime — read token + HTTP
 
@@ -164,7 +165,7 @@ if (!res.ok) throw new Error(`vault ${res.status}`); // 503 = sealed → retry w
 const secrets = (await res.json()).data.data as Record<string, string>;
 ```
 
-Honor `Retry-After` on 429 and cache the result for the process lifetime. **Apps hosted on the fleet do not need this** — declare `secrets:` in `services.yaml` (§4) and they arrive as plain env vars.
+Honor `Retry-After` on 429 and cache the result for the process lifetime. **Apps hosted on the fleet do not need this** — declare `secrets:` in `OpenTofu inventory` (§4) and they arrive as plain env vars.
 
 ---
 
@@ -183,7 +184,7 @@ Self-hosted Turborepo remote cache (Turbo's standard HTTP API, Bearer auth). Onl
 | `TURBO_LOG_ORDER` | optional |  | Turbo log order (e.g. stream) |
 | `TURBO_TELEMETRY_DISABLED` | optional |  | Set to 1 to disable Turbo telemetry |
 
-**Local:** with `.vault.yaml` pointing at `personal`, `vault run -- turbo run build` picks everything up. Using a separate Vault project? The human copies the keys from `crvouga/workspace` with `bun run seed:turbo-client -- --target-project <project> --all-configs`.
+**Local:** with `.vault.yaml` pointing at `personal`, `vault run -- turbo run build` picks everything up. Using a separate Vault project? The human copies the keys from `crvouga/workspace` with `bun run infra:vault apply`.
 
 **CI:** load the keys with the OIDC step from §1 and expose them as job env:
 
@@ -235,7 +236,7 @@ Shared buckets, one per Vault config; apps partition them by key prefix.
 - Read the bucket from `S3_BUCKET`; never hardcode bucket names. dev vs prd is selected purely by the Vault config you run with.
 - Use path-style addressing: `${S3_ENDPOINT}/${S3_BUCKET}/${key}`.
 - Buckets are private. Serve objects through your app (or presigned URLs), never public bucket URLs.
-- Do not create buckets or R2 tokens; provisioning lives in `crvouga/workspace` (`bun run provision-r2`).
+- Do not create buckets or R2 tokens; provisioning lives in `crvouga/workspace` (`bun run infra apply`).
 
 **Clients**
 
@@ -279,15 +280,15 @@ Recommended shape: hide the SDK behind a small interface — `get(key) → {body
 
 ## 4. Hosting on the managed fleet
 
-`crvouga/workspace` hosts apps on Railway (project `Workspace`, region `us-east4`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by reconcile. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
+`crvouga/workspace` hosts apps on Railway (project `Workspace`, region `us-west2`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by OpenTofu. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
 
 ### Contract your project must meet
 
 - **Dockerized.** A `Dockerfile` (multi-stage; build tools in the build stage, minimal runtime stage) that builds with plain `docker build -f <dockerfile> <context>` — no build args or secrets required. The build must run in CI for `linux/amd64`.
-- **Prebuilt image.** Built and pushed only by the shared publish workflow below, as `ghcr.io/crvouga/chrisvouga-<id>:<git-sha>` and `:latest`. Never enable Railway's GitHub/Nixpacks builds, never run `railway up`, never push images by hand. The package is made public automatically.
-- **One port.** The container listens on `0.0.0.0:<port>` and that port equals `port` in `services.yaml`. Read `PORT` from env (the fleet sets it via `env:`) with the same default in code.
+- **Prebuilt image.** Built and pushed only by the shared publish workflow below, as `ghcr.io/crvouga/chrisvouga-<id>:<git-sha>` and `:latest`. Never enable Railway's GitHub/Nixpacks builds, never run `railway up`, never push images by hand. Railway pulls the public GHCR image selected by OpenTofu.
+- **One port.** The container listens on `0.0.0.0:<port>` and that port equals `port` in `OpenTofu inventory`. Read `PORT` from env (the fleet sets it via `env:`) with the same default in code.
 - **Health check.** `GET <health_path>` (default `/`) returns 2xx within seconds of boot, without auth and without depending on third-party services. Deploys that fail it are marked failed.
-- **Config from env only.** Runtime secrets are injected by the fleet from Vault as env vars (`secrets:` in `services.yaml`). Nothing secret in the image, repo, or Dockerfile; no `.env` files read in production. Fail fast at boot with a clear message naming any missing var.
+- **Config from env only.** Runtime secrets are injected by the fleet from Vault as env vars (`secrets:` in `OpenTofu inventory`). Nothing secret in the image, repo, or Dockerfile; no `.env` files read in production. Fail fast at boot with a clear message naming any missing var.
 - **Stateless.** Containers can be replaced at any time: no local disk state (use Postgres via `DATABASE_URL` or the object store), logs to stdout/stderr, handle `SIGTERM` gracefully.
 - **Small and reproducible.** Pin base images (e.g. `node:22-bookworm-slim`, `oven/bun:1.3`, `nginx:alpine`), commit a lockfile and install with it frozen, and add a `.dockerignore` (`node_modules`, `.git`, `.env*`, build output).
 
@@ -328,7 +329,7 @@ Verify locally before wiring CI: `docker build -t app . && docker run --rm -p 80
 
 ### Step 1 — open a hosting request issue (on `crvouga/workspace`)
 
-You cannot add a service from another repo — the fleet only runs what `packages/infra/services.yaml` in `crvouga/workspace` declares, and an agent working there adds it. Your job is to hand that agent **everything** it needs in one GitHub issue, so it never has to open your repo to guess: where the image lives, how to run it, which secrets it needs, and how the project should appear on the portfolio at `https://www.chrisvouga.dev`.
+You cannot add a service from another repo — the fleet only runs what `packages/infra/tofu/modules/inventory/inventory.tf.json` in `crvouga/workspace` declares, and an agent working there adds it. Your job is to hand that agent **everything** it needs in one GitHub issue, so it never has to open your repo to guess: where the image lives, how to run it, which secrets it needs, and how the project should appear on the portfolio at `https://www.chrisvouga.dev`.
 
 1. Meet the contract above and verify the image locally (`docker build` + `docker run` + `curl` the health path). Do not open the issue until that works.
 2. Commit the publish workflow (Step 3) in the same change, so the image already exists on GHCR when the infra agent deploys it. Until the service entry lands, the deploy step in `crvouga/workspace` fails with "service id not found" — that is expected.
@@ -354,7 +355,7 @@ Issue body — copy it verbatim and replace every `<…>`:
 
 | Field                | Value                                                                                   |
 | -------------------- | --------------------------------------------------------------------------------------- |
-| Service id           | `<id>` — kebab-case, unique in `services.yaml`; becomes the Railway name and GHCR name  |
+| Service id           | `<id>` — kebab-case, unique in `OpenTofu inventory`; becomes the Railway name and GHCR name  |
 | Summary              | <one sentence: what the app is and who uses it>                                         |
 | Source repo          | `<owner>/<name>` (<public/private>), default branch `<main>`                            |
 | Source code URL      | <https://github.com/owner/name or …/tree/main/path for a monorepo package>              |
@@ -437,26 +438,30 @@ Portfolio topics (use these exact keys; a new topic needs an icon, so ask for it
 
 ### Step 2 — the service entry (added in `crvouga/workspace` from your issue)
 
-The infra agent turns your issue into an entry like this in `packages/infra/services.yaml` (when you are working inside `crvouga/workspace` yourself, add it and run `bun run reconcile` to review the plan). Use it to check that your issue answers every field:
+The infra agent turns your issue into an entry like this in `packages/infra/tofu/modules/inventory/inventory.tf.json` (when you are working inside `crvouga/workspace` yourself, add it and run `bun run infra:fleet plan` to review the plan). Use it to check that your issue answers every field:
 
-```yaml
-- id: my-app
-  kind: railway
-  hostname: my-app.chrisvouga.dev
-  github_repo: crvouga/my-app
-  source_code_url: https://github.com/crvouga/my-app
-  dockerfile: ./Dockerfile
-  build_context: .
-  port: 8080
-  health_check: true
-  health_path: /health
-  ghcr:
-    visibility: public
-  env:
-    PORT: "8080"
-  secrets:
-    - name: DATABASE_URL
-      source: vault
+```json
+{
+  "id": "my-app",
+  "kind": "railway",
+  "hostname": "my-app.chrisvouga.dev",
+  "github_repo": "crvouga/my-app",
+  "source_code_url": "https://github.com/crvouga/my-app",
+  "dockerfile": "./Dockerfile",
+  "build_context": ".",
+  "port": 8080,
+  "health_check": true,
+  "health_path": "/health",
+  "env": {
+    "PORT": "8080"
+  },
+  "secrets": [
+    {
+      "name": "DATABASE_URL",
+      "source": "vault"
+    }
+  ]
+}
 ```
 
 | Field             | Meaning                                                                                         |
@@ -476,10 +481,10 @@ The infra agent turns your issue into an entry like this in `packages/infra/serv
 
 ### Step 3 — add the publish workflow (in your repo)
 
-Commit exactly this as `.github/workflows/publish.yml` (from `crvouga/workspace`, `bun run rollout-publish -- --repo <owner/name>` generates and pushes it for every service of that repo). If the repo's default branch is not `main`, change the trigger branch:
+Commit exactly this as `.github/workflows/publish.yml` (from `crvouga/workspace`, `bun run infra apply` generates and pushes it for every service of that repo). If the repo's default branch is not `main`, change the trigger branch:
 
 ```yaml
-# AUTO-GENERATED by infra/scripts/rollout-publish-workflows.ts — do not edit.
+# Managed by OpenTofu github_repository_file.
 name: Publish image
 
 on:
@@ -494,6 +499,7 @@ permissions:
   pull-requests: read
 
 jobs:
+
   my_app:
     uses: crvouga/workspace/.github/workflows/ci.yml@main
     secrets:
@@ -512,21 +518,21 @@ It calls `crvouga/workspace`'s `ci.yml` as a reusable workflow. Inputs:
 
 | Input | Required | Default | Meaning |
 | --- | --- | --- | --- |
-| `service_id` | yes |  | Service id matching services.yaml (e.g. portfolio, todo-app). |
+| `service_id` | yes |  | Service id matching OpenTofu inventory (e.g. portfolio, todo-app). |
 | `dockerfile` |  | `./Dockerfile` | Path to Dockerfile relative to context. |
 | `context` |  | `.` | Docker build context. |
 | `image_owner` |  | `crvouga` | ghcr.io owner. |
-| `image_prefix` |  | `chrisvouga` | GHCR package prefix (from services.yaml image_prefix). |
+| `image_prefix` |  | `chrisvouga` | GHCR package prefix (from OpenTofu inventory image_prefix). |
 | `infra_github_repo` |  | `crvouga/workspace` | Infra repo owner/name for deploy dispatch. |
 | `notify_deploy` |  | `true` | POST repository_dispatch to infra after push. Set false when chaining deploy. |
 
-Caller secrets: `CALLER_GITHUB_TOKEN` (pass `github.token`; used to push to GHCR) and `DEPLOY_DISPATCH_TOKEN` (an org-level secret on `crvouga` with `repo` scope on `crvouga/workspace`; if missing, the human runs `GITHUB_TOKEN_SUPER=… bun run rollout-publish -- --repo <owner/name> --set-org-dispatch-secret`).
+Caller secrets: `CALLER_GITHUB_TOKEN` (pass `github.token`; used to push to GHCR) and `DEPLOY_DISPATCH_TOKEN` (an repository secret managed by OpenTofu with `repo` scope on `crvouga/workspace`; if missing, the human runs `GITHUB_TOKEN_SUPER=… bun run infra apply --set-org-dispatch-secret`).
 
 ### What happens on every push to `main`
 
 1. Your repo's publish job builds the Dockerfile and pushes `ghcr.io/crvouga/chrisvouga-<id>:<sha>` + `:latest`.
 2. It sends `repository_dispatch` `deploy-service` with `{"id": "<id>", "image_tag": "<sha>"}` to `crvouga/workspace`.
-3. `crvouga/workspace` CI reconciles DNS / Railway settings from `services.yaml`, syncs the declared Vault secrets into the service, deploys the image at that SHA, and health-checks `https://<hostname><health_path>`.
+3. `crvouga/workspace` CI applies OpenTofu DNS / Railway resources from `OpenTofu inventory`, syncs the declared Vault secrets into the service, deploys the image at that SHA, and health-checks `https://<hostname><health_path>`.
 
 Check it: `gh run list -R crvouga/workspace --workflow ci.yml --limit 3`, then `curl -fsS https://<hostname><health_path>`. Never redeploy from the Railway dashboard; a human can redeploy with `gh workflow run ci.yml -R crvouga/workspace -f service_id=<id> -f image_tag=<sha>`.
 
@@ -543,7 +549,7 @@ Working examples to copy from — each links to its source repo:
 | `headless-combobox-svelte-example` | https://svelte-headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `example/svelte/Dockerfile` (`example/svelte`) | 80 | `/` |
 | `headless-combobox-docs` | https://headlesscombobox.chrisvouga.dev | [crvouga/headless-combobox](https://github.com/crvouga/headless-combobox) | `./Dockerfile` (`.`) | 80 | `/` |
 | `todo-app` | https://todo.chrisvouga.dev | [crvouga/todo-v1](https://github.com/crvouga/todo-v1) | `./Dockerfile` (`.`) | 8080 | `/` |
-| `image-service` | https://imageservice.chrisvouga.dev | [crvouga/image-service](https://github.com/crvouga/image-service) | `./Dockerfile` (`.`) | 80 | `/login/send-link` |
+| `image-service` | https://imageservice.chrisvouga.dev | [crvouga/image-service](https://github.com/crvouga/image-service) | `./Dockerfile` (`.`) | 80 | `/login/send_link` |
 | `connect-four` | https://connectfour.chrisvouga.dev | [crvouga/connect-four](https://github.com/crvouga/connect-four) | `./Dockerfile` (`.`) | 8080 | `/` |
 | `anime-blog` | https://anime.chrisvouga.dev | [crvouga/anime](https://github.com/crvouga/anime) | `./Dockerfile` (`.`) | 80 | `/` |
 | `snake-game` | https://snake.chrisvouga.dev | [crvouga/snake](https://github.com/crvouga/snake) | `./Dockerfile` (`.`) | 80 | `/` |
@@ -564,14 +570,14 @@ Working examples to copy from — each links to its source repo:
 | `vault run`: permission denied / 403           | Token expired — the human runs `vault login …`                                                                                 |
 | Vault HTTP 503                                 | Sealed (restart in progress) — wait and retry; the human can run `gh workflow run ci.yml -R crvouga/workspace -f unseal_only=true` |
 | OIDC: audience error                           | Missing `jwtGithubAudience: https://vault.chrisvouga.dev`                                                                                     |
-| OIDC: role / bound claim error                 | Repo not `crvouga/*`, or the run is not on `refs/heads/main` — see §1 CI                                                 |
+| OIDC: role / bound claim error                 | Repository or optional ref claim does not match the declared role — see §1 CI                                                 |
 | Turbo: 401 from cache                          | `TURBO_TOKEN` missing or wrong in that environment                                                                             |
 | Turbo: no remote hits                          | `TURBO_API` / `TURBO_CACHE` not set where `turbo` runs; check `--cache` flags                                                  |
 | R2: `SignatureDoesNotMatch`                    | Wrong secret key, region ≠ `auto`, or virtual-host addressing — use path-style                                                 |
 | R2: `NoSuchBucket`                             | `S3_BUCKET` does not match the config's bucket                                                                                 |
 | Publish: `id-token` / permissions error        | The caller workflow must grant `contents: read`, `packages: write`, `id-token: write` (Step 3 does)                            |
 | Publish: `DEPLOY_DISPATCH_TOKEN is not set`    | Org secret missing — see Step 3                                                                                                |
-| Deploy: service id not found                   | No `services.yaml` entry for that `service_id` yet — open the Step 1 issue                                                     |
+| Deploy: service id not found                   | No `OpenTofu inventory` entry for that `service_id` yet — open the Step 1 issue                                                     |
 | Deploy: health check fails                     | Container not listening on `port`, or `health_path` is not 2xx — reproduce with `docker run` locally                           |
 
 ---
@@ -580,10 +586,10 @@ Working examples to copy from — each links to its source repo:
 
 Hosting requests are issues titled `[hosting] <id> — …` (`gh issue list -R crvouga/workspace --search "[hosting] in:title" --state open`). Work one issue per branch and PR:
 
-1. **Validate the request.** Every field is filled; the id and hostname are unused in [`packages/infra/services.yaml`](https://github.com/crvouga/workspace/blob/main/packages/infra/services.yaml); the image reference exists (`docker manifest inspect <ref>` or the GHCR package page); no secret values appear anywhere in the issue (if one does, tell the human to rotate it and edit the issue). Ask for anything missing in an issue comment and stop — never guess a port, health path or secret.
-2. **Declare the service.** Add the entry to `services:` in `services.yaml` (fields as in Step 2; `image:` only for an external image). For each new secret, add it to `vault.kv_keys` with `configs` and `used_by: [<id>]`, then tell the human the exact `vault kv patch secret/personal/<config> NAME=…` commands — never write values yourself.
-3. **Plan.** `bun run reconcile` (dry run) and check the plan only adds this service, its DNS record and its variable bindings.
-4. **Publish workflow.** If the issue says it is not committed yet, `bun run rollout-publish -- --repo <owner/name>` generates it (ask the human before pushing to another repo).
+1. **Validate the request.** Every field is filled; the id and hostname are unused in [`packages/infra/tofu/modules/inventory/inventory.tf.json`](https://github.com/crvouga/workspace/blob/main/packages/infra/tofu/modules/inventory/inventory.tf.json); the image reference exists (`docker manifest inspect <ref>` or the GHCR package page); no secret values appear anywhere in the issue (if one does, tell the human to rotate it and edit the issue). Ask for anything missing in an issue comment and stop — never guess a port, health path or secret.
+2. **Declare the service.** Add the entry to `locals.inventory.services` in the OpenTofu JSON definition (fields as in Step 2; `image:` only for an external image). For each new secret, add it to `vault.kv_keys` with `configs` and `used_by: [<id>]`, then tell the human the required OpenTofu vault secrets input changes — never write values yourself.
+3. **Plan.** `bun run infra:fleet plan` (dry run) and check the plan only adds this service, its DNS record and its variable bindings.
+4. **Publish workflow.** If the issue says it is not committed yet, `bun run infra apply` generates it (ask the human before pushing to another repo).
 5. **Portfolio.** When the issue asks for a listing, add a `Project` to [`packages/portfolio/src/content/projects/entries-part-2.ts`](https://github.com/crvouga/workspace/blob/main/packages/portfolio/src/content/projects/entries-part-2.ts) (main list; append at the end) or [`packages/portfolio/src/content/projects/entries-archive.ts`](https://github.com/crvouga/workspace/blob/main/packages/portfolio/src/content/projects/entries-archive.ts) (archive), following [`packages/portfolio/src/content/projects/types.ts`](https://github.com/crvouga/workspace/blob/main/packages/portfolio/src/content/projects/types.ts): `deployment: { t: 'public', url: 'https://<hostname>' }`, `code`, `description`, `topics` from [`packages/portfolio/src/content/topic.ts`](https://github.com/crvouga/workspace/blob/main/packages/portfolio/src/content/topic.ts), and `imageSrc` / `galleryImageSrc` set to `/<id>-screenshot.optimized.webp`. Once the service is live, the human runs `bun run --filter @pkgs/portfolio gen` locally to capture the screenshot into `assets/` and its optimized derivative into `public/` (Playwright; never in CI) — commit both.
 6. **Regenerate and check.** `bun run llms:sync` (the fleet table changes), then `bun run check`.
 7. **Ship.** Open the PR with `Closes #<issue>` in the body. After merge, watch CI (`gh run list -R crvouga/workspace --workflow ci.yml --limit 3`), confirm `curl -fsS https://<hostname><health_path>`, and comment the live URL on the issue. If the deploy failed only because the entry was missing, redeploy with `gh workflow run ci.yml -R crvouga/workspace -f service_id=<id> -f image_tag=<sha>`.
@@ -592,4 +598,4 @@ Hosting requests are issues titled `[hosting] <id> — …` (`gh issue list -R c
 
 ## Maintaining this file (agents working inside `crvouga/workspace`)
 
-`llms.txt` is generated — never edit it by hand. Prose lives in [`scripts/llms-txt.template.md`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.template.md); values, tables and the publish workflow come from [`packages/infra/services.yaml`](https://github.com/crvouga/workspace/blob/main/packages/infra/services.yaml), [`.github/workflows/ci.yml`](https://github.com/crvouga/workspace/blob/main/.github/workflows/ci.yml), [`packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`](https://github.com/crvouga/workspace/blob/main/packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts) and [`packages/infra/lib/publish-workflow.ts`](https://github.com/crvouga/workspace/blob/main/packages/infra/lib/publish-workflow.ts) via [`scripts/llms-txt.ts`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.ts). Run `bun run llms:sync` after changing any of them; `bun run check:llms` (part of `bun run check`) fails CI on drift, on a dangling file reference, or on an unknown `bun run` script.
+`llms.txt` is generated — never edit it by hand. Prose lives in [`scripts/llms-txt.template.md`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.template.md); values, tables and the publish workflow come from [`packages/infra/tofu/modules/inventory/inventory.tf.json`](https://github.com/crvouga/workspace/blob/main/packages/infra/tofu/modules/inventory/inventory.tf.json), [`.github/workflows/ci.yml`](https://github.com/crvouga/workspace/blob/main/.github/workflows/ci.yml), [`packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`](https://github.com/crvouga/workspace/blob/main/packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts) and [`packages/infra/lib/publish-workflow.ts`](https://github.com/crvouga/workspace/blob/main/packages/infra/lib/publish-workflow.ts) via [`scripts/llms-txt.ts`](https://github.com/crvouga/workspace/blob/main/scripts/llms-txt.ts). Run `bun run llms:sync` after changing any of them; `bun run check:llms` (part of `bun run check`) fails CI on drift, on a dangling file reference, or on an unknown `bun run` script.

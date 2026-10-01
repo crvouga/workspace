@@ -1,9 +1,7 @@
 /**
- * Desired-state schema for packages/infra/services.yaml.
- * Every infrastructure resource is declared here; reconcile converges to it.
+ * Desired-state schema for OpenTofu inventory.
+ * Every infrastructure resource is declared here; OpenTofu manages its resources.
  */
-export type ResourceDurability = "stateless" | "stateful";
-
 export type SecretSource =
   | { readonly source: "vault" }
   | { readonly source: "env" }
@@ -15,12 +13,6 @@ export type SecretSpec = {
   readonly name: string;
 } & SecretSource;
 
-export type AliasSpec = {
-  readonly zone: string;
-  readonly hosts: readonly string[];
-  readonly target: string;
-};
-
 export type CloudflareRedirectSpec = {
   readonly from: string;
   /** Prefer to_service; hostname used when set. */
@@ -31,7 +23,6 @@ export type CloudflareRedirectSpec = {
 
 export type CloudflareDnsConfig = {
   readonly proxied?: boolean;
-  readonly prune_orphans?: boolean;
 };
 
 export type CloudflareConfig = {
@@ -41,35 +32,22 @@ export type CloudflareConfig = {
   readonly redirects?: readonly CloudflareRedirectSpec[];
 };
 
-export type RailwayVolumeConfig = {
-  readonly name: string;
-  readonly mount_path: string;
-  readonly size_gb?: number;
-};
-
 export type RailwayServiceConfig = {
   readonly sleep?: boolean;
   readonly public?: boolean;
   readonly health_path?: string;
   readonly health_check?: boolean;
   readonly start_command?: string;
-  readonly volume?: RailwayVolumeConfig;
   readonly replicas?: number;
 };
 
 export type RailwayPlatformConfig = {
-  /** Desired Railway project name. Reconcile renames the live project to this. */
+  /** OpenTofu-managed Railway project name. */
   readonly project: string;
   readonly environment: string;
   readonly region: string;
   readonly service_prefix?: string;
   readonly replicas?: number;
-  readonly cleanup_statuses?: readonly string[];
-  readonly ghcr_credentials?: boolean;
-};
-
-export type GhcrServiceConfig = {
-  readonly visibility?: "public" | "private";
 };
 
 export type ServiceKind = "railway" | "tunnel";
@@ -81,7 +59,6 @@ export type ServiceSpec = {
   readonly internal?: boolean;
   readonly standalone?: boolean;
   readonly railway?: RailwayServiceConfig;
-  readonly ghcr?: GhcrServiceConfig;
   readonly github_repo?: string;
   readonly source_code_url?: string;
   readonly dockerfile?: string;
@@ -104,16 +81,10 @@ export type VaultKvConfig = {
 export type VaultInitConfig = {
   readonly key_shares: number;
   readonly key_threshold: number;
-  readonly keys_store?: string;
 };
 
 export type VaultUnsealConfig = {
   readonly on_deploy?: boolean;
-};
-
-export type VaultMountSpec = {
-  readonly type: string;
-  readonly path: string;
 };
 
 export type VaultPolicySpec = {
@@ -129,6 +100,8 @@ export type VaultJwtRoleSpec = {
   readonly ttl?: string;
   readonly max_ttl?: string;
   readonly audience?: string;
+  readonly user_claim: string;
+  readonly no_default_policy: boolean;
 };
 
 export type VaultJwtAuthSpec = {
@@ -169,24 +142,15 @@ export type VaultConfig = {
   readonly kv: VaultKvConfig;
   readonly init?: VaultInitConfig;
   readonly unseal?: VaultUnsealConfig;
-  readonly mounts?: readonly VaultMountSpec[];
   readonly policies?: readonly VaultPolicySpec[];
   readonly auth?: VaultAuthConfig;
   readonly tokens?: readonly VaultTokenSpec[];
   readonly kv_keys?: readonly VaultKvKeySpec[];
-  readonly readiness?: { readonly wait_unsealed?: boolean };
 };
-
-export type GithubSecretSpec = {
-  readonly name: string;
-} & SecretSource;
 
 export type GithubConfig = {
   readonly org: string;
   readonly infra_repo: string;
-  readonly skip_rollout_repos?: readonly string[];
-  readonly org_secrets?: readonly GithubSecretSpec[];
-  readonly repo_secrets?: readonly GithubSecretSpec[];
 };
 
 export type NeonProjectSpec = {
@@ -194,7 +158,6 @@ export type NeonProjectSpec = {
   readonly neon_project_id?: string;
   readonly purpose: string;
   readonly secret_name: string;
-  readonly migrations?: string;
 };
 
 export type NeonConfig = {
@@ -229,18 +192,7 @@ export type TunnelSpec = {
   readonly secrets?: readonly string[];
 };
 
-export type DigitalOceanDestroySpec = {
-  readonly droplet: string;
-  readonly project: string;
-  readonly purge_vault_keys?: readonly string[];
-};
-
-export type LegacyConfig = {
-  readonly fly_destroy?: readonly string[];
-  readonly digitalocean_destroy?: readonly DigitalOceanDestroySpec[];
-};
-
-/** Full desired-state document (services.yaml). */
+/** OpenTofu inventory consumed by documentation and builds. */
 export type InfraConfig = {
   readonly zone: string;
   readonly image_owner: string;
@@ -248,8 +200,6 @@ export type InfraConfig = {
   readonly image_prefix?: string;
   /** @deprecated Prefer github.infra_repo */
   readonly infra_github_repo?: string;
-  /** @deprecated Prefer github.skip_rollout_repos */
-  readonly skip_rollout_repos?: readonly string[];
   readonly cloudflare?: CloudflareConfig;
   readonly railway: RailwayPlatformConfig;
   readonly github?: GithubConfig;
@@ -257,41 +207,8 @@ export type InfraConfig = {
   readonly neon?: NeonConfig;
   readonly object_stores?: readonly ObjectStoreSpec[];
   readonly tunnels?: readonly TunnelSpec[];
-  readonly legacy?: LegacyConfig;
-  readonly aliases?: readonly AliasSpec[];
   readonly services: readonly ServiceSpec[];
 };
 
 /** @deprecated Alias — use InfraConfig */
 export type ServicesConfig = InfraConfig;
-
-/** Resource kinds known to the reconcile engine. */
-export const RESOURCE_DURABILITY = {
-  cloudflare_dns_record: "stateless",
-  cloudflare_redirect_rule: "stateless",
-  cloudflare_ssl_mode: "stateless",
-  railway_custom_domain: "stateless",
-  railway_variable: "stateless",
-  railway_deployment_cleanup: "stateless",
-  ghcr_visibility: "stateless",
-  vault_policy: "stateless",
-  vault_auth_config: "stateless",
-  github_oidc_binding: "stateless",
-  tunnel_dns_route: "stateless",
-  railway_service: "stateful",
-  railway_project: "stateful",
-  railway_volume: "stateful",
-  neon_database: "stateful",
-  object_store_bucket: "stateful",
-  vault_kv_data: "stateful",
-  vault_seal_state: "stateful",
-  cloudflare_tunnel: "stateful",
-  legacy_fly_app: "stateful",
-  legacy_digitalocean_droplet: "stateful",
-} as const satisfies Record<string, ResourceDurability>;
-
-export type ResourceKind = keyof typeof RESOURCE_DURABILITY;
-
-export function durabilityOf(kind: ResourceKind): ResourceDurability {
-  return RESOURCE_DURABILITY[kind];
-}

@@ -2,7 +2,7 @@
  * Keeps the deploy-time `VAULT_TOKEN` alive for as long as the process runs.
  *
  * The runtime token is *periodic* (see `vault.tokens` in
- * `packages/infra/services.yaml`): its TTL resets to the period on every
+ * `packages/infra/tofu/modules/inventory/inventory.tf.json`): its TTL resets to the period on every
  * `auth/token/renew-self`, but it still expires if nobody renews it. Without
  * this loop the cache silently dies one period after the last deploy — which
  * is exactly how it went down before. Renewing from inside the server means

@@ -14,8 +14,6 @@
     "check:vault-secrets": "bun run scripts/check-vault-secrets.ts",
     "dev": "bun --env-file=.env run src/server.ts",
     "lint": "eslint src --max-warnings 0",
-    "seed": "bun run scripts/ensure-vault-secrets.ts",
-    "seed:turbo-client": "bun run scripts/seed-turbo-client-secrets.ts",
     "setup": "bun run scripts/setup-dev-vars.ts",
     "smoke": "bun run scripts/smoke-test-cache.ts",
     "smoke:secrets": "bun run scripts/smoke-test-secrets.ts",
