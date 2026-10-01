@@ -3,8 +3,23 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ARCHIVE_PROJECTS, PROJECTS } from '../content/project';
+import { VISIBLE_PROJECTS } from './projects-view';
 
 describe('project registry', () => {
+  test('homepage projects lead with the strongest hiring evidence', () => {
+    expect(VISIBLE_PROJECTS.map((project) => project.id)).toEqual([
+      'gamezilla',
+      'geviti-app',
+      'triangulator',
+      'study-hall',
+      'mockingbird',
+      'headless-combobox',
+    ]);
+    expect(
+      PROJECTS.some((project) => project.id === 'infra-control-plane')
+    ).toBe(false);
+  });
+
   // Nothing else enforces this, and a `new Map` keyed by id would silently
   // keep the last duplicate.
   test('project ids are unique across the registry and the archive', () => {
