@@ -18,7 +18,9 @@ All state and saved plans are encrypted with OpenTofu's PBKDF2/AES-GCM support. 
 
 ## Existing fleet migration
 
-The committed import blocks identify Cloudflare resources discovered read-only. **They are adoption declarations, not evidence that production has been imported or applied.** Complete the remaining imports before enabling the new CI apply path. In particular, obtain the Neon API key/project ID, Railway project/service identities, the original OpenBao initialization output and existing userpass passwords. A provider schema check cannot verify these values.
+Production adoption completed on 2026-10-01. All five roots were imported or adopted, applied, and verified with zero-change plans before enabling `TOFU_MIGRATION_READY`. Existing service identities, image revisions, database contents and the admin password were preserved. The original initialization record and encrypted bootstrap state are backed up outside the repository.
+
+The steps below document adoption for recovery or another environment. Import blocks declare identities; verify the actual state and plans before enabling CI in any new environment. Obtain the original OpenBao initialization record and existing credentials securely, and preserve them throughout adoption.
 
 1. Install OpenTofu 1.13.0 and the [Atlas CLI](https://atlasgo.io/getting-started). Atlas uses a local disposable PostgreSQL dev database (`schema_dev_url`), defaulting to Docker's PostgreSQL 18. Supply a suitable dev URL if Docker is unavailable.
 2. Use a password manager to create a random state passphrase of at least 32 characters. Supply `TF_VAR_state_passphrase`, `TF_VAR_cloudflare_account_id` and `TF_VAR_cloudflare_api_token` without committing values.
