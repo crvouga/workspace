@@ -117,8 +117,8 @@ export async function prCommand(flags: Flags): Promise<Outcome> {
   if (branch === TRUNK_BRANCH)
     throw usageError(`cannot open a PR from ${TRUNK_BRANCH}`);
   let pr = await viewPr(branch);
-  const created = pr === null;
-  if (!pr) pr = await createPr(branch, flags);
+  const created = pr === null || pr.state !== 'OPEN';
+  if (!pr || pr.state !== 'OPEN') pr = await createPr(branch, flags);
   if (pr.baseRefName !== TRUNK_BRANCH) {
     throw new CommandError({
       step: 'pr',

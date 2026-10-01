@@ -13,6 +13,11 @@ data "terraform_remote_state" "foundation" {
   config  = merge(var.state_backend, { key = "foundation.tfstate" })
 }
 
+data "terraform_remote_state" "bootstrap" {
+  backend = "s3"
+  config  = merge(var.state_backend, { key = "bootstrap.tfstate" })
+}
+
 data "vault_kv_secret_v2" "production" {
   mount = local.config.vault.kv.mount
   name  = "${local.config.vault.kv.project}/prd"
