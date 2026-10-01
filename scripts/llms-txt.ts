@@ -120,7 +120,7 @@ function registrySeed(key: string): string | undefined {
 function service(ctx: Context, id: string): ServiceSpec {
   return need(
     ctx.config.services.find((s) => s.id === id),
-    `service "${id}" in services.yaml`
+    `service "${id}" in OpenTofu inventory`
   );
 }
 
@@ -172,11 +172,7 @@ function values(ctx: Context): Record<string, string> {
   const token = runtimeToken(ctx);
   const turbo = service(ctx, 'turborepo');
   const org = need(config.github?.org, 'github.org');
-  const dispatchSecret = need(
-    config.github?.org_secrets?.find((s) => s.name === 'DEPLOY_DISPATCH_TOKEN')
-      ?.name,
-    'github.org_secrets DEPLOY_DISPATCH_TOKEN'
-  );
+  const dispatchSecret = 'DEPLOY_DISPATCH_TOKEN';
   for (const name of [dispatchSecret, 'CALLER_GITHUB_TOKEN']) {
     need(
       ci.on.workflow_call.secrets[name],
@@ -200,7 +196,9 @@ function values(ctx: Context): Record<string, string> {
     jwtPath,
     jwtRole: role.name,
     jwtPolicy: role.policy,
-    jwtBoundRef: need(role.bound_ref, 'jwt role bound_ref'),
+    jwtRefBinding: role.bound_ref
+      ? `The role additionally requires ref \`${role.bound_ref}\`.`
+      : 'The existing role permits branch and pull-request jobs in these repositories.',
     jwtTtl: need(role.ttl, 'jwt role ttl'),
     runtimeTokenPolicy: token.policy,
     runtimeTokenPeriod: token.period,
@@ -236,16 +234,15 @@ function exampleService(ctx: Context): Record<string, unknown> {
     port: 8080,
     health_check: true,
     health_path: '/health',
-    ghcr: { visibility: 'public' },
     env: { PORT: '8080' },
     secrets: [{ name: 'DATABASE_URL', source: 'vault' }],
   };
   // Every field in the example must be one the real fleet uses, so a renamed
-  // services.yaml field breaks this check instead of silently misleading.
+  // OpenTofu inventory field breaks this check instead of silently misleading.
   const used = new Set(config.services.flatMap((s) => Object.keys(s)));
   for (const key of Object.keys(example)) {
     if (!used.has(key))
-      fail(`example service field "${key}" is unused in services.yaml`);
+      fail(`example service field "${key}" is unused in OpenTofu inventory`);
   }
   return example;
 }
@@ -360,7 +357,7 @@ function blocks(ctx: Context): Record<string, string> {
       ['Var', 'Meaning'],
       s3Keys.map((k) => [code(k), registryHint(k)])
     ),
-    serviceExample: stringifyYaml([exampleService(ctx)]).trimEnd(),
+    serviceExample: JSON.stringify(exampleService(ctx), null, 2),
     publishWorkflow: renderPublishWorkflow(
       [
         {
@@ -454,7 +451,9 @@ function render(ctx: Context): string {
 
 export function renderLlmsTxt(): string {
   return render({
-    config: loadServicesConfig(join(ROOT, 'packages/infra/services.yaml')),
+    config: loadServicesConfig(
+      join(ROOT, 'packages/infra/tofu/modules/inventory/inventory.tf.json')
+    ),
     ci: parseYaml(read('.github/workflows/ci.yml')) as CiWorkflow,
     scripts: (
       JSON.parse(read('package.json')) as { scripts: Record<string, string> }

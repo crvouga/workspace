@@ -1,0 +1,892 @@
+{
+  "locals": {
+    "inventory": {
+      "zone": "chrisvouga.dev",
+      "image_owner": "crvouga",
+      "image_prefix": "chrisvouga",
+      "default_image_tag": "latest",
+      "cloudflare": {
+        "ssl_mode": "strict",
+        "placeholder_ipv4": "192.0.2.1",
+        "dns": {
+          "proxied": false,
+          "prune_orphans": true,
+          "records": {
+            "filestash.chrisvouga.dev_A": {
+              "name": "filestash.chrisvouga.dev",
+              "type": "A",
+              "content": "66.241.124.34",
+              "ttl": 1,
+              "proxied": false
+            },
+            "pgweb.chrisvouga.dev_A": {
+              "name": "pgweb.chrisvouga.dev",
+              "type": "A",
+              "content": "66.241.124.132",
+              "ttl": 1,
+              "proxied": false
+            },
+            "_acme-challenge.filestash.chrisvouga.dev_CNAME": {
+              "name": "_acme-challenge.filestash.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "filestash.chrisvouga.dev.gmyxjrn.flydns.net",
+              "ttl": 1,
+              "proxied": false
+            },
+            "_acme-challenge.pgweb.chrisvouga.dev_CNAME": {
+              "name": "_acme-challenge.pgweb.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "pgweb.chrisvouga.dev.26yr5j5.flydns.net",
+              "ttl": 1,
+              "proxied": false
+            },
+            "dozzle.chrisvouga.dev_CNAME": {
+              "name": "dozzle.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "origin.chrisvouga.dev",
+              "ttl": 1,
+              "proxied": true
+            },
+            "links.resend.chrisvouga.dev_CNAME": {
+              "name": "links.resend.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "links1.resend-dns.com",
+              "ttl": 1,
+              "proxied": true
+            },
+            "llm.chrisvouga.dev_CNAME": {
+              "name": "llm.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "c04e2181-0102-4ce2-9609-59d2749a8c4f.cfargotunnel.com",
+              "ttl": 1,
+              "proxied": true
+            },
+            "lm-studio.chrisvouga.dev_CNAME": {
+              "name": "lm-studio.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "403cc4e7-9c77-4864-bfab-02b4dcf7aa46.cfargotunnel.com",
+              "ttl": 1,
+              "proxied": true
+            },
+            "netdata.chrisvouga.dev_CNAME": {
+              "name": "netdata.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "origin.chrisvouga.dev",
+              "ttl": 1,
+              "proxied": true
+            },
+            "openai.chrisvouga.dev_CNAME": {
+              "name": "openai.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "b90278cf-8b86-43ac-8081-81579a647a3b.cfargotunnel.com",
+              "ttl": 1,
+              "proxied": true
+            },
+            "orchestrator.chrisvouga.dev_CNAME": {
+              "name": "orchestrator.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "origin.chrisvouga.dev",
+              "ttl": 1,
+              "proxied": true
+            },
+            "svelte.headlesscombobox.chrisvouga.dev_CNAME": {
+              "name": "svelte.headlesscombobox.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "origin.chrisvouga.dev",
+              "ttl": 1,
+              "proxied": true
+            },
+            "vllm.chrisvouga.dev_CNAME": {
+              "name": "vllm.chrisvouga.dev",
+              "type": "CNAME",
+              "content": "3ad67333-bc04-4125-aacb-c423edc71535.cfargotunnel.com",
+              "ttl": 1,
+              "proxied": true
+            },
+            "resend.chrisvouga.dev_MX": {
+              "name": "resend.chrisvouga.dev",
+              "type": "MX",
+              "content": "inbound-smtp.us-east-1.amazonaws.com",
+              "ttl": 3600,
+              "proxied": false,
+              "priority": 10
+            },
+            "send.resend.chrisvouga.dev_MX": {
+              "name": "send.resend.chrisvouga.dev",
+              "type": "MX",
+              "content": "feedback-smtp.us-east-1.amazonses.com",
+              "ttl": 3600,
+              "proxied": false,
+              "priority": 10
+            }
+          }
+        },
+        "redirects": [
+          {
+            "from": "chrisvouga.dev",
+            "to_service": "portfolio",
+            "status": 301
+          }
+        ],
+        "additional_tunnels": {
+          "llm": {
+            "name": "llm",
+            "config": {
+              "ingress": [
+                {
+                  "service": "http://127.0.0.1:1234",
+                  "hostname": "llm.chrisvouga.dev",
+                  "origin_request": {}
+                },
+                {
+                  "service": "http_status:404"
+                }
+              ],
+              "warp_routing": {
+                "enabled": false
+              }
+            }
+          }
+        },
+        "redirect_ruleset_name": "Redirect rules ruleset"
+      },
+      "railway": {
+        "project": "Workspace",
+        "environment": "production",
+        "region": "us-west2",
+        "replicas": 1
+      },
+      "github": {
+        "org": "crvouga",
+        "infra_repo": "crvouga/workspace",
+        "skip_rollout_repos": ["crvouga/workspace"],
+        "pr_ready": {
+          "repo_settings": {
+            "default_branch": "main",
+            "allow_merge_commit": true,
+            "allow_squash_merge": false,
+            "allow_rebase_merge": false,
+            "allow_auto_merge": true,
+            "allow_update_branch": true,
+            "delete_branch_on_merge": true,
+            "has_issues": true,
+            "has_projects": true,
+            "has_wiki": true,
+            "has_discussions": false,
+            "is_template": false,
+            "web_commit_signoff_required": false,
+            "allow_forking": true,
+            "merge_commit_title": "MERGE_MESSAGE",
+            "merge_commit_message": "PR_TITLE"
+          },
+          "ruleset": {
+            "name": "main",
+            "target": "branch",
+            "enforcement": "active",
+            "bypass_actors": [],
+            "conditions": {
+              "ref_name": {
+                "include": ["refs/heads/main"],
+                "exclude": []
+              }
+            },
+            "rules": [
+              {
+                "type": "pull_request",
+                "parameters": {
+                  "allowed_merge_methods": ["merge"],
+                  "dismiss_stale_reviews_on_push": true,
+                  "require_code_owner_review": false,
+                  "require_last_push_approval": false,
+                  "required_approving_review_count": 0,
+                  "required_review_thread_resolution": true
+                }
+              },
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": true,
+                  "required_status_checks": [
+                    {
+                      "context": "Required",
+                      "integration_id": 15368
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "deletion"
+              },
+              {
+                "type": "non_fast_forward"
+              }
+            ]
+          },
+          "legacy_ruleset_names": ["Protect main"]
+        }
+      },
+      "vault": {
+        "hostname": "vault.chrisvouga.dev",
+        "kv": {
+          "mount": "secret",
+          "project": "personal",
+          "configs": ["dev", "prd"]
+        },
+        "init": {
+          "key_shares": 3,
+          "key_threshold": 2
+        },
+        "mounts": [
+          {
+            "type": "kv-v2",
+            "path": "secret"
+          }
+        ],
+        "policies": [
+          {
+            "name": "admin",
+            "file": "packages/vault-service/config/policies/admin.hcl"
+          },
+          {
+            "name": "ci-read",
+            "file": "packages/vault-service/config/policies/ci-read.hcl"
+          },
+          {
+            "name": "personal-read",
+            "file": "packages/vault-service/config/policies/personal-read.hcl"
+          },
+          {
+            "name": "ci-write",
+            "file": "packages/vault-service/config/policies/ci-write.hcl"
+          },
+          {
+            "name": "dev-read",
+            "file": "packages/vault-service/config/policies/dev-read.hcl"
+          }
+        ],
+        "auth": {
+          "jwt": {
+            "path": "jwt",
+            "roles": [
+              {
+                "name": "github-actions",
+                "policy": "ci-read",
+                "ttl": "15m",
+                "audience": "from_vault_addr",
+                "user_claim": "actor",
+                "max_ttl": "30m",
+                "no_default_policy": true
+              }
+            ]
+          },
+          "userpass": {
+            "users": [
+              {
+                "username": "crvouga",
+                "policy": "admin",
+                "password_required": true
+              },
+              {
+                "username": "chris",
+                "policy": "admin",
+                "password_required": false
+              }
+            ]
+          }
+        },
+        "tokens": [
+          {
+            "name": "personal-runtime",
+            "policy": "personal-read",
+            "period": "768h",
+            "sink": "vault_kv.VAULT_TOKEN"
+          }
+        ],
+        "readiness": {
+          "wait_unsealed": true
+        },
+        "kv_keys": [
+          {
+            "name": "TURBO_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "TURBO_API",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "TURBO_TEAM",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "TURBO_CACHE",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"]
+          },
+          {
+            "name": "TURBO_LOG_ORDER",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo"]
+          },
+          {
+            "name": "TURBO_TELEMETRY_DISABLED",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo"]
+          },
+          {
+            "name": "S3_ENDPOINT",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "S3_REGION",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "S3_ACCESS_KEY_ID",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "S3_SECRET_ACCESS_KEY",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "S3_BUCKET",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "ci"],
+            "required": true
+          },
+          {
+            "name": "S3_ACCESS_KEY",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci"]
+          },
+          {
+            "name": "S3_SECRET_KEY",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci"]
+          },
+          {
+            "name": "VAULT_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["turborepo", "railway"],
+            "required": true
+          },
+          {
+            "name": "DATABASE_URL",
+            "configs": ["dev", "prd"],
+            "used_by": ["moviefinder", "llm-proxy", "ci"]
+          },
+          {
+            "name": "TMDB_API_READ_ACCESS_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["moviefinder"]
+          },
+          {
+            "name": "TWILIO_ACCOUNT_SID",
+            "configs": ["dev", "prd"],
+            "used_by": ["moviefinder"]
+          },
+          {
+            "name": "TWILIO_AUTH_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["moviefinder"]
+          },
+          {
+            "name": "TWILIO_SERVICE_SID",
+            "configs": ["dev", "prd"],
+            "used_by": ["moviefinder"]
+          },
+          {
+            "name": "CLOUDFLARE_API_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci", "infra"]
+          },
+          {
+            "name": "CLOUDFLARE_ACCOUNT_ID",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci", "infra"]
+          },
+          {
+            "name": "RAILWAY_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci", "infra"]
+          },
+          {
+            "name": "PORTFOLIO_GITHUB_TOKEN",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci", "portfolio"],
+            "required": true
+          },
+          {
+            "name": "OPENAI_API_KEY",
+            "configs": ["dev", "prd"],
+            "used_by": ["ci", "opencode"]
+          },
+          {
+            "name": "9ROUTER_PASSWORD",
+            "configs": ["prd"],
+            "used_by": ["9router"]
+          },
+          {
+            "name": "9ROUTER_JWT_SECRET",
+            "configs": ["prd"],
+            "used_by": ["9router"]
+          },
+          {
+            "name": "9ROUTER_API_KEY_SECRET",
+            "configs": ["prd"],
+            "used_by": ["9router"]
+          },
+          {
+            "name": "9ROUTER_MACHINE_ID_SALT",
+            "configs": ["prd"],
+            "used_by": ["9router"]
+          },
+          {
+            "name": "9ROUTER_TUNNEL_TOKEN",
+            "configs": ["prd"],
+            "used_by": ["9router"]
+          }
+        ]
+      },
+      "neon": {
+        "projects": [
+          {
+            "id": "openbao",
+            "purpose": "openbao-storage",
+            "secret_name": "DB_CONNECTION_URI",
+            "name": "personal",
+            "region_id": "aws-us-east-1",
+            "pg_version": 18,
+            "history_retention_seconds": 3600,
+            "neon_project_id": "flat-snow-95718736",
+            "branch": {
+              "name": "production",
+              "database_name": "neondb",
+              "role_name": "neondb_owner"
+            }
+          }
+        ]
+      },
+      "object_stores": [
+        {
+          "id": "development",
+          "provider": "r2",
+          "bucket": "crvouga-development",
+          "bucket_secret": "S3_BUCKET",
+          "endpoint_secret": "S3_ENDPOINT",
+          "region_secret": "S3_REGION",
+          "access_key_secret": "S3_ACCESS_KEY_ID",
+          "secret_key_secret": "S3_SECRET_ACCESS_KEY",
+          "namespaces": ["dev"]
+        },
+        {
+          "id": "production",
+          "provider": "r2",
+          "bucket": "crvouga-production",
+          "bucket_secret": "S3_BUCKET",
+          "endpoint_secret": "S3_ENDPOINT",
+          "region_secret": "S3_REGION",
+          "access_key_secret": "S3_ACCESS_KEY_ID",
+          "secret_key_secret": "S3_SECRET_ACCESS_KEY",
+          "namespaces": ["prd"]
+        }
+      ],
+      "tunnels": [
+        {
+          "id": "9router",
+          "provider": "cloudflare",
+          "name": "9router",
+          "hostname": "9router.chrisvouga.dev",
+          "local": {
+            "host": "127.0.0.1",
+            "port": 20128
+          },
+          "secrets": [
+            "9ROUTER_PASSWORD",
+            "9ROUTER_JWT_SECRET",
+            "9ROUTER_API_KEY_SECRET",
+            "9ROUTER_MACHINE_ID_SALT"
+          ]
+        }
+      ],
+      "aliases": [],
+      "services": [
+        {
+          "id": "portfolio",
+          "kind": "railway",
+          "hostname": "www.chrisvouga.dev",
+          "github_repo": "crvouga/workspace",
+          "source_code_url": "https://github.com/crvouga/workspace/tree/main/packages/portfolio",
+          "dockerfile": "packages/portfolio/Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          },
+          "secrets": [
+            {
+              "name": "PORTFOLIO_GITHUB_TOKEN",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "moviefinder-app-rust",
+          "kind": "railway",
+          "hostname": "moviefinder-app-rust.chrisvouga.dev",
+          "github_repo": "crvouga/moviefinder.app-rust",
+          "source_code_url": "https://github.com/crvouga/moviefinder.app-rust",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 3000,
+          "health_check": true,
+          "env": {
+            "PORT": "3000"
+          },
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "source": "vault"
+            },
+            {
+              "name": "TMDB_API_READ_ACCESS_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_ACCOUNT_SID",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_AUTH_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_SERVICE_SID",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "moviefinder-app-react",
+          "kind": "railway",
+          "hostname": "moviefinder-app-react.chrisvouga.dev",
+          "github_repo": "crvouga/moviefinder.app-react",
+          "source_code_url": "https://github.com/crvouga/moviefinder.app-react",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 3000,
+          "health_check": true,
+          "env": {
+            "PORT": "3000"
+          },
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "source": "vault"
+            },
+            {
+              "name": "TMDB_API_READ_ACCESS_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_ACCOUNT_SID",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_AUTH_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_SERVICE_SID",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "moviefinder-app-clojurescript",
+          "kind": "railway",
+          "hostname": "moviefinder-app-clojurescript.chrisvouga.dev",
+          "github_repo": "crvouga/moviefinder.app-clojurescript",
+          "source_code_url": "https://github.com/crvouga/moviefinder.app-clojurescript",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 9630,
+          "health_check": true,
+          "env": {
+            "PORT": "9630"
+          },
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "source": "vault"
+            },
+            {
+              "name": "TMDB_API_READ_ACCESS_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_ACCOUNT_SID",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_AUTH_TOKEN",
+              "source": "vault"
+            },
+            {
+              "name": "TWILIO_SERVICE_SID",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "headless-combobox-svelte-example",
+          "kind": "railway",
+          "hostname": "svelte-headlesscombobox.chrisvouga.dev",
+          "github_repo": "crvouga/headless-combobox",
+          "source_code_url": "https://github.com/crvouga/headless-combobox",
+          "dockerfile": "example/svelte/Dockerfile",
+          "build_context": "example/svelte",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "headless-combobox-docs",
+          "kind": "railway",
+          "hostname": "headlesscombobox.chrisvouga.dev",
+          "github_repo": "crvouga/headless-combobox",
+          "source_code_url": "https://github.com/crvouga/headless-combobox",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "todo-app",
+          "kind": "railway",
+          "hostname": "todo.chrisvouga.dev",
+          "github_repo": "crvouga/todo-v1",
+          "source_code_url": "https://github.com/crvouga/todo-v1",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 8080,
+          "health_check": true,
+          "env": {
+            "PORT": "8080"
+          }
+        },
+        {
+          "id": "image-service",
+          "kind": "railway",
+          "hostname": "imageservice.chrisvouga.dev",
+          "github_repo": "crvouga/image-service",
+          "source_code_url": "https://github.com/crvouga/image-service",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "health_path": "/login/send-link",
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "connect-four",
+          "kind": "railway",
+          "hostname": "connectfour.chrisvouga.dev",
+          "github_repo": "crvouga/connect-four",
+          "source_code_url": "https://github.com/crvouga/connect-four",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 8080,
+          "health_check": true,
+          "env": {
+            "PORT": "8080"
+          }
+        },
+        {
+          "id": "anime-blog",
+          "kind": "railway",
+          "hostname": "anime.chrisvouga.dev",
+          "github_repo": "crvouga/anime",
+          "source_code_url": "https://github.com/crvouga/anime",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "snake-game",
+          "kind": "railway",
+          "hostname": "snake.chrisvouga.dev",
+          "github_repo": "crvouga/snake",
+          "source_code_url": "https://github.com/crvouga/snake",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "match-three",
+          "kind": "railway",
+          "hostname": "matchthree.chrisvouga.dev",
+          "github_repo": "crvouga/match-three",
+          "source_code_url": "https://github.com/crvouga/match-three",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "simon-says",
+          "kind": "railway",
+          "hostname": "simonsays.chrisvouga.dev",
+          "github_repo": "crvouga/simon-says",
+          "source_code_url": "https://github.com/crvouga/simon-says",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "violets-garden",
+          "kind": "railway",
+          "hostname": "violetsgarden.chrisvouga.dev",
+          "github_repo": "crvouga/violets-garden",
+          "source_code_url": "https://github.com/crvouga/violets-garden",
+          "dockerfile": "./Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "mockingbird-docs",
+          "kind": "railway",
+          "hostname": "mockingbird.chrisvouga.dev",
+          "github_repo": "crvouga/mockingbird",
+          "source_code_url": "https://github.com/crvouga/mockingbird/tree/main/sites/docs",
+          "dockerfile": "sites/docs/Dockerfile",
+          "build_context": ".",
+          "port": 80,
+          "health_check": true,
+          "env": {
+            "PORT": "80"
+          }
+        },
+        {
+          "id": "turborepo",
+          "kind": "railway",
+          "hostname": "turborepo.chrisvouga.dev",
+          "github_repo": "crvouga/workspace",
+          "source_code_url": "https://github.com/crvouga/workspace/tree/main/packages/turborepo-remote-cache",
+          "dockerfile": "packages/turborepo-remote-cache/Dockerfile",
+          "build_context": ".",
+          "port": 8080,
+          "health_check": true,
+          "health_path": "/health",
+          "env": {
+            "PORT": "8080",
+            "VAULT_ADDR": "from_vault_addr",
+            "VAULT_PROJECT": "from_vault.kv.project",
+            "VAULT_CONFIG": "prd"
+          },
+          "secrets": [
+            {
+              "name": "VAULT_TOKEN",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "llm-proxy",
+          "kind": "railway",
+          "hostname": "llm-proxy.chrisvouga.dev",
+          "github_repo": "crvouga/llm-server",
+          "source_code_url": "https://github.com/crvouga/llm-server",
+          "dockerfile": "proxy/Dockerfile",
+          "build_context": "proxy",
+          "port": 8080,
+          "health_check": true,
+          "health_path": "/ui",
+          "env": {
+            "PORT": "8080"
+          },
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "source": "vault"
+            }
+          ]
+        },
+        {
+          "id": "vault",
+          "kind": "railway",
+          "hostname": "vault.chrisvouga.dev",
+          "standalone": true,
+          "github_repo": "crvouga/workspace",
+          "source_code_url": "https://github.com/crvouga/workspace/tree/main/packages/vault-service",
+          "dockerfile": "packages/vault-service/Dockerfile",
+          "build_context": "packages/vault-service",
+          "port": 8200,
+          "health_check": true,
+          "health_path": "/v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200",
+          "railway": {
+            "sleep": false,
+            "health_path": "/railwayhealth"
+          },
+          "env": {
+            "BAO_API_ADDR": "from_vault_addr",
+            "PORT": "8200"
+          },
+          "secrets": [
+            {
+              "name": "DB_CONNECTION_URI",
+              "source": "env"
+            }
+          ]
+        },
+        {
+          "id": "9router",
+          "kind": "tunnel",
+          "hostname": "9router.chrisvouga.dev"
+        }
+      ]
+    }
+  }
+}

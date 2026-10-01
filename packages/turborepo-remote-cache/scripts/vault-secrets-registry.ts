@@ -2,12 +2,12 @@ import { Assert, assert, hotAssert } from '@pkgs/assert';
 import { SecretStoreEntry, type SecretUsedBy } from '@pkgs/secret-store';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse as parseYaml } from 'yaml';
 
 const ha: Assert = hotAssert();
 const validationAssert: Assert = Assert.validation();
 
-type InfraYaml = {
+type InfraInventory = {
+  object_stores: readonly { id: string; bucket: string }[];
   zone?: string;
   image_owner?: string;
   image_prefix?: string;
@@ -18,46 +18,55 @@ type InfraYaml = {
   }[];
 };
 
-function readInfraYaml(): InfraYaml | null {
+function readInfraInventory(): InfraInventory | null {
   try {
     const path = join(
       import.meta.dirname,
       '..',
       '..',
       'infra',
-      'services.yaml'
+      'tofu/modules/inventory/inventory.tf.json'
     );
-    return parseYaml(readFileSync(path, 'utf8')) as InfraYaml;
+    return (
+      JSON.parse(readFileSync(path, 'utf8')) as {
+        locals: { inventory: InfraInventory };
+      }
+    ).locals.inventory;
   } catch {
     return null;
   }
 }
 
-const infraYaml = readInfraYaml();
-const turboService = infraYaml?.services?.find((s) => s.id === 'turborepo');
+const infraInventory = readInfraInventory();
+if (!infraInventory) throw new Error('OpenTofu inventory must be readable');
+const turboService = infraInventory?.services?.find(
+  (s) => s.id === 'turborepo'
+);
 
 /** Public hostname for the self-hosted Turborepo remote cache server. */
 export const CACHE_PUBLIC_HOSTNAME =
   turboService?.hostname ?? 'turborepo.chrisvouga.dev';
 
 /** Cloudflare DNS zone for {@link CACHE_PUBLIC_HOSTNAME}. */
-export const CACHE_DNS_ZONE = infraYaml?.zone ?? 'chrisvouga.dev';
+export const CACHE_DNS_ZONE = infraInventory?.zone ?? 'chrisvouga.dev';
 
 /** Public origin for the self-hosted Turborepo remote cache server. */
 export const CACHE_PUBLIC_ORIGIN = `https://${CACHE_PUBLIC_HOSTNAME}`;
 
 /** GHCR repository for the cache server image (CI publishes via ci.yml → publish-image). */
 export const GHCR_IMAGE_REPOSITORY = (() => {
-  const owner = infraYaml?.image_owner ?? 'crvouga';
-  const prefix = infraYaml?.image_prefix ?? 'chrisvouga';
+  const owner = infraInventory?.image_owner ?? 'crvouga';
+  const prefix = infraInventory?.image_prefix ?? 'chrisvouga';
   return `ghcr.io/${owner}/${prefix}-turborepo`;
 })();
 
 /** Base Vault UI link for the cache-secret KV path (project/config appended). */
 export const VAULT_UI_BASE = (() => {
   const host =
-    infraYaml?.vault?.hostname ??
-    (infraYaml?.zone ? `vault.${infraYaml.zone}` : 'vault.chrisvouga.dev');
+    infraInventory?.vault?.hostname ??
+    (infraInventory?.zone
+      ? `vault.${infraInventory.zone}`
+      : 'vault.chrisvouga.dev');
   return `https://${host}/ui/vault/secrets/secret/show`;
 })();
 
@@ -80,8 +89,10 @@ export const VaultSecretKey = {
 
 /** Shared R2 buckets — one per Vault config. Apps own key prefixes inside the bucket. */
 export const SHARED_R2_BUCKET_BY_CONFIG = {
-  dev: 'crvouga-development',
-  prd: 'crvouga-production',
+  dev: infraInventory.object_stores.find((store) => store.id === 'development')!
+    .bucket,
+  prd: infraInventory.object_stores.find((store) => store.id === 'production')!
+    .bucket,
 } as const;
 
 export type VaultConfigName = keyof typeof SHARED_R2_BUCKET_BY_CONFIG;
@@ -217,7 +228,7 @@ export const VAULT_SECRET_REGISTRY: readonly SecretStoreEntry[] = [
     docsUrl: 'https://openbao.org/docs/concepts/tokens/',
     obtainUrl: `${VAULT_UI_BASE}/personal/{{config}}`,
     invalidHint:
-      'Create a long-lived read token via `vault token create -policy=default`.',
+      'The OpenTofu vault root manages the periodic runtime read token.',
   }),
   new SecretStoreEntry({
     key: VaultSecretKey.turboCache,
@@ -252,7 +263,7 @@ export const VAULT_SECRET_REGISTRY: readonly SecretStoreEntry[] = [
     vaultUiPath: `${VAULT_UI_BASE}/personal/{{config}}`,
     validExample: 'ghp_… (classic) or github_pat_… (fine-grained)',
     invalidHint:
-      'Store a GitHub user token with read:user at secret/data/personal/{dev|prd} → PORTFOLIO_GITHUB_TOKEN, e.g. `vault kv patch secret/personal/dev PORTFOLIO_GITHUB_TOKEN=<value>`, then build with `vault run --config dev -- bun run --filter @pkgs/portfolio build`.',
+      'Store a GitHub user token with read:user at secret/data/personal/{dev|prd} → PORTFOLIO_GITHUB_TOKEN, e.g. `bun run infra:vault apply`, then build with `vault run --config dev -- bun run --filter @pkgs/portfolio build`.',
   }),
 ];
 

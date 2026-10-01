@@ -2,7 +2,13 @@
   "$schema": "https://v2-10-13.turborepo.dev/schema.json",
   "ui": "stream",
   "concurrency": "6",
-  "globalDependencies": ["bun.lock", "tsconfig.json", "package.json"],
+  "globalDependencies": [
+    "bun.lock",
+    "tsconfig.json",
+    "package.json",
+    "packages/infra/tofu/modules/inventory/inventory.tf.json",
+    "packages/infra/tofu/modules/inventory/publish.yml.tftpl"
+  ],
   "globalPassThroughEnv": ["CLOUDFLARE_*", "VAULT_*", "TURBO_*", "DEPLOY_*"],
   "tasks": {
     "setup": {

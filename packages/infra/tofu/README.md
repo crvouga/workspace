@@ -1,0 +1,88 @@
+# OpenTofu infrastructure
+
+OpenTofu 1.13.0 is the only infrastructure manager. Resources are declared with published providers; no provisioning scripts, reconciler, shell provisioners or alternate IaC exist. Image building, local daemon startup, secret reads and HTTP probes remain application operations.
+
+The canonical inventory is [modules/inventory/inventory.tf.json](modules/inventory/inventory.tf.json), in `locals.inventory`. It is OpenTofu JSON syntax, consumed directly by OpenTofu and read-only documentation/build adapters. There is no parallel YAML inventory.
+
+| Root         | Owns                                                                                                                                                                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`      | R2 state bucket and scoped state access token; encrypted local bootstrap state                                                                                                                                                                    |
+| `foundation` | Cloudflare zone/settings/redirects, shared R2 buckets and credentials, tunnel/remote ingress/DNS, Railway project/default environment/Vault hosting, Neon project and Atlas database schema, GitHub secrets/variables and sibling publisher files |
+| `bootstrap`  | Original OpenBao initialization material and provider-managed serial Shamir unseal requests                                                                                                                                                       |
+| `vault`      | KV mount, policies, GitHub JWT auth/roles, userpass users, periodic runtime token, generated credentials and complete dev/prd KV documents                                                                                                        |
+| `fleet`      | Every remaining Railway service, image revision, environment variables, domain and DNS record                                                                                                                                                     |
+
+All state and saved plans are encrypted with OpenTofu's PBKDF2/AES-GCM support. `foundation`, `bootstrap`, `vault` and `fleet` use locked R2 S3 backends. The legacy Fly API returned no apps, so there are no surviving Fly resources to adopt.
+
+`state` keeps its own encrypted local state to break the backend bootstrap cycle; back it up outside the repository with its passphrase. Never delete the only copy of that state.
+
+## Existing fleet migration
+
+The committed import blocks identify Cloudflare resources discovered read-only. **They are adoption declarations, not evidence that production has been imported or applied.** Complete the remaining imports before enabling the new CI apply path. In particular, obtain the Neon API key/project ID, Railway project/service identities, the original OpenBao initialization output and existing userpass passwords. A provider schema check cannot verify these values.
+
+1. Install OpenTofu 1.13.0 and the [Atlas CLI](https://atlasgo.io/getting-started). Atlas uses a local disposable PostgreSQL dev database (`schema_dev_url`), defaulting to Docker's PostgreSQL 18. Supply a suitable dev URL if Docker is unavailable.
+2. Use a password manager to create a random state passphrase of at least 32 characters. Supply `TF_VAR_state_passphrase`, `TF_VAR_cloudflare_account_id` and `TF_VAR_cloudflare_api_token` without committing values.
+3. Initialize and plan `state`; apply its saved plan. Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from its sensitive `access_key_id` / `secret_access_key` outputs. Set the matching `TF_VAR_state_access_key` / `TF_VAR_state_secret_key` for the GitHub bootstrap bindings. Preserve the encrypted local state and the passphrase independently.
+4. Create an ignored `backend.backend.json` in each remote root. Use the example below, changing the root's state key. Initialize each root with `-backend-config=backend.backend.json`. Supply the same settings without `key` as `TF_VAR_state_backend` in `vault` and `fleet`. Credentials come from the AWS environment; never embed them in backend configuration.
+5. Supply required provider inputs using ignored tfvars or `TF_VAR_*`. `foundation` requires an account-scoped Railway token, a GitHub PAT with repository/Actions/workflow permissions, a Neon API key and `vault_inputs`. `vault_inputs` is JSON containing **complete** `secrets.dev`, `secrets.prd` and `admin_passwords`. Export every existing KV field into that input before adopting KV resources; applying a partial map would remove omitted fields. Do not log or commit the export. Derived infrastructure fields and generated runtime credentials are managed by resources and override matching manual fields.
+6. Import the existing Railway project and Neon project. Import every service, custom domain and existing variable collection using the addresses below. Keep current image tags and current schema configuration while adopting. Add import blocks for remaining existing resources rather than allowing duplicate creation. Atlas owns `secret_store` only; its schema preserves the storage tables and migration-history table. Inspect its schema diff for destructive changes.
+7. Import `bootstrap`'s `vaultoperator_init.vault` from a protected file containing the original initialization output (`keys`, `keys_base64`, `root_token`). Recover it from the existing `crvouga.kv` record through a trusted database session if necessary. **Do not initialize a new seal against the existing database.** The encrypted bootstrap state replaces the old script's reliance on that database row. The row is retained as application data; no script mutates it.
+8. Import the KV mount, policies, auth backends/roles, users and both KV documents into `vault`. The current runtime token can be replaced with the managed periodic token only as part of a reviewed rotation. Preserve existing `TURBO_TOKEN` and 9router credentials in `secrets` during adoption so clients keep working.
+9. Review saved plans for all roots. Resolve every proposed destroy/replacement and duplicate before applying. Apply in order: `foundation`, `bootstrap`, `vault`, `fleet`, serially with `-parallelism=1`. Then verify every public endpoint and a remote-cache write/read. Set the foundation input `migration_ready = true` and apply it only after adoption and checks; it enables the OpenTofu-managed `TOFU_MIGRATION_READY` repository variable. CI fails closed until this variable is true.
+
+Example backend (non-secret; `foundation.tfstate` is root-specific):
+
+```json
+{
+  "bucket": "crvouga-tofu-state",
+  "key": "foundation.tfstate",
+  "region": "auto",
+  "endpoints": { "s3": "https://<account-id>.r2.cloudflarestorage.com" },
+  "skip_credentials_validation": true,
+  "skip_region_validation": true,
+  "skip_requesting_account_id": true,
+  "skip_metadata_api_check": true,
+  "use_path_style": true,
+  "use_lockfile": true
+}
+```
+
+```bash
+tofu -chdir=packages/infra/tofu/foundation init -backend-config=backend.backend.json
+tofu -chdir=packages/infra/tofu/foundation plan -parallelism=1 -out=adopt.tfplan
+tofu -chdir=packages/infra/tofu/foundation apply -parallelism=1 adopt.tfplan
+```
+
+Import addresses (quote module addresses containing brackets):
+
+| Resource            | Address                                                      | Provider import ID                             |
+| ------------------- | ------------------------------------------------------------ | ---------------------------------------------- |
+| Railway project     | `railway_project.workspace` in foundation                    | Project UUID                                   |
+| Neon project        | `neon_project.openbao` in foundation                         | Existing Neon project ID                       |
+| Vault service       | `module.vault_service.railway_service.this` in foundation    | Service UUID                                   |
+| Fleet service       | `module.service["<id>"].railway_service.this` in fleet       | Service UUID                                   |
+| Custom domain       | Same module, `railway_custom_domain.this`                    | `<service-id>:production:<hostname>`           |
+| Variable collection | Same module, `railway_variable_collection.this`              | `<service-id>:production:<var-name>:...`       |
+| Cloudflare zone     | `cloudflare_zone.primary` in foundation                      | Zone ID                                        |
+| R2 bucket           | `cloudflare_r2_bucket.shared["development" or "production"]` | `<account-id>/<bucket>/default`                |
+| Tunnel              | `cloudflare_zero_trust_tunnel_cloudflared.router`            | `<account-id>/<tunnel-id>`                     |
+| Init material       | `vaultoperator_init.vault` in bootstrap                      | `file:///absolute/path/to/protected-init.json` |
+| KV mount            | `vault_mount.secret` in vault                                | `secret`                                       |
+| Policy              | `vault_policy.this["<name>"]`                                | Policy name                                    |
+| JWT auth            | `vault_jwt_auth_backend.github`                              | `jwt`                                          |
+| JWT role            | `vault_jwt_auth_backend_role.github["github-actions"]`       | `auth/jwt/role/github-actions`                 |
+| Userpass user       | `vault_generic_endpoint.admin["<username>"]`                 | `auth/userpass/users/<username>`               |
+| Userpass auth       | `vault_auth_backend.userpass`                                | `userpass`                                     |
+| KV document         | `vault_kv_secret_v2.personal["dev" or "prd"]`                | `secret/data/personal/<config>`                |
+
+Providers without import support (Railway settings) adopt existing configuration through their initial create/update operation; review their desired values before applying. A locally managed tunnel must be migrated to remote ingress without replacing its UUID; verify the Cloudflare provider's plan and connector cutover before applying.
+
+## Normal operations
+
+`bun run infra`, `infra:bootstrap`, `infra:vault`, `infra:fleet` and `infra:state` forward arguments directly to OpenTofu. Review with `plan`; apply the reviewed saved plan. Stateful resources use `prevent_destroy`; decommissioning requires an explicit reviewed OpenTofu change, never an API deletion script.
+
+CI uses [.github/actions/tofu](../../../.github/actions/tofu/action.yml) for initialization, saved plans and serialized applies. It preserves all existing service image revisions when changing a subset of services. Local fleet plans must supply the complete deployed `image_tags` map from `tofu output -json image_tags`; incomplete maps fail validation. Application image building remains Docker CI work. Railway pulls the existing public GHCR images without private registry credentials. There is no visibility-setting bypass script or dashboard instruction.
+
+GitHub publisher files are `github_repository_file` resources rendered from [the shared template](modules/inventory/publish.yml.tftpl). The integration guide renders that same template. Resource edits, new hosting entries and secret values all go through OpenTofu.
+
+Validate with `bun run check:infra`; regenerate the integration guide with `bun run llms:sync`. Never commit state, saved plans, initialization files, secret tfvars or credentials.

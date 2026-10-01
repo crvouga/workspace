@@ -1,0 +1,52 @@
+{
+  "import": [
+    {
+      "to": "vault_mount.secret",
+      "id": "secret"
+    },
+    {
+      "to": "vault_jwt_auth_backend.github",
+      "id": "jwt"
+    },
+    {
+      "to": "vault_auth_backend.userpass",
+      "id": "userpass"
+    },
+    {
+      "to": "vault_jwt_auth_backend_role.github[\"github-actions\"]",
+      "id": "auth/jwt/role/github-actions"
+    },
+    {
+      "to": "vault_policy.this[\"admin\"]",
+      "id": "admin"
+    },
+    {
+      "to": "vault_policy.this[\"ci-read\"]",
+      "id": "ci-read"
+    },
+    {
+      "to": "vault_policy.this[\"ci-write\"]",
+      "id": "ci-write"
+    },
+    {
+      "to": "vault_policy.this[\"personal-read\"]",
+      "id": "personal-read"
+    },
+    {
+      "to": "vault_generic_endpoint.admin[\"crvouga\"]",
+      "id": "auth/userpass/users/crvouga"
+    },
+    {
+      "to": "vault_generic_endpoint.admin[\"chris\"]",
+      "id": "auth/userpass/users/chris"
+    },
+    {
+      "to": "vault_kv_secret_v2.personal[\"dev\"]",
+      "id": "secret/data/personal/dev"
+    },
+    {
+      "to": "vault_kv_secret_v2.personal[\"prd\"]",
+      "id": "secret/data/personal/prd"
+    }
+  ]
+}

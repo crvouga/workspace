@@ -318,7 +318,7 @@ export async function mergeCommand(flags: Flags): Promise<Outcome> {
   await gh(
     'merge',
     ['pr', 'merge', branch, '--merge', ...(auto ? ['--auto'] : [])],
-    'is auto-merge enabled? run `repo --apply`'
+    'is auto-merge enabled? review the OpenTofu foundation plan'
   );
   return ok({
     requested: auto ? 'auto-merge' : 'merge',

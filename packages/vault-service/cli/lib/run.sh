@@ -105,7 +105,7 @@ vault_run() {
       echo "ERROR: Vault is sealed. Unseal before running commands." >&2
     elif echo "$secret_json" | grep -qi "permission denied\|403"; then
       echo "ERROR: Token lacks read access to ${SECRET_PATH}." >&2
-      echo "       Run: ./scripts/create-dev-token.sh" >&2
+      echo "       Run: tofu -chdir=packages/infra/tofu/vault apply" >&2
     else
       echo "ERROR: Failed to read secret at ${SECRET_PATH}." >&2
       echo "$secret_json" >&2

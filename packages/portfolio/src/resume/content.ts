@@ -71,7 +71,7 @@ const MIN_SENTENCE_WORDS = 4;
 
 /**
  * Splits only on terminal punctuation followed by whitespace, so names like
- * `gamezilla.app` and `services.yaml` stay inside their sentence.
+ * `gamezilla.app` and `OpenTofu` stay inside their sentence.
  */
 const sentences = (text: string): string[] =>
   text

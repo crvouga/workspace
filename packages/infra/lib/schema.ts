@@ -1,6 +1,6 @@
 /**
- * Desired-state schema for packages/infra/services.yaml.
- * Every infrastructure resource is declared here; reconcile converges to it.
+ * Desired-state schema for OpenTofu inventory.
+ * Every infrastructure resource is declared here; OpenTofu manages its resources.
  */
 export type ResourceDurability = "stateless" | "stateful";
 
@@ -129,6 +129,8 @@ export type VaultJwtRoleSpec = {
   readonly ttl?: string;
   readonly max_ttl?: string;
   readonly audience?: string;
+  readonly user_claim: string;
+  readonly no_default_policy: boolean;
 };
 
 export type VaultJwtAuthSpec = {
@@ -229,18 +231,7 @@ export type TunnelSpec = {
   readonly secrets?: readonly string[];
 };
 
-export type DigitalOceanDestroySpec = {
-  readonly droplet: string;
-  readonly project: string;
-  readonly purge_vault_keys?: readonly string[];
-};
-
-export type LegacyConfig = {
-  readonly fly_destroy?: readonly string[];
-  readonly digitalocean_destroy?: readonly DigitalOceanDestroySpec[];
-};
-
-/** Full desired-state document (services.yaml). */
+/** OpenTofu inventory consumed by documentation and builds. */
 export type InfraConfig = {
   readonly zone: string;
   readonly image_owner: string;
@@ -257,41 +248,9 @@ export type InfraConfig = {
   readonly neon?: NeonConfig;
   readonly object_stores?: readonly ObjectStoreSpec[];
   readonly tunnels?: readonly TunnelSpec[];
-  readonly legacy?: LegacyConfig;
   readonly aliases?: readonly AliasSpec[];
   readonly services: readonly ServiceSpec[];
 };
 
 /** @deprecated Alias — use InfraConfig */
 export type ServicesConfig = InfraConfig;
-
-/** Resource kinds known to the reconcile engine. */
-export const RESOURCE_DURABILITY = {
-  cloudflare_dns_record: "stateless",
-  cloudflare_redirect_rule: "stateless",
-  cloudflare_ssl_mode: "stateless",
-  railway_custom_domain: "stateless",
-  railway_variable: "stateless",
-  railway_deployment_cleanup: "stateless",
-  ghcr_visibility: "stateless",
-  vault_policy: "stateless",
-  vault_auth_config: "stateless",
-  github_oidc_binding: "stateless",
-  tunnel_dns_route: "stateless",
-  railway_service: "stateful",
-  railway_project: "stateful",
-  railway_volume: "stateful",
-  neon_database: "stateful",
-  object_store_bucket: "stateful",
-  vault_kv_data: "stateful",
-  vault_seal_state: "stateful",
-  cloudflare_tunnel: "stateful",
-  legacy_fly_app: "stateful",
-  legacy_digitalocean_droplet: "stateful",
-} as const satisfies Record<string, ResourceDurability>;
-
-export type ResourceKind = keyof typeof RESOURCE_DURABILITY;
-
-export function durabilityOf(kind: ResourceKind): ResourceDurability {
-  return RESOURCE_DURABILITY[kind];
-}

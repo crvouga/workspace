@@ -2,7 +2,7 @@ name: Vault secrets (OIDC)
 description: Authenticate to OpenBao via GitHub OIDC and export pipeline secrets from Vault.
 inputs:
   vault_addr:
-    description: "Vault API URL (from services.yaml zone)"
+    description: "Vault API URL (from OpenTofu inventory)"
     required: true
 runs:
   using: composite

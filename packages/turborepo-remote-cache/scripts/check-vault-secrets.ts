@@ -32,7 +32,7 @@ function fail(message: string): never {
   console.error('');
   console.error('Run `bun run setup` to apply derived defaults, then set');
   console.error(
-    'remaining secrets via `vault kv patch secret/personal/<config> KEY=value`.'
+    'remaining secrets via `the OpenTofu vault root secrets input`.'
   );
   console.error('Registry: scripts/vault-secrets-registry.ts');
   console.error('');

@@ -28,7 +28,6 @@ import {
 } from "../../scripts/lib/registry.ts";
 import {
   defaultVaultKvConfig,
-  patchVaultKv,
   vaultKvCliPath,
 } from "../../scripts/lib/vault.ts";
 import { askConfirm, askPassword, askSelect } from "../prompt.ts";
@@ -243,7 +242,7 @@ export async function setupProviderCreds(): Promise<void> {
   if (!vaultOk && !dryRun) {
     throw new CommandError(
       [
-        "Cannot write secrets without Vault access. Fix auth, then retry.",
+        "Cannot read secrets without Vault access. Fix auth, then retry.",
         "  vault login -method=userpass username=crvouga",
       ].join("\n"),
     );
@@ -253,10 +252,8 @@ export async function setupProviderCreds(): Promise<void> {
   let connections = await fetchProviderConnections(client);
   let connected = activeConnectionsByProvider(connections);
 
-  let wrote = 0;
   let connectedN = 0;
   let skipped = 0;
-  let quit = false;
 
   for (let i = 0; i < queue.length; i++) {
     const provider = queue[i]!;
@@ -273,109 +270,12 @@ export async function setupProviderCreds(): Promise<void> {
     else console.log(`  Get key:    (no URL in registry — check provider docs)`);
     console.log(`  Status:     ${statusLine(vaultHas, isConnected)}`);
 
-    if (vaultHas && !force) {
-      const overwrite = await askSelect<"y" | "n" | "q">({
-        message: `Already in Vault (${vaultKey})`,
-        description: "Overwrite the existing secret, skip, or quit the walkthrough.",
-        choices: [
-          {
-            name: "Skip",
-            value: "n",
-            description: "Keep existing Vault secret (still connect if needed)",
-          },
-          {
-            name: "Overwrite",
-            value: "y",
-            description: "Paste a new secret and write to Vault",
-          },
-          {
-            name: "Quit",
-            value: "q",
-            description: "Stop the walkthrough; keep progress so far",
-          },
-        ],
-        default: "n",
-      });
-      if (overwrite === "q") {
-        quit = true;
-        break;
-      }
-      if (overwrite !== "y") {
-        skipped += 1;
-        if (!noConnect && !isConnected && vaultKey && creds[vaultKey]) {
-          if (!dryRun) {
-            try {
-              const detail = await connectAfterWrite(
-                client,
-                provider,
-                creds,
-                spec.defaults.connectionName,
-              );
-              console.log(`  ✓ Connect: ${detail}`);
-              connectedN += 1;
-            } catch (err) {
-              console.log(
-                `  ! Connect failed: ${err instanceof Error ? err.message : err}`,
-              );
-            }
-          }
-        }
-        continue;
-      }
-    }
-
-    if (helpUrl && !noOpen && !dryRun) {
-      console.log("  Opening browser…");
-      openBrowser(helpUrl);
-    }
-
-    const promptKey = vaultKey ?? "API_KEY";
-    const raw = await askPassword({
-      message: `Paste ${promptKey}`,
-      description:
-        "Hidden input. Leave empty to skip this provider; type q then Enter to quit.",
-    });
-    const trimmed = raw.trim();
-
-    if (trimmed.toLowerCase() === "q") {
-      quit = true;
-      break;
-    }
-    if (!trimmed || trimmed.toLowerCase() === "s") {
+    if (!vaultHas || !vaultKey) {
+      console.log(`  Set ${vaultKey ?? "the provider credential"} in OpenTofu's vault secrets input and apply it, then retry.`);
       skipped += 1;
       continue;
     }
-
-    if (!vaultKey) {
-      console.log("  ! No Vault key mapping for this provider; skipping write");
-      skipped += 1;
-      continue;
-    }
-
-    const fields: Record<string, string> = { [vaultKey]: trimmed };
-
-    if (dryRun) {
-      console.log(
-        `  (dry-run) would patch ${vaultKey} → ${vaultKvCliPath(defaultVaultKvConfig())}`,
-      );
-      wrote += 1;
-      continue;
-    }
-
-    try {
-      await patchVaultKv(fields);
-      creds[vaultKey] = trimmed;
-      console.log(
-        `  ✓ Wrote ${vaultKey} to ${vaultKvCliPath(defaultVaultKvConfig())}`,
-      );
-      wrote += 1;
-    } catch (err) {
-      console.error(
-        `  ! Vault write failed: ${err instanceof Error ? err.message : err}`,
-      );
-      continue;
-    }
-
+    const trimmed = creds[vaultKey]!;
     if (!noConnect) {
       try {
         if (!isConnected) {
@@ -403,7 +303,7 @@ export async function setupProviderCreds(): Promise<void> {
         connected = activeConnectionsByProvider(connections);
       } catch (err) {
         console.log(
-          `  ! Connect failed (Vault key saved): ${err instanceof Error ? err.message : err}`,
+          `  ! Connect failed: ${err instanceof Error ? err.message : err}`,
         );
       }
     }
@@ -411,7 +311,7 @@ export async function setupProviderCreds(): Promise<void> {
 
   console.log(`\n==> Summary`);
   console.log(
-    `    wrote=${wrote}  connected=${connectedN}  skipped=${skipped}${quit ? "  (quit early)" : ""}`,
+    `    connected=${connectedN}  skipped=${skipped}`,
   );
   console.log(`\nNext: Providers: Sync, then Combos: Check.`);
   console.log(
@@ -444,7 +344,7 @@ export const providersCommands: Command[] = [
   {
     id: "setup-provider-creds",
     name: "Providers: Setup credentials",
-    description: "Paste API keys into Vault and connect them in 9Router",
+    description: "Connect providers using OpenTofu-managed Vault credentials",
     run: setupProviderCreds,
   },
   {

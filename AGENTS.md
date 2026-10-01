@@ -1,195 +1,36 @@
 # Agent Notes
 
-## Monorepo layout
+## Monorepo
 
-Single flat Turborepo + Bun workspace at the repo root. Every package is scoped `@pkgs/*` and lives under `packages/`:
+Flat Turborepo + Bun workspace. All packages live under `packages/` and use `@pkgs/*` names. Install at the root with `bun install`.
 
-- `packages/turborepo-remote-cache` — Turborepo remote cache server (`@pkgs/turborepo-remote-cache`), deployed as the `turborepo` Railway service; its cache-support scripts (`vault-secrets-registry`, `ensure-vault-secrets`, `check-vault-secrets`, `smoke-test-cache`, `seed-turbo-client-secrets`, `vault-yaml-defaults`, `verify-s3`) are colocated in `packages/turborepo-remote-cache/scripts/`
-- `packages/portfolio` — `www.chrisvouga.dev` static site + content registry (`@pkgs/portfolio`), deployed as the `portfolio` Railway service
-- `packages/infra` — infra control plane (`@pkgs/infra`): sole desired-state doc [`services.yaml`](packages/infra/services.yaml), `lib/reconcile/`, and ops scripts. Prefer `bun run reconcile` / `bun run infra` over one-off scripts.
-- `packages/{assert,logger,object-store,openrouter,secret-store,secret-string,vault}` — `@pkgs/*` libraries
-- `packages/eslint-rules` — shared ESLint rule fragments (plain dir, referenced by relative path)
-- `packages/9router` — local-only 9router CLI (`@pkgs/9router`)
-- `packages/vault-service` — standalone OpenBao service (Docker + shell; no package.json)
-- `packages/workstation` — portable local-machine config (no package.json)
+- `packages/portfolio`: Astro static portfolio, GitHub insights, generated resume PDF. Content lives in `src/content/projects/`; append projects to `entries-part-2.ts`. Build with Node >=22 and Playwright Chromium. Do not commit `dist/` or the generated PDF.
+- `packages/turborepo-remote-cache`: Bun cache server backed by the shared R2 buckets. Runtime closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`.
+- `packages/infra`: OpenTofu definitions and read-only build/health/documentation adapters.
+- `packages/vault-service`: OpenBao runtime image and local read/auth CLI. Its infrastructure, schema, initialization, policies, auth and KV values are owned by OpenTofu.
+- `packages/9router`: local CLI and tunnel connector. It consumes OpenTofu-managed secrets and remote tunnel configuration.
+- `packages/workstation`: portable local machine configuration. Read its `AGENTS.md` before editing it. Install with `bun run ws:install`; converge local configuration with `ws sync`.
 
-Root holds only monorepo orchestration: `package.json`, `turbo.json`, `tsconfig.json`, `tsconfig.strict.json`, `bun.lock`, dotfiles, `.vault.yaml`, CI workflows, `AGENTS.md`, `README.md`, `llms.txt` (the generated integration guide other repos fetch — see below), and `INTEGRATING.md` (a stub pointing at `llms.txt` so old links keep working).
+## Hard infrastructure rule
 
-`bun install` at the root installs all workspaces. `bun run check` (alias `bun check`) runs `bun install --frozen-lockfile` + prettier + `turbo run tc lint test build` across packages; `bun run check:ci` adds the Vault `dev` secret gate and runs that check under `vault run` so `@pkgs/portfolio` receives `PORTFOLIO_GITHUB_TOKEN` (CI injects the same key via OIDC). See [`.agents/commands/ci.md`](.agents/commands/ci.md). `bun run tc` typechecks all packages. The root `tsconfig.json` typechecks `packages/workstation`; `tsconfig.strict.json` is the strict base `packages/turborepo-remote-cache` + the `@pkgs/*` libs extend (`packages/infra` uses the loose root config).
+**Every infrastructure resource must be defined and managed exclusively by OpenTofu. No exceptions.** Never add provisioning, reconciliation, API mutation, secret seeding, shell provisioners, `local-exec`, `remote-exec`, or alternative IaC controllers. Runtime application operations, image builds, secret reads and HTTP probes are not infrastructure provisioning.
 
-**A green `bun check` is not a green CI.** After pushing, watch the **CI** run (`bun run gh:ci:watch`) and fix any failure before declaring the task done. `bun check` only covers the `check` job — it does not validate `publish` / `vault` / `deploy` (Docker builds, Railway, DNS). See [`.agents/commands/ci.md`](.agents/commands/ci.md) → **Watch CI & fix failures**.
+Canonical inventory: `packages/infra/tofu/modules/inventory/inventory.tf.json` (`locals.inventory`). Resource definitions: `packages/infra/tofu/{state,foundation,bootstrap,vault,fleet}`. See `packages/infra/tofu/README.md` for ownership, migration and state requirements. Do not introduce a YAML or TypeScript desired-state inventory.
 
-## Integration guide (`llms.txt`)
+Use `bun run infra[:state|:bootstrap|:vault|:fleet] <OpenTofu command>`. All roots pin providers and encrypt state/plans. Import existing resources before applying; never replace a live database, bucket, tunnel, service, KV mount or seal to adopt it. These resources have `prevent_destroy` guards. Apply a reviewed saved plan. Run Railway provider operations serially (`-parallelism=1`). Never run another provisioning tool or mutate dashboards.
 
-The root [`llms.txt`](llms.txt) is the single document external codebases (and their agents) fetch from `https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt` to integrate with Vault, the Turborepo remote cache, the R2 object store, and fleet hosting (Dockerized, prebuilt GHCR images published through `ci.yml`'s `workflow_call`). It is **generated — never edit it by hand**: prose lives in [`scripts/llms-txt.template.md`](scripts/llms-txt.template.md), and every value (hostnames, Vault paths, OIDC role, buckets, KV keys, `workflow_call` inputs, the publish workflow from `packages/infra/lib/publish-workflow.ts`, the fleet table) is read from `services.yaml`, `ci.yml` and the Vault secret registry by [`scripts/llms-txt.ts`](scripts/llms-txt.ts). After changing any of those, run `bun run llms:sync` and commit the result; `bun run check:llms` (part of `bun run check`) fails on drift, on a `{{path:…}}` that no longer exists, or on a `{{script:…}}` missing from `package.json`. When an integration contract changes in a way config can't express, update the template prose too. `llms.txt` §4 tells external agents to request hosting by opening a `[hosting] <id> — …` issue on this repo with a fixed body (image, runtime, secret names, portfolio entry); its **Handling a hosting request** section is the checklist for turning one into a `services.yaml` entry + portfolio project in a PR that `Closes` the issue. (Not to be confused with the portfolio site's `/llms.txt`, rendered by `packages/portfolio/src/pages/llms.txt.ts`.)
+Vault paths: `secret/data/personal/{dev|prd}`. Update secret inputs through the vault OpenTofu root. Never commit tokens, passwords, initialization credentials, state, plans or secret tfvars. The bootstrap state contains unseal material and must remain encrypted and backed up.
 
-## Declarative infra (`packages/infra/services.yaml`)
+Never patch dependencies. Never disable structural size limits in ESLint; refactor instead.
 
-**Single source of truth** for Railway, Cloudflare, Vault inventory, Neon/R2 refs, GitHub secrets, tunnels, and legacy destroy targets. No parallel hardcoded inventories.
+## Validation and CI
 
-```bash
-bun run reconcile                 # dry-run plan (all phases)
-bun run reconcile --apply --fleet-only   # converge fleet (CI-safe)
-bun run infra --phase dns --apply
-bun run reconcile destroy railway --id foo --i-understand-stateful
-```
+`bun run check` installs with the frozen lock, checks formatting, agent links, generated docs, root scripts, OpenTofu fmt/init/validate/tests, then package typecheck/lint/test/build. Install OpenTofu 1.13.0 locally first. `bun run check:ci` adds the Vault dev gates and supplies portfolio build credentials.
 
-**Delete policy:** `--apply` freely removes **stateless** drift (DNS, redirects, Railway var bindings, GHCR visibility). **Stateful** resources (Railway services, Neon, R2 buckets, Vault KV data, tunnels) are never auto-deleted — reconcile only warns and prints a manual `destroy … --i-understand-stateful` command. CI must never pass that flag.
+A green local check is not green CI. If pushing, watch the complete **CI** workflow with `bun run gh:ci:watch` and fix publish/deploy failures before claiming success. `/pr-ready` uses `.agents/commands/pr-ready.md`; PRs to main need `Required`.
 
-Legacy one-off scripts (`provision-railway`, `sync-dns`, …) remain as thin controllers invoked by reconcile phases.
+## Generated integration guide
 
-## Global resource naming
+Root `llms.txt` is generated; never edit it directly. Edit `scripts/llms-txt.template.md`, the OpenTofu inventory/template, CI inputs or the cache secret registry, then run `bun run llms:sync`. `bun run check:llms` checks drift and dangling references. Hosting requests are `[hosting] <id> — …` issues; add the OpenTofu inventory entry and portfolio content in a PR closing the issue.
 
-| Resource                                       | Pattern                                                                               | Example                                |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------- |
-| Railway project                                | from `services.yaml` → `railway.project` (reconcile renames the live project to this) | `Workspace`                            |
-| Railway service                                | service `id` (no prefix)                                                              | `portfolio`, `vault`                   |
-| GHCR image                                     | `chrisvouga-<id>`                                                                     | `ghcr.io/crvouga/chrisvouga-portfolio` |
-| External image                                 | optional `image:` in `services.yaml` (verbatim; skips GHCR)                           | `ghcr.io/example/app:latest`           |
-| S3 / R2 bucket (shared; apps own key prefixes) | `crvouga-development` / `crvouga-production`                                          | Vault `dev` / `prd` `S3_BUCKET`        |
-
-Railway names come from [`packages/infra/services.yaml`](packages/infra/services.yaml) via `railwayServiceName()` in [`packages/infra/lib/services.ts`](packages/infra/lib/services.ts) — defaults to the service `id`. Legacy Fly.io apps used the `crvouga-` prefix; see `legacyFlyAppName()`.
-
-Public DNS hostnames stay on the zone (`portfolio.chrisvouga.dev`, etc.); Railway custom domains are provisioned via the GraphQL API and synced to Cloudflare.
-
-**Railway API quota:** run one Railway script at a time locally (`sync-dns`, `rename-railway`, `provision-railway`, etc.). Do not run ad-hoc `bun -e` polling loops — use `sync-dns --apply --wait-for-certs` when waiting for TLS. Set `RAILWAY_WAIT_ON_RATE_LIMIT=1` or pass `--wait-on-rate-limit` on maintenance scripts to sleep through 429 windows.
-
-## Standalone vault (`packages/vault-service/`)
-
-Vault is **`standalone: true`** in [`packages/infra/services.yaml`](packages/infra/services.yaml) — excluded from fleet Railway redeploy / fleet DNS sync / `destroy-fly`. It bootstraps from **GitHub repo secrets** (or exported env), not Vault KV / OIDC. The monorepo **CI** workflow runs the vault job when `packages/vault-service/**` changes, then chains fleet **Deploy**.
-
-| Resource        | Value                                                                        |
-| --------------- | ---------------------------------------------------------------------------- |
-| Railway service | `vault`                                                                      |
-| Public hostname | `vault.chrisvouga.dev`                                                       |
-| GHCR image      | `ghcr.io/crvouga/chrisvouga-vault`                                           |
-| CI              | **CI** (`.github/workflows/ci.yml`) vault job on `packages/vault-service/**` |
-
-**Bootstrap order (first deploy or rebuild):**
-
-1. Seed GitHub secrets: `RAILWAY_TOKEN`, `CF_API_TOKEN`, `DB_CONNECTION_URI` — `cd packages/vault-service && ./scripts/seed-github-secrets.sh`
-2. Deploy vault: push `packages/vault-service/**` to `main`, or `gh workflow run ci.yml -f unseal_only=true` after first deploy
-3. Init/unseal OpenBao locally (`packages/vault-service/scripts/init.sh`); store keys in `crvouga.kv`
-4. Seed KV at `secret/data/personal/prd` (Railway token, Cloudflare, per-app keys)
-5. Fleet: `bun run provision-railway --apply` then `gh workflow run ci.yml` (fleet redeploy at `latest`)
-
-**Local vault ops (Vault may be down — no `vault run`):**
-
-```bash
-export RAILWAY_TOKEN=... CLOUDFLARE_API_TOKEN=... DB_CONNECTION_URI=...
-cd packages/vault-service && make deploy    # provision + deploy; make provision | destroy | sync-dns
-```
-
-**Fleet ops (Vault must be up + KV seeded):**
-
-```bash
-vault login                    # admin session
-vault run -- bun run sync-dns --apply
-```
-
-If `vault run` fails with `No value found at secret/personal/prd`, KV is empty — use direct env exports or `vault login` + CLI until prd is re-seeded. For day-to-day local work, `.vault.yaml` may use `config: dev` when prd is empty during a rebuild.
-
-## Turborepo remote cache (`packages/turborepo-remote-cache` + `@pkgs/*`)
-
-The cache server is `packages/turborepo-remote-cache` (`@pkgs/turborepo-remote-cache`). Runtime dependency closure: `@pkgs/{assert,logger,object-store,secret-store,secret-string,vault}`. Support scripts live in `packages/turborepo-remote-cache/scripts/` (`vault-secrets-registry.ts`, `ensure-vault-secrets.ts`, `check-vault-secrets.ts`, `smoke-test-cache.ts`, `seed-turbo-client-secrets.ts`, `verify-s3.ts`, `vault-yaml-defaults.ts`).
-
-- CI: **CI** (`.github/workflows/ci.yml`) — the only workflow: `vault-state` → optional `vault` bootstrap → `check` → optional `publish` → fleet deploy jobs on one run.
-- Deploy: monorepo publish feeds the deploy jobs in the same run; sibling repos call `ci.yml` (`workflow_call`) to publish and then `repository_dispatch` `deploy-service`.
-
-### Hard rules
-
-- **Never patch dependencies.** CI should reject bun/pnpm patch mechanisms.
-- **Never disable structural size limits** in eslint config or source files. Refactor instead.
-
-### Architecture
-
-Self-hosted Turborepo Remote Cache on the chrisvouga.dev origin stack (Docker + Bun). Artifacts live in Cloudflare R2 via `@pkgs/object-store` (`createS3ObjectStore` → `ObjectStoreImplS3`) in the shared env buckets (`crvouga-development` / `crvouga-production`). Physical object keys are always `turbo-cache/prd/<artifact-hash>`. Runtime secrets load from Vault at boot.
-
-CI publishes a **public** image to **GHCR** (`ghcr.io/crvouga/chrisvouga-turborepo:<sha>`); **Deploy** pulls and runs it. If the package is new, set GHCR visibility to public once in GitHub package settings.
-
-### Vault secrets (source of truth)
-
-Canonical registry: [`packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts`](packages/turborepo-remote-cache/scripts/vault-secrets-registry.ts)
-
-| Config | Purpose                                       |
-| ------ | --------------------------------------------- |
-| `dev`  | Local dev + CI (`check:vault-secrets`)        |
-| `prd`  | Production deploy (`check:vault-secrets:prd`) |
-
-Both configs must carry the same required keys. `bun run setup` runs `ensure-vault-secrets.ts` to write derived defaults (`TURBO_API`, `TURBO_TEAM`, `TURBO_CACHE`) into **dev** and **prd** when missing.
-
-Required keys (manual): `TURBO_TOKEN`, `VAULT_TOKEN`, R2/S3 `S3_*` (shared buckets via `bun run provision-r2`).
-
-### Scripts
-
-| Script                            | Purpose                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| `bun run setup`                   | `packages/turborepo-remote-cache/.env` + ensure Vault defaults in dev/prd |
-| `bun run provision-r2`            | Create R2 bucket + seed `S3_*` Vault secrets (dev/prd); purge legacy keys |
-| `bun run check:vault-secrets`     | Verify dev config (CI gate)                                               |
-| `bun run check:vault-secrets:prd` | Verify prd config (deploy gate)                                           |
-| `bun run deploy`                  | Points to infra ci.yml production path                                    |
-
-### CI/CD
-
-- **ci.yml** — the only workflow. `vault-state` checks production readiness first; if Vault is sealed/unavailable, `vault` deploys and unseals it before `check`. Then optional turborepo publish (`notify_deploy: false`) and fleet deploy jobs (`deploy-prepare` → `deploy-reconcile` → `deploy-railway` → `health-check-all`) run in the same `main` workflow; `workflow_dispatch` supports vault rebuild/fleet redeploy; `repository_dispatch deploy-service` deploys one sibling service; `workflow_call` serves sibling repos' publish (GHCR build + dispatch).
-
-### Client usage
-
-```bash
-export TURBO_API=https://turborepo.chrisvouga.dev
-export TURBO_TOKEN=<same as Vault TURBO_TOKEN>
-export TURBO_TEAM=local
-turbo run build --cache=remote:rw
-```
-
-### Local dev
-
-```bash
-bun install
-vault setup --project personal --config dev
-bun run setup
-bun run dev # bun server :8787
-```
-
-## Portfolio site (`packages/portfolio/`)
-
-Source for `www.chrisvouga.dev` — an Astro 7 static site (`astro build` via Node ≥ 22 → `/`, `/projects/`, `/404`, `/llms.txt`, each with CSS inlined) served by nginx, plus the content registry `projects.ts` (+ `src/content/projects/**`, the source of truth for project listings; append new projects to `entries-part-2.ts`; `entries-archive.ts` is the separate `ARCHIVE_PROJECTS` list behind the `/projects/` fold, excluded from `PROJECTS`). GitHub proof data (heatmap with a period picker capped at `MAX_RANGE_WINDOWS` — the trailing year plus four calendar years, because each panel costs ~370 `<rect>`s — streaks, counts) is fetched from the GitHub API at build time (`src/lib/github.ts`). Build-time uptime policy (`src/lib/github-insights.ts`): live data with retries → the committed snapshot `packages/portfolio/src/data/github-insights.json` (rendered with a visible "last known snapshot" caption naming its age) → a notice card in `astro dev`, or a build failure in production. **Freshness is the `schedule:` cron in `ci.yml`, not the snapshot**: a daily run rebuilds and redeploys the portfolio image (whose build fetches GitHub live) and the `refresh-github-insights` job lands the refreshed snapshot on `main` through a self-merging bot PR (the `main` ruleset requires a PR and has no bypass actors, so a direct push would be rejected), so the offline fallback cannot rot. That job is intentionally _not_ a dependency of `publish` — an expired token turns it red while the site keeps serving the last good snapshot. `src/lib/github-freshness.ts` holds the staleness budget (`STALE_AFTER_DAYS`); a snapshot past it warns in the build log and the caption says how old the numbers are. The publish job injects Vault's `PORTFOLIO_GITHUB_TOKEN` as the `github_token` build secret. Screenshots are sourced from `assets/`, optimized derivatives in `public/` are the only served images.
-
-`@astrojs/sitemap` emits `sitemap-index.xml` (there is no `public/sitemap.xml`), and `nginx.conf` has no SPA fallback — unknown paths 404 to `dist/404.html`. **The resume PDF is generated by `astro build`** (`src/pages/chris-vouga-resume.pdf.ts` → `src/resume/**`) from the same content the site renders, so it is never committed and cannot go stale; rendering it needs Playwright's Chromium, which is why the Docker build stage is Debian and CI installs Chromium before `bun run check`.
-
-Its image `ghcr.io/crvouga/chrisvouga-portfolio` is built by this repo's CI: `publish-plan` derives the publish matrix from `services.yaml` (`list-publish-service-ids.ts` → services whose `github_repo` is this repo, minus standalone), the `publish` matrix builds each using `print-publish-inputs.ts` (dockerfile + repo-root build context), and `deploy-prepare` redeploys exactly those services at the pushed SHA. The `portfolio-health-check` job checks every public URL in content when `packages/portfolio/**` changes.
-
-| Command                                              | Purpose                                                                                    |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `bun run --filter @pkgs/portfolio build`             | `astro build` → `dist/` (package cwd; used by the Docker build and `turbo run build`).     |
-| `bun run --filter @pkgs/portfolio gen`               | Screenshots + optimized derivatives (Playwright; local only).                              |
-| `bun run --filter @pkgs/portfolio health-check-urls` | GET every public URL in content.                                                           |
-| `bun run --filter @pkgs/portfolio test:docker`       | Docker E2E: build from the repo root, run it, assert HTML (needs Docker; never run in CI). |
-
-`bun run --filter @pkgs/portfolio test` discovers tests only under `src/`, which is why the Docker E2E never runs in the CI `check` job.
-
-## Local 9router (`packages/9router/`)
-
-Not on Railway. Local bun/tsx CLI at `http://127.0.0.1:20128`. Cursor BYOK uses the named Cloudflare tunnel **https://9router.chrisvouga.dev** (not fleet `sync-dns`). See [`packages/9router/README.md`](packages/9router/README.md): `cd packages/9router && bun install && bun start` (interactive menu for setup, provision-tunnel, start/stop daemons, sync, etc.).
-
-Vault KV at `secret/personal/prd`: `9ROUTER_PASSWORD`, `9ROUTER_JWT_SECRET`, `9ROUTER_API_KEY_SECRET`, `9ROUTER_MACHINE_ID_SALT` (→ `.env` via `bun start` → Pull secrets, or `vault run -- …`).
-
-## Workstation (`packages/workstation/`)
-
-Portable local-machine configuration; the source of truth for the global OpenCode notification plugin and its click-to-focus stack.
-
-- Managed home links: `~/.config/opencode/plugins/notifications.ts`, `~/.config/opencode/bin/{opencode-notifier,focus-opencode}` → `packages/workstation/opencode/**`; `OpenCodeNotifier.swift` is compiled by `ws sync` into `~/.config/opencode/bin/OpenCodeNotifier.app`
-- Setup: `bun run ws:install` installs dependencies, registers the global `ws` CLI (`~/.local/bin/ws`), and converges workstation configuration idempotently; it refuses to overwrite unmanaged files. Day-to-day: run `ws` (interactive dashboard) or `ws sync`.
-- Canonical context: [`packages/workstation/README.md`](packages/workstation/README.md); agent directive: [`packages/workstation/AGENTS.md`](packages/workstation/AGENTS.md)
-- No secrets live here — they come from Vault KV at `secret/data/personal/{dev|prd}`.
-
-## Agent commands
-
-Canonical agent commands live in `.agents/commands/*.md` (`/ci`, `/pr-ready`); every harness copy (`.claude/commands`, `.cursor/commands`, `.opencode/command`, `.windsurf/workflows`, `.github/prompts`, `.agents/skills`) is a symlink managed by `bun run agents:sync`. Edit the canonical file, never a link. `/pr-ready` drives `bun run pr:ready <command>` (`scripts/pr-ready.ts`); PRs to `main` need the single `Required` check (`ci.yml` aggregator over `changes`, `check`, `portfolio-health-check`, `commitlint`, `pr-title`).
-
-## Hard rules
-
-- Never commit `VAULT_TOKEN`, `RAILWAY_TOKEN`, or deploy tokens.
-- Vault KV paths for runtime: `secret/data/personal/{dev|prd}`.
-- All Railway provisioning goes through GraphQL scripts (`provision-railway`, `deploy-railway`, `sync-railway-secrets`) — not manual dashboard edits.
+Canonical agent commands live in `.agents/commands/*.md`; harness copies are symlinks managed by `bun run agents:sync`. Edit the canonical files.

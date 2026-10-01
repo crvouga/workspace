@@ -53,7 +53,7 @@ export function run(
       `${cmd} ${args.join(" ")} failed (exit ${status})${detail ? `: ${detail}` : ""}`,
     );
   }
-  assert.integer(status, "spawn exit status must be an integer", { cmd });
+  assert.integer(status, "spawn exit status must be an integer");
   return { status, stdout, stderr };
 }
 
