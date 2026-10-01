@@ -9,8 +9,6 @@
         "ssl_mode": "strict",
         "placeholder_ipv4": "192.0.2.1",
         "dns": {
-          "proxied": false,
-          "prune_orphans": true,
           "records": {
             "filestash.chrisvouga.dev_A": {
               "name": "filestash.chrisvouga.dev",
@@ -153,13 +151,11 @@
       "railway": {
         "project": "Workspace",
         "environment": "production",
-        "region": "us-west2",
-        "replicas": 1
+        "region": "us-west2"
       },
       "github": {
         "org": "crvouga",
         "infra_repo": "crvouga/workspace",
-        "skip_rollout_repos": ["crvouga/workspace"],
         "pr_ready": {
           "repo_settings": {
             "default_branch": "main",
@@ -236,12 +232,6 @@
           "key_shares": 3,
           "key_threshold": 2
         },
-        "mounts": [
-          {
-            "type": "kv-v2",
-            "path": "secret"
-          }
-        ],
         "policies": [
           {
             "name": "admin",
@@ -302,9 +292,6 @@
             "sink": "vault_kv.VAULT_TOKEN"
           }
         ],
-        "readiness": {
-          "wait_unsealed": true
-        },
         "kv_keys": [
           {
             "name": "TURBO_TOKEN",

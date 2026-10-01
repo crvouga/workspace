@@ -58,7 +58,7 @@ export type RailwayServiceConfig = {
 };
 
 export type RailwayPlatformConfig = {
-  /** Desired Railway project name. Reconcile renames the live project to this. */
+  /** OpenTofu-managed Railway project name. */
   readonly project: string;
   readonly environment: string;
   readonly region: string;

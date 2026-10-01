@@ -211,8 +211,6 @@ export function loadServicesConfig(
   return raw;
 }
 
-/** Alias for loadServicesConfig — preferred name going forward. */
-
 export function findService(
   config: ServicesConfig,
   id: string,
@@ -225,27 +223,6 @@ export function findService(
 
 export type DnsTarget = { readonly id: string; readonly hostname: string };
 
-export function groupByGithubRepo(
-  config: ServicesConfig,
-): Map<string, ServiceSpec[]> {
-  assert.record(config, "services config must be a record");
-  assert.array(config.services, "services must be an array");
-  const gh = config.github;
-  const skip = new Set(gh?.skip_rollout_repos ?? config.skip_rollout_repos ?? []);
-  const map = new Map<string, ServiceSpec[]>();
-  for (const service of config.services) {
-    if (!isRailwayService(service)) continue;
-    if (!service.github_repo) continue;
-    ha.nonEmptyString(service.github_repo, "service github_repo must be non-empty");
-    if (skip.has(service.github_repo)) continue;
-    const list = map.get(service.github_repo) ?? [];
-    list.push(service);
-    map.set(service.github_repo, list);
-  }
-  assert.instanceOf(map, Map, "grouped repos must be a Map");
-  return map;
-}
-
 export function deployableServices(config: ServicesConfig): readonly ServiceSpec[] {
   assert.record(config, "services config must be a record");
   assert.array(config.services, "services must be an array");
@@ -254,9 +231,4 @@ export function deployableServices(config: ServicesConfig): readonly ServiceSpec
   );
   assert.array(services, "deployable services must be an array");
   return services;
-}
-
-export function railwayServices(config: ServicesConfig): readonly ServiceSpec[] {
-  assert.record(config, "services config must be a record");
-  return config.services.filter(isRailwayService);
 }
