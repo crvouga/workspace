@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Superset teardown: stop the dev server started by run.sh (setup starts nothing).
+# Superset and super.engineering teardown: stop the portfolio dev server started
+# by run.sh. Setup itself starts no long-running processes.
 set -uo pipefail
 
 ws="${SUPERSET_WORKSPACE_PATH:-$(pwd)}"

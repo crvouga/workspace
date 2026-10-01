@@ -1,0 +1,12 @@
+{
+  "setup": ["./.superset/setup.sh"],
+  "run": [
+    {
+      "name": "portfolio",
+      "commands": ["./.superset/run.sh"],
+      "stop_commands": ["./.superset/teardown.sh"],
+      "default": true
+    }
+  ],
+  "teardown": ["./.superset/teardown.sh"]
+}
