@@ -6,7 +6,11 @@ locals {
 
 resource "github_repository" "workspace" {
   name                        = split("/", local.config.github.infra_repo)[1]
-  visibility                  = "public"
+  description                 = local.merge_gate.repo_settings.description
+  homepage_url                = local.merge_gate.repo_settings.homepage
+  visibility                  = local.merge_gate.repo_settings.visibility
+  archived                    = local.merge_gate.repo_settings.archived
+  topics                      = local.merge_gate.repo_settings.topics
   has_issues                  = local.merge_gate.repo_settings.has_issues
   has_projects                = local.merge_gate.repo_settings.has_projects
   has_wiki                    = local.merge_gate.repo_settings.has_wiki
@@ -22,8 +26,70 @@ resource "github_repository" "workspace" {
   allow_auto_merge            = local.merge_gate.repo_settings.allow_auto_merge
   allow_update_branch         = local.merge_gate.repo_settings.allow_update_branch
   delete_branch_on_merge      = local.merge_gate.repo_settings.delete_branch_on_merge
+  security_and_analysis {
+    secret_scanning {
+      status = local.merge_gate.repo_settings.security_and_analysis.secret_scanning.status
+    }
+    secret_scanning_push_protection {
+      status = local.merge_gate.repo_settings.security_and_analysis.secret_scanning_push_protection.status
+    }
+    secret_scanning_non_provider_patterns {
+      status = local.merge_gate.repo_settings.security_and_analysis.secret_scanning_non_provider_patterns.status
+    }
+  }
   lifecycle { prevent_destroy = true }
 }
+
+resource "github_actions_repository_permissions" "workspace" {
+  repository           = github_repository.workspace.name
+  enabled              = local.merge_gate.actions.enabled
+  allowed_actions      = local.merge_gate.actions.allowed_actions
+  sha_pinning_required = local.merge_gate.actions.sha_pinning_required
+}
+
+resource "github_workflow_repository_permissions" "workspace" {
+  repository                       = github_repository.workspace.name
+  default_workflow_permissions     = local.merge_gate.actions.default_workflow_permissions
+  can_approve_pull_request_reviews = local.merge_gate.actions.can_approve_pull_request_reviews
+}
+
+# GitHub represents disabled vulnerability alerts as a 404, so there is no
+# provider resource to import. The first reviewed apply creates the resource by
+# enabling alerts; subsequent plans detect drift normally.
+resource "github_repository_vulnerability_alerts" "workspace" {
+  repository = github_repository.workspace.name
+  enabled    = local.merge_gate.security.vulnerability_alerts
+}
+
+resource "github_repository_dependabot_security_updates" "workspace" {
+  repository = github_repository.workspace.name
+  enabled    = local.merge_gate.security.dependabot_security_updates
+  depends_on = [github_repository_vulnerability_alerts.workspace]
+}
+
+resource "github_repository_collaborators" "workspace" {
+  repository = github_repository.workspace.name
+  dynamic "user" {
+    for_each = { for collaborator in local.merge_gate.collaborators : collaborator.username => collaborator }
+    content {
+      username   = user.value.username
+      permission = user.value.permission
+    }
+  }
+}
+
+resource "github_issue_labels" "workspace" {
+  repository = github_repository.workspace.name
+  dynamic "label" {
+    for_each = { for label in local.merge_gate.labels : label.name => label }
+    content {
+      name        = label.value.name
+      color       = label.value.color
+      description = label.value.description
+    }
+  }
+}
+
 resource "github_branch_default" "main" {
   repository = github_repository.workspace.name
   branch     = local.merge_gate.repo_settings.default_branch
@@ -74,4 +140,24 @@ import {
 import {
   to = github_repository_ruleset.main
   id = "workspace:23686210"
+}
+import {
+  to = github_actions_repository_permissions.workspace
+  id = "workspace"
+}
+import {
+  to = github_workflow_repository_permissions.workspace
+  id = "workspace"
+}
+import {
+  to = github_repository_collaborators.workspace
+  id = "workspace"
+}
+import {
+  to = github_issue_labels.workspace
+  id = "workspace"
+}
+import {
+  to = github_repository_dependabot_security_updates.workspace
+  id = "workspace"
 }

@@ -125,6 +125,10 @@
       "id": "zones/83db052d18159889dd290724ac7d52d9/0f4a4b7e7e63431cbce6a2bb2cee3aa7"
     },
     {
+      "to": "cloudflare_ruleset.custom[\"firewall\"]",
+      "id": "zones/83db052d18159889dd290724ac7d52d9/242468406a594f919a70a41bf3291d80"
+    },
+    {
       "to": "github_repository_file.publish[\"crvouga/mockingbird\"]",
       "id": "mockingbird:.github/workflows/publish.yml:main"
     },

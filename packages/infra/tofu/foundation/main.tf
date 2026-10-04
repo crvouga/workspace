@@ -225,6 +225,16 @@ resource "cloudflare_ruleset" "redirects" {
   }]
 }
 
+resource "cloudflare_ruleset" "custom" {
+  for_each    = local.config.cloudflare.custom_rulesets
+  zone_id     = cloudflare_zone.primary.id
+  name        = each.value.name
+  description = each.value.description
+  kind        = each.value.kind
+  phase       = each.value.phase
+  rules       = each.value.rules
+}
+
 output "project_id" { value = railway_project.workspace.id }
 output "zone_id" { value = cloudflare_zone.primary.id }
 output "environment_id" { value = railway_project.workspace.default_environment.id }

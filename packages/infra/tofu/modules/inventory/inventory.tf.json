@@ -126,6 +126,42 @@
             "status": 301
           }
         ],
+        "custom_rulesets": {
+          "firewall": {
+            "name": "default",
+            "description": "",
+            "kind": "zone",
+            "phase": "http_request_firewall_custom",
+            "rules": [
+              {
+                "action": "skip",
+                "expression": "(http.host eq \"lm-studio.chrisvouga.dev\")",
+                "description": "cursor-llm-allow: skip bot/WAF for lm-studio.chrisvouga.dev",
+                "enabled": true,
+                "action_parameters": {
+                  "phases": [
+                    "http_ratelimit",
+                    "http_request_sbfm",
+                    "http_request_firewall_managed"
+                  ],
+                  "products": [
+                    "zoneLockdown",
+                    "uaBlock",
+                    "bic",
+                    "hot",
+                    "securityLevel",
+                    "rateLimit",
+                    "waf"
+                  ],
+                  "ruleset": "current"
+                },
+                "logging": {
+                  "enabled": true
+                }
+              }
+            ]
+          }
+        },
         "additional_tunnels": {
           "llm": {
             "name": "llm",
@@ -158,6 +194,11 @@
         "infra_repo": "crvouga/workspace",
         "pr_ready": {
           "repo_settings": {
+            "description": "Personal monorepo and infrastructure for chrisvouga.dev.",
+            "homepage": "https://chrisvouga.dev",
+            "visibility": "public",
+            "archived": false,
+            "topics": ["infrastructure-as-code", "opentofu", "turborepo"],
             "default_branch": "main",
             "allow_merge_commit": true,
             "allow_squash_merge": false,
@@ -173,8 +214,83 @@
             "web_commit_signoff_required": false,
             "allow_forking": true,
             "merge_commit_title": "MERGE_MESSAGE",
-            "merge_commit_message": "PR_TITLE"
+            "merge_commit_message": "PR_TITLE",
+            "security_and_analysis": {
+              "secret_scanning": {
+                "status": "enabled"
+              },
+              "secret_scanning_push_protection": {
+                "status": "enabled"
+              },
+              "secret_scanning_non_provider_patterns": {
+                "status": "disabled"
+              }
+            }
           },
+          "actions": {
+            "enabled": true,
+            "allowed_actions": "all",
+            "sha_pinning_required": false,
+            "default_workflow_permissions": "read",
+            "can_approve_pull_request_reviews": false
+          },
+          "security": {
+            "vulnerability_alerts": true,
+            "dependabot_security_updates": true
+          },
+          "collaborators": [
+            {
+              "username": "crvouga",
+              "permission": "admin"
+            }
+          ],
+          "labels": [
+            {
+              "name": "bug",
+              "color": "d73a4a",
+              "description": "Something isn't working"
+            },
+            {
+              "name": "documentation",
+              "color": "0075ca",
+              "description": "Improvements or additions to documentation"
+            },
+            {
+              "name": "duplicate",
+              "color": "cfd3d7",
+              "description": "This issue or pull request already exists"
+            },
+            {
+              "name": "enhancement",
+              "color": "a2eeef",
+              "description": "New feature or request"
+            },
+            {
+              "name": "good first issue",
+              "color": "7057ff",
+              "description": "Good for newcomers"
+            },
+            {
+              "name": "help wanted",
+              "color": "008672",
+              "description": "Extra attention is needed"
+            },
+            {
+              "name": "invalid",
+              "color": "e4e669",
+              "description": "This doesn't seem right"
+            },
+            {
+              "name": "question",
+              "color": "d876e3",
+              "description": "Further information is requested"
+            },
+            {
+              "name": "wontfix",
+              "color": "ffffff",
+              "description": "This will not be worked on"
+            }
+          ],
           "ruleset": {
             "name": "main",
             "target": "branch",
