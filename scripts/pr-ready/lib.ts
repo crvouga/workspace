@@ -17,6 +17,11 @@ export const MERGE_GATE = JSON.parse(
   )
 ).locals.inventory.github.pr_ready as {
   repo_settings: {
+    description: string;
+    homepage: string;
+    visibility: string;
+    archived: boolean;
+    topics: string[];
     default_branch: string;
     allow_merge_commit: boolean;
     allow_squash_merge: boolean;
@@ -24,6 +29,7 @@ export const MERGE_GATE = JSON.parse(
     allow_auto_merge: boolean;
     allow_update_branch: boolean;
     delete_branch_on_merge: boolean;
+    security_and_analysis: Record<string, { status: string }>;
   };
   ruleset: {
     name: string;

@@ -47,4 +47,14 @@ run "image_and_environment" {
     condition     = graphql_mutation.settings.mutation_variables.healthcheckPath == "/health"
     error_message = "Healthcheck configuration must be managed by OpenTofu."
   }
+  assert {
+    condition = alltrue([
+      strcontains(graphql_mutation.settings.create_mutation, "builder: RAILPACK"),
+      strcontains(graphql_mutation.settings.create_mutation, "restartPolicyType: ON_FAILURE"),
+      strcontains(graphql_mutation.settings.create_mutation, "ipv6EgressEnabled: false"),
+      strcontains(graphql_mutation.settings.create_mutation, "tracingEnabled: false"),
+      strcontains(graphql_mutation.settings.create_mutation, "watchPatterns: []"),
+    ])
+    error_message = "Mutable Railway build and deploy settings must remain owned by OpenTofu."
+  }
 }
