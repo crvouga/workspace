@@ -6,7 +6,79 @@
       "image_prefix": "chrisvouga",
       "default_image_tag": "latest",
       "cloudflare": {
-        "ssl_mode": "strict",
+        "zone_settings": {
+          "0rtt": "off",
+          "always_online": "off",
+          "always_use_https": "off",
+          "automatic_https_rewrites": "on",
+          "brotli": "on",
+          "browser_cache_ttl": 14400,
+          "browser_check": "on",
+          "cache_level": "aggressive",
+          "challenge_ttl": 1800,
+          "ciphers": [],
+          "development_mode": "off",
+          "early_hints": "off",
+          "ech": "on",
+          "edge_cache_ttl": 7200,
+          "email_obfuscation": "on",
+          "filter_logs_to_cloudflare": "off",
+          "hotlink_protection": "off",
+          "http3": "on",
+          "ip_geolocation": "on",
+          "ipv6": "on",
+          "log_to_cloudflare": "on",
+          "max_upload": 100,
+          "min_tls_version": "1.0",
+          "minify": { "css": "off", "html": "off", "js": "off" },
+          "mobile_redirect": {
+            "status": "off",
+            "mobile_subdomain": null,
+            "strip_uri": false
+          },
+          "opportunistic_encryption": "on",
+          "opportunistic_onion": "on",
+          "origin_max_http_version": "2",
+          "pq_keyex": "on",
+          "replace_insecure_js": "on",
+          "rocket_loader": "off",
+          "security_header": {
+            "strict_transport_security": {
+              "enabled": false,
+              "max_age": 0,
+              "include_subdomains": false,
+              "preload": false,
+              "nosniff": false
+            }
+          },
+          "security_level": "medium",
+          "server_side_exclude": "on",
+          "ssl": "strict",
+          "tls_1_2_only": "off",
+          "tls_1_3": "on",
+          "tls_client_auth": "off",
+          "visitor_ip": "on",
+          "waf": "off",
+          "websockets": "on"
+        },
+        "dns_settings": {
+          "flatten_all_cnames": false,
+          "multi_provider": false,
+          "nameservers": { "type": "cloudflare.standard" },
+          "ns_ttl": 86400,
+          "secondary_overrides": false,
+          "soa": {
+            "expire": 604800,
+            "min_ttl": 1800,
+            "refresh": 10000,
+            "retry": 2400,
+            "rname": "dns.cloudflare.com",
+            "ttl": 3600
+          },
+          "zone_mode": "standard"
+        },
+        "network_error_logging": true,
+        "dnssec_status": "disabled",
         "placeholder_ipv4": "192.0.2.1",
         "dns": {
           "records": {
@@ -192,6 +264,247 @@
       "github": {
         "org": "crvouga",
         "infra_repo": "crvouga/workspace",
+        "repositories": {
+          "anime": {
+            "description": null,
+            "homepage": "starwars-crvouga.vercel.app",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": ["Production", "projects / production"]
+          },
+          "connect-four": {
+            "description": "An implementation of the classic Connect Four. Play against a computer or play against your friends with online multiplayer",
+            "homepage": "",
+            "default_branch": "master",
+            "topics": [
+              "express",
+              "firebase",
+              "gsap",
+              "heroku",
+              "material-ui",
+              "multiplayer-game",
+              "react",
+              "redux-saga",
+              "socket-io"
+            ],
+            "vulnerability_alerts": true,
+            "dependabot_security_updates": true,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": [
+              "christopher-vouga-connect-four",
+              "connect-four-backend",
+              "crvouga-connect-four",
+              "Preview",
+              "Production",
+              "projects / production",
+              "vouga-connect-four"
+            ]
+          },
+          "headless-combobox": {
+            "description": "⚡️Zero dependencies 🔌 Framework agnostic 💪 TypeScript 🧠 Headless Combobox",
+            "homepage": "https://headlesscombobox.chrisvouga.dev",
+            "default_branch": "main",
+            "topics": [
+              "aria",
+              "autocomplete",
+              "combobox",
+              "framework-agnostic",
+              "functional-programming",
+              "headless-ui",
+              "typescript",
+              "zero-dependency"
+            ],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "environments": [
+              "Production",
+              "Production – headless-autocomplete",
+              "Production – headless-autocomplete-example",
+              "Production – headless-combobox",
+              "Production – headless-combobox-demo-svelte",
+              "Production – headless-combobox-example-react",
+              "Production – headless-combobox-example-svelte",
+              "projects / production"
+            ]
+          },
+          "image-service": {
+            "description": null,
+            "homepage": "https://imageservice.chrisvouga.dev/",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": ["production", "projects / production"]
+          },
+          "llm-server": {
+            "description": null,
+            "homepage": null,
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": []
+          },
+          "match-three": {
+            "description": "Implementation of a Match Three type game. Swipe around items to match three in a row.",
+            "homepage": "https://matchthree.chrisvouga.dev/",
+            "default_branch": "master",
+            "topics": [
+              "firebase",
+              "framer-motion",
+              "functional-programming",
+              "material-ui",
+              "ramda",
+              "react",
+              "redux-saga"
+            ],
+            "vulnerability_alerts": true,
+            "dependabot_security_updates": true,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": [
+              "github-pages",
+              "Preview",
+              "Production",
+              "projects / production"
+            ],
+            "pages": {
+              "build_type": "legacy",
+              "branch": "gh-pages",
+              "path": "/"
+            }
+          },
+          "mockingbird": {
+            "description": "https://mockingbird.chrisvouga.dev/",
+            "homepage": "",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "has_discussions": true,
+            "allow_squash_merge": false,
+            "allow_rebase_merge": false,
+            "allow_auto_merge": true,
+            "allow_update_branch": true,
+            "delete_branch_on_merge": true,
+            "environments": []
+          },
+          "moviefinder.app-clojurescript": {
+            "description": null,
+            "homepage": "https://clojure.moviefinder.app/",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": ["production", "projects / production"]
+          },
+          "moviefinder.app-react": {
+            "description": null,
+            "homepage": "https://react.moviefinder.app",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": [
+              "production",
+              "Production – moviefinder-app-react",
+              "Production – moviefinder-app-react-rc4s",
+              "Production – moviefinder.app",
+              "projects / production"
+            ]
+          },
+          "moviefinder.app-rust": {
+            "description": null,
+            "homepage": "https://www.moviefinder.app/",
+            "default_branch": "main",
+            "topics": ["datastar", "rust"],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": [
+              "production",
+              "projects / production",
+              "rust.moviefinder.app (projects / production)"
+            ]
+          },
+          "simon-says": {
+            "description": "Implementation of the game Simon Says. Test your memory by seeing how long of a button press sequence your can remember.",
+            "homepage": "https://simonsays.chrisvouga.dev/",
+            "default_branch": "master",
+            "topics": [
+              "firebase",
+              "functional-programming",
+              "game-simon",
+              "material-ui",
+              "react",
+              "redux-saga",
+              "simon",
+              "tonejs"
+            ],
+            "vulnerability_alerts": true,
+            "dependabot_security_updates": true,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": ["Preview", "Production", "projects / production"]
+          },
+          "snake": {
+            "description": null,
+            "homepage": "https://snake.chrisvouga.dev/",
+            "default_branch": "master",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": ["Production", "projects / production"]
+          },
+          "todo-v1": {
+            "description": null,
+            "homepage": "",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "disabled",
+            "secret_scanning_push_protection": "disabled",
+            "workflow_permissions": "write",
+            "environments": ["Production", "projects / production"]
+          },
+          "violets-garden": {
+            "description": null,
+            "homepage": "https://violetsgarden.chrisvouga.dev/",
+            "default_branch": "main",
+            "topics": [],
+            "vulnerability_alerts": false,
+            "dependabot_security_updates": false,
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "environments": ["Preview", "Production"]
+          }
+        },
         "pr_ready": {
           "repo_settings": {
             "description": "Personal monorepo and infrastructure for chrisvouga.dev.",
@@ -535,6 +848,54 @@
             "required": true
           },
           {
+            "name": "DOCKER_USERNAME",
+            "configs": ["prd"],
+            "used_by": ["github-actions"],
+            "required": true
+          },
+          {
+            "name": "DOCKER_PASSWORD",
+            "configs": ["prd"],
+            "used_by": ["github-actions"],
+            "required": true
+          },
+          {
+            "name": "MOCKINGBIRD_JUNCTION_API_KEY",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "mockingbird"],
+            "required": true
+          },
+          {
+            "name": "MOCKINGBIRD_STRIPE_SECRET_KEY",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "mockingbird"],
+            "required": true
+          },
+          {
+            "name": "GENEBYGENE_CLIENT_ID",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "mockingbird"],
+            "required": true
+          },
+          {
+            "name": "DOPPLER_SERVICE_TOKEN",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "llm-server"],
+            "required": true
+          },
+          {
+            "name": "GENEBYGENE_CLIENT_SECRET",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "mockingbird"],
+            "required": true
+          },
+          {
+            "name": "PADDLE_API_KEY",
+            "configs": ["prd"],
+            "used_by": ["github-actions", "mockingbird"],
+            "required": true
+          },
+          {
             "name": "OPENAI_API_KEY",
             "configs": ["dev", "prd"],
             "used_by": ["ci", "opencode"]
@@ -576,6 +937,29 @@
             "region_id": "aws-us-east-1",
             "pg_version": 18,
             "history_retention_seconds": 3600,
+            "org_id": "org-noisy-forest-49139773",
+            "store_password": "yes",
+            "default_branch_protected": false,
+            "logical_replication": "no",
+            "allowed_ips": [],
+            "allowed_ips_protected_branches_only": "no",
+            "block_public_connections": "no",
+            "block_vpc_connections": "no",
+            "hipaa": "no",
+            "compute_provisioner": "k8s-neonvm",
+            "autoscaling_limit_min_cu": 0.25,
+            "autoscaling_limit_max_cu": 2,
+            "suspend_timeout_seconds": 0,
+            "maintenance_window": {
+              "weekdays": [1],
+              "start_time": "09:00",
+              "end_time": "10:00"
+            },
+            "primary_compute": {
+              "min_cu": 0.25,
+              "max_cu": 8,
+              "suspend_timeout_seconds": 0
+            },
             "neon_project_id": "flat-snow-95718736",
             "branch": {
               "name": "production",

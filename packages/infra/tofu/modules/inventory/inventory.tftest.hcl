@@ -36,4 +36,16 @@ run "fleet_contract" {
     condition     = alltrue([for ruleset in values(output.config.cloudflare.custom_rulesets) : ruleset.kind == "zone" && length(ruleset.rules) > 0])
     error_message = "Every custom Cloudflare ruleset must remain zone-scoped and contain a declared rule."
   }
+  assert {
+    condition     = output.config.cloudflare.zone_settings.ssl == "strict" && output.config.cloudflare.dns_settings.zone_mode == "standard"
+    error_message = "Cloudflare TLS and DNS policy must remain explicit desired state."
+  }
+  assert {
+    condition     = length(output.config.github.repositories) == 14 && alltrue([for repository in values(output.config.github.repositories) : contains(["main", "master"], repository.default_branch)])
+    error_message = "Every application repository and its default branch must be declared."
+  }
+  assert {
+    condition     = one(output.config.neon.projects).primary_compute.max_cu == 8 && one(output.config.neon.projects).store_password == "yes"
+    error_message = "Neon compute and credential policy must remain version controlled."
+  }
 }

@@ -117,10 +117,6 @@
       "id": "b254e483-1773-4947-bdd0-6d0300436e97:production:PORT:DB_CONNECTION_URI:BAO_API_ADDR"
     },
     {
-      "to": "cloudflare_zone_setting.ssl",
-      "id": "83db052d18159889dd290724ac7d52d9/ssl"
-    },
-    {
       "to": "cloudflare_ruleset.redirects",
       "id": "zones/83db052d18159889dd290724ac7d52d9/0f4a4b7e7e63431cbce6a2bb2cee3aa7"
     },
@@ -129,11 +125,11 @@
       "id": "zones/83db052d18159889dd290724ac7d52d9/242468406a594f919a70a41bf3291d80"
     },
     {
-      "to": "github_repository_file.publish[\"crvouga/mockingbird\"]",
+      "to": "github_repository_file.publish[\"mockingbird\"]",
       "id": "mockingbird:.github/workflows/publish.yml:main"
     },
     {
-      "to": "github_repository_file.publish[\"crvouga/violets-garden\"]",
+      "to": "github_repository_file.publish[\"violets-garden\"]",
       "id": "violets-garden:.github/workflows/publish.yml:main"
     }
   ]

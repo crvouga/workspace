@@ -88,6 +88,14 @@ Reuse these instead of creating duplicates. Adding a key means a human updates t
 | `CLOUDFLARE_ACCOUNT_ID` | dev, prd | ci, infra |  |
 | `RAILWAY_TOKEN` | dev, prd | ci, infra |  |
 | `PORTFOLIO_GITHUB_TOKEN` | dev, prd | ci, portfolio | yes |
+| `DOCKER_USERNAME` | prd | github-actions | yes |
+| `DOCKER_PASSWORD` | prd | github-actions | yes |
+| `MOCKINGBIRD_JUNCTION_API_KEY` | prd | github-actions, mockingbird | yes |
+| `MOCKINGBIRD_STRIPE_SECRET_KEY` | prd | github-actions, mockingbird | yes |
+| `GENEBYGENE_CLIENT_ID` | prd | github-actions, mockingbird | yes |
+| `DOPPLER_SERVICE_TOKEN` | prd | github-actions, llm-server | yes |
+| `GENEBYGENE_CLIENT_SECRET` | prd | github-actions, mockingbird | yes |
+| `PADDLE_API_KEY` | prd | github-actions, mockingbird | yes |
 | `OPENAI_API_KEY` | dev, prd | ci, opencode |  |
 | `9ROUTER_PASSWORD` | prd | 9router |  |
 | `9ROUTER_JWT_SECRET` | prd | 9router |  |

@@ -32,7 +32,26 @@ locals {
   update_settings = <<-GRAPHQL
     mutation Settings($serviceId: String!, $environmentId: String!, $healthcheckPath: String, $sleepApplication: Boolean!, $startCommand: String) {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: {
-        healthcheckPath: $healthcheckPath, sleepApplication: $sleepApplication, startCommand: $startCommand
+        autoInstrumentationEnabled: false
+        buildCommand: null
+        builder: RAILPACK
+        cronSchedule: null
+        dockerfilePath: null
+        drainingSeconds: null
+        healthcheckPath: $healthcheckPath
+        healthcheckTimeout: null
+        ipv6EgressEnabled: false
+        overlapSeconds: null
+        preDeployCommand: null
+        preDeployTimeoutSeconds: null
+        railwayConfigFile: null
+        restartPolicyMaxRetries: 10
+        restartPolicyType: ON_FAILURE
+        rootDirectory: null
+        sleepApplication: $sleepApplication
+        startCommand: $startCommand
+        tracingEnabled: false
+        watchPatterns: []
       })
     }
   GRAPHQL
@@ -56,14 +75,54 @@ resource "graphql_mutation" "settings" {
   read_query            = <<-GRAPHQL
     query Settings($serviceId: String!, $environmentId: String!) {
       serviceInstance(serviceId: $serviceId, environmentId: $environmentId) {
-        serviceId environmentId healthcheckPath sleepApplication startCommand
+        serviceId
+        environmentId
+        autoInstrumentationEnabled
+        buildCommand
+        builder
+        cronSchedule
+        dockerfilePath
+        drainingSeconds
+        healthcheckPath
+        healthcheckTimeout
+        ipv6EgressEnabled
+        overlapSeconds
+        preDeployCommand
+        preDeployTimeoutSeconds
+        railwayConfigFile
+        restartPolicyMaxRetries
+        restartPolicyType
+        rootDirectory
+        sleepApplication
+        startCommand
+        tracingEnabled
+        watchPatterns
       }
     }
   GRAPHQL
   delete_mutation       = <<-GRAPHQL
     mutation Reset($serviceId: String!, $environmentId: String!) {
       serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: {
-        healthcheckPath: null, sleepApplication: false, startCommand: null
+        autoInstrumentationEnabled: false
+        buildCommand: null
+        builder: RAILPACK
+        cronSchedule: null
+        dockerfilePath: null
+        drainingSeconds: null
+        healthcheckPath: null
+        healthcheckTimeout: null
+        ipv6EgressEnabled: false
+        overlapSeconds: null
+        preDeployCommand: null
+        preDeployTimeoutSeconds: null
+        railwayConfigFile: null
+        restartPolicyMaxRetries: 10
+        restartPolicyType: ON_FAILURE
+        rootDirectory: null
+        sleepApplication: false
+        startCommand: null
+        tracingEnabled: false
+        watchPatterns: []
       })
     }
   GRAPHQL

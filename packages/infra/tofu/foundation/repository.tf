@@ -2,6 +2,313 @@ locals {
   merge_gate = local.config.github.pr_ready
   pr_rule    = one([for rule in local.merge_gate.ruleset.rules : rule.parameters if rule.type == "pull_request"])
   check_rule = one([for rule in local.merge_gate.ruleset.rules : rule.parameters if rule.type == "required_status_checks"])
+  application_repository_defaults = {
+    visibility                  = "public"
+    archived                    = false
+    has_issues                  = true
+    has_projects                = true
+    has_wiki                    = true
+    has_discussions             = false
+    is_template                 = false
+    web_commit_signoff_required = false
+    allow_forking               = true
+    allow_merge_commit          = true
+    allow_squash_merge          = true
+    allow_rebase_merge          = true
+    allow_auto_merge            = false
+    allow_update_branch         = false
+    delete_branch_on_merge      = false
+    merge_commit_title          = "MERGE_MESSAGE"
+    merge_commit_message        = "PR_TITLE"
+    squash_merge_commit_title   = "COMMIT_OR_PR_TITLE"
+    squash_merge_commit_message = "COMMIT_MESSAGES"
+    workflow_permissions        = "read"
+  }
+  application_repositories = {
+    for name, settings in local.config.github.repositories : name => merge(local.application_repository_defaults, settings)
+  }
+  standard_labels = local.merge_gate.labels
+  dependency_label = {
+    name        = "dependencies"
+    color       = "0366d6"
+    description = "Pull requests that update a dependency file"
+  }
+  accessibility_label = {
+    name        = "accessibility"
+    color       = "f143ab"
+    description = "Barrier affecting people with disabilities"
+  }
+  mockingbird_labels = [
+    local.accessibility_label,
+    { name = "agent-reported", color = "5319e7", description = "Filed through docs/REPORTING_ISSUES.md; the /resolve-issues queue" },
+    { name = "bug", color = "d73a4a", description = "A mock crashes, leaks state, contradicts its README, or does not build" },
+    { name = "documentation", color = "0075ca", description = "Improvements or additions to documentation" },
+    { name = "duplicate", color = "cfd3d7", description = "This issue or pull request already exists" },
+    { name = "enhancement", color = "a2eeef", description = "New feature or request" },
+    { name = "feature", color = "0e8a16", description = "An existing mock lacks an operation, parameter, event or behavior" },
+    { name = "good first issue", color = "7057ff", description = "Good for newcomers" },
+    { name = "help wanted", color = "008672", description = "Extra attention is needed" },
+    { name = "invalid", color = "e4e669", description = "This doesn't seem right" },
+    { name = "needs-info", color = "fbca04", description = "Waiting on the reporter for a version, reproduction or behavior" },
+    { name = "needs-oracle-check", color = "c5def5", description = "The claim could not be confirmed against the oracle yet" },
+    { name = "new-service", color = "1d76db", description = "Request for a vendor API the catalog does not mock yet" },
+    { name = "parity", color = "d93f0b", description = "The mock and its oracle answer the same requests differently" },
+    { name = "question", color = "d876e3", description = "Further information is requested" },
+    { name = "wontfix", color = "ffffff", description = "This will not be worked on" },
+  ]
+  application_labels = {
+    for name in keys(local.application_repositories) : name => (
+      name == "mockingbird" ? local.mockingbird_labels : concat(
+        local.standard_labels,
+        contains(["connect-four", "match-three", "simon-says"], name) ? [local.dependency_label] : [],
+        name == "violets-garden" ? [local.accessibility_label] : [],
+      )
+    )
+  }
+  application_environments = merge([
+    for repository, settings in local.application_repositories : {
+      for environment in settings.environments : "${repository}:${environment}" => {
+        repository  = repository
+        environment = environment
+      }
+    }
+  ]...)
+  vault_repository_secret_values = jsondecode(var.vault_inputs).secrets.prd
+  docker_secret_repositories = toset([
+    "anime", "connect-four", "headless-combobox", "image-service", "match-three",
+    "moviefinder.app-clojurescript", "moviefinder.app-react", "moviefinder.app-rust",
+    "simon-says", "snake", "todo-v1",
+  ])
+  repository_secret_sources = merge(
+    merge([
+      for repository in local.docker_secret_repositories : {
+        "${repository}:DOCKER_USERNAME" = { repository = repository, name = "DOCKER_USERNAME", source = "DOCKER_USERNAME" }
+        "${repository}:DOCKER_PASSWORD" = { repository = repository, name = "DOCKER_PASSWORD", source = "DOCKER_PASSWORD" }
+      }
+    ]...),
+    {
+      "llm-server:DOPPLER_SERVICE_TOKEN"     = { repository = "llm-server", name = "DOPPLER_SERVICE_TOKEN", source = "DOPPLER_SERVICE_TOKEN" }
+      "mockingbird:GENEBYGENE_CLIENT_ID"     = { repository = "mockingbird", name = "GENEBYGENE_CLIENT_ID", source = "GENEBYGENE_CLIENT_ID" }
+      "mockingbird:GENEBYGENE_CLIENT_SECRET" = { repository = "mockingbird", name = "GENEBYGENE_CLIENT_SECRET", source = "GENEBYGENE_CLIENT_SECRET" }
+      "mockingbird:JUNCTION_API_KEY"         = { repository = "mockingbird", name = "JUNCTION_API_KEY", source = "MOCKINGBIRD_JUNCTION_API_KEY" }
+      "mockingbird:PADDLE_API_KEY"           = { repository = "mockingbird", name = "PADDLE_API_KEY", source = "PADDLE_API_KEY" }
+      "mockingbird:STRIPE_SECRET_KEY"        = { repository = "mockingbird", name = "STRIPE_SECRET_KEY", source = "MOCKINGBIRD_STRIPE_SECRET_KEY" }
+    },
+  )
+}
+
+resource "github_repository" "application" {
+  for_each                    = local.application_repositories
+  name                        = each.key
+  description                 = each.value.description
+  homepage_url                = each.value.homepage
+  visibility                  = each.value.visibility
+  archived                    = each.value.archived
+  topics                      = each.value.topics
+  has_issues                  = each.value.has_issues
+  has_projects                = each.value.has_projects
+  has_wiki                    = each.value.has_wiki
+  has_discussions             = each.value.has_discussions
+  is_template                 = each.value.is_template
+  web_commit_signoff_required = each.value.web_commit_signoff_required
+  allow_forking               = each.value.allow_forking
+  merge_commit_title          = each.value.merge_commit_title
+  merge_commit_message        = each.value.merge_commit_message
+  squash_merge_commit_title   = each.value.squash_merge_commit_title
+  squash_merge_commit_message = each.value.squash_merge_commit_message
+  allow_merge_commit          = each.value.allow_merge_commit
+  allow_squash_merge          = each.value.allow_squash_merge
+  allow_rebase_merge          = each.value.allow_rebase_merge
+  allow_auto_merge            = each.value.allow_auto_merge
+  allow_update_branch         = each.value.allow_update_branch
+  delete_branch_on_merge      = each.value.delete_branch_on_merge
+  security_and_analysis {
+    secret_scanning { status = each.value.secret_scanning }
+    secret_scanning_push_protection { status = each.value.secret_scanning_push_protection }
+    secret_scanning_non_provider_patterns { status = "disabled" }
+  }
+  dynamic "pages" {
+    for_each = try(each.value.pages, null) == null ? [] : [each.value.pages]
+    content {
+      build_type = pages.value.build_type
+      source {
+        branch = pages.value.branch
+        path   = pages.value.path
+      }
+    }
+  }
+  lifecycle { prevent_destroy = true }
+}
+
+resource "github_branch_default" "application" {
+  for_each   = local.application_repositories
+  repository = github_repository.application[each.key].name
+  branch     = each.value.default_branch
+}
+
+resource "github_actions_repository_permissions" "application" {
+  for_each             = local.application_repositories
+  repository           = github_repository.application[each.key].name
+  enabled              = true
+  allowed_actions      = "all"
+  sha_pinning_required = false
+}
+
+resource "github_workflow_repository_permissions" "application" {
+  for_each                         = local.application_repositories
+  repository                       = github_repository.application[each.key].name
+  default_workflow_permissions     = each.value.workflow_permissions
+  can_approve_pull_request_reviews = each.value.workflow_permissions == "write"
+}
+
+resource "github_repository_vulnerability_alerts" "application" {
+  for_each   = local.application_repositories
+  repository = github_repository.application[each.key].name
+  enabled    = each.value.vulnerability_alerts
+}
+
+resource "github_repository_dependabot_security_updates" "application" {
+  for_each   = local.application_repositories
+  repository = github_repository.application[each.key].name
+  enabled    = each.value.dependabot_security_updates
+  depends_on = [github_repository_vulnerability_alerts.application]
+}
+
+resource "github_repository_collaborators" "application" {
+  for_each   = local.application_repositories
+  repository = github_repository.application[each.key].name
+  dynamic "user" {
+    for_each = merge(
+      { crvouga = "admin" },
+      each.key == "mockingbird" ? { crsiebler = "push", freddie-geviti = "push" } : {},
+    )
+    content {
+      username   = user.key
+      permission = user.value
+    }
+  }
+}
+
+resource "github_issue_labels" "application" {
+  for_each   = local.application_labels
+  repository = github_repository.application[each.key].name
+  dynamic "label" {
+    for_each = { for label in each.value : label.name => label }
+    content {
+      name        = label.value.name
+      color       = label.value.color
+      description = label.value.description
+    }
+  }
+}
+
+resource "github_repository_environment" "application" {
+  for_each    = local.application_environments
+  repository  = github_repository.application[each.value.repository].name
+  environment = each.value.environment
+  lifecycle { prevent_destroy = true }
+}
+
+resource "github_repository_ruleset" "mockingbird_main" {
+  repository  = github_repository.application["mockingbird"].name
+  name        = "Protect main"
+  target      = "branch"
+  enforcement = "active"
+  conditions {
+    ref_name {
+      include = ["refs/heads/main"]
+      exclude = []
+    }
+  }
+  rules {
+    deletion         = true
+    non_fast_forward = true
+    pull_request {
+      allowed_merge_methods             = ["merge"]
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_approving_review_count   = 0
+      required_review_thread_resolution = false
+    }
+    required_status_checks {
+      strict_required_status_checks_policy = true
+      required_check {
+        context        = "Commitlint"
+        integration_id = 15368
+      }
+      required_check {
+        context        = "Check"
+        integration_id = 15368
+      }
+      required_check {
+        context        = "GitGuardian Security Checks"
+        integration_id = 46505
+      }
+    }
+  }
+}
+
+resource "github_actions_secret" "repository" {
+  for_each        = local.repository_secret_sources
+  repository      = github_repository.application[each.value.repository].name
+  secret_name     = each.value.name
+  plaintext_value = local.vault_repository_secret_values[each.value.source]
+}
+
+import {
+  for_each = local.application_repositories
+  to       = github_repository.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_branch_default.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_actions_repository_permissions.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_workflow_repository_permissions.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = { for name, settings in local.application_repositories : name => settings if settings.vulnerability_alerts }
+  to       = github_repository_vulnerability_alerts.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_repository_dependabot_security_updates.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_repository_collaborators.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_repositories
+  to       = github_issue_labels.application[each.key]
+  id       = each.key
+}
+import {
+  for_each = local.application_environments
+  to       = github_repository_environment.application[each.key]
+  id       = "${each.value.repository}:${each.value.environment}"
+}
+import {
+  for_each = local.repository_secret_sources
+  to       = github_actions_secret.repository[each.key]
+  id       = "${each.value.repository}:${each.value.name}"
+}
+import {
+  to = github_repository_ruleset.mockingbird_main
+  id = "mockingbird:23647164"
 }
 
 resource "github_repository" "workspace" {

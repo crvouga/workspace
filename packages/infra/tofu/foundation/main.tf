@@ -19,10 +19,33 @@ resource "railway_project" "workspace" {
 }
 
 resource "neon_project" "openbao" {
-  name                      = one(local.config.neon.projects).name
-  region_id                 = one(local.config.neon.projects).region_id
-  pg_version                = one(local.config.neon.projects).pg_version
-  history_retention_seconds = one(local.config.neon.projects).history_retention_seconds
+  name                                = one(local.config.neon.projects).name
+  region_id                           = one(local.config.neon.projects).region_id
+  pg_version                          = one(local.config.neon.projects).pg_version
+  history_retention_seconds           = one(local.config.neon.projects).history_retention_seconds
+  org_id                              = one(local.config.neon.projects).org_id
+  store_password                      = one(local.config.neon.projects).store_password
+  default_branch_protected            = one(local.config.neon.projects).default_branch_protected
+  enable_logical_replication          = one(local.config.neon.projects).logical_replication
+  allowed_ips                         = one(local.config.neon.projects).allowed_ips
+  allowed_ips_protected_branches_only = one(local.config.neon.projects).allowed_ips_protected_branches_only
+  block_public_connections            = one(local.config.neon.projects).block_public_connections
+  block_vpc_connections               = one(local.config.neon.projects).block_vpc_connections
+  hipaa                               = one(local.config.neon.projects).hipaa
+  compute_provisioner                 = one(local.config.neon.projects).compute_provisioner
+  autoscaling_limit_min_cu            = one(local.config.neon.projects).autoscaling_limit_min_cu
+  autoscaling_limit_max_cu            = one(local.config.neon.projects).autoscaling_limit_max_cu
+  suspend_timeout_seconds             = one(local.config.neon.projects).suspend_timeout_seconds
+  maintenance_window {
+    weekdays   = one(local.config.neon.projects).maintenance_window.weekdays
+    start_time = one(local.config.neon.projects).maintenance_window.start_time
+    end_time   = one(local.config.neon.projects).maintenance_window.end_time
+  }
+  primary_compute {
+    autoscaling_limit_min_cu = one(local.config.neon.projects).primary_compute.min_cu
+    autoscaling_limit_max_cu = one(local.config.neon.projects).primary_compute.max_cu
+    suspend_timeout_seconds  = one(local.config.neon.projects).primary_compute.suspend_timeout_seconds
+  }
   branch {
     name          = one(local.config.neon.projects).branch.name
     database_name = one(local.config.neon.projects).branch.database_name
@@ -85,10 +108,58 @@ resource "time_sleep" "vault_start" {
   depends_on = [module.vault_service]
 }
 
-resource "cloudflare_zone_setting" "ssl" {
+resource "cloudflare_zone_setting" "managed" {
+  for_each   = local.config.cloudflare.zone_settings
   zone_id    = cloudflare_zone.primary.id
-  setting_id = "ssl"
-  value      = local.config.cloudflare.ssl_mode
+  setting_id = each.key
+  value      = each.value
+}
+
+moved {
+  from = cloudflare_zone_setting.ssl
+  to   = cloudflare_zone_setting.managed["ssl"]
+}
+
+import {
+  for_each = { for name, value in local.config.cloudflare.zone_settings : name => value if name != "ssl" }
+  to       = cloudflare_zone_setting.managed[each.key]
+  id       = "${var.cloudflare_zone_id}/${each.key}"
+}
+
+resource "cloudflare_zone_dns_settings" "primary" {
+  zone_id             = cloudflare_zone.primary.id
+  flatten_all_cnames  = local.config.cloudflare.dns_settings.flatten_all_cnames
+  multi_provider      = local.config.cloudflare.dns_settings.multi_provider
+  nameservers         = local.config.cloudflare.dns_settings.nameservers
+  ns_ttl              = local.config.cloudflare.dns_settings.ns_ttl
+  secondary_overrides = local.config.cloudflare.dns_settings.secondary_overrides
+  soa                 = local.config.cloudflare.dns_settings.soa
+  zone_mode           = local.config.cloudflare.dns_settings.zone_mode
+}
+
+resource "cloudflare_nel_setting" "primary" {
+  zone_id = cloudflare_zone.primary.id
+  value   = { enabled = local.config.cloudflare.network_error_logging }
+}
+
+resource "cloudflare_zone_dnssec" "primary" {
+  zone_id = cloudflare_zone.primary.id
+  status  = local.config.cloudflare.dnssec_status
+}
+
+import {
+  to = cloudflare_zone_dns_settings.primary
+  id = var.cloudflare_zone_id
+}
+
+import {
+  to = cloudflare_nel_setting.primary
+  id = var.cloudflare_zone_id
+}
+
+import {
+  to = cloudflare_zone_dnssec.primary
+  id = var.cloudflare_zone_id
 }
 
 resource "cloudflare_r2_bucket" "shared" {
