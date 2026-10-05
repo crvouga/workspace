@@ -27,7 +27,7 @@ Import existing resources before applying. State and plans are encrypted; creden
 
 The single [CI workflow](.github/workflows/ci.yml) validates, builds images, applies OpenTofu and probes production health. Sibling repositories call its `workflow_call` image publisher and dispatch image revisions back to this repository. OpenTofu manages their publisher files and dispatch secrets.
 
-The generated [llms.txt](llms.txt) explains how other projects integrate with Vault, remote caching, object storage and fleet hosting. Regenerate it with `bun run llms:sync` after changing the infrastructure inventory or integration contract.
+The generated [llms.txt](llms.txt) explains how other projects integrate with Vault, PostgreSQL, remote caching, object storage and fleet hosting. The portfolio publishes it at [www.chrisvouga.dev/llms.txt](https://www.chrisvouga.dev/llms.txt) with an identical `/llm.txt` alias. Regenerate it with `bun run llms:sync` after changing the infrastructure inventory or integration contract.
 
 Local setup: `vault login`, then `bun run setup` downloads runtime settings without writing infrastructure. `bun run dev` starts the cache server on port 8787. [Workstation setup](packages/workstation/README.md) uses `bun run ws:install`.
 

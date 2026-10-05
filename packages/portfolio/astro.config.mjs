@@ -6,6 +6,6 @@ export default defineConfig({
   output: 'static',
   build: { inlineStylesheets: 'always' },
   // Emits sitemap-index.xml + sitemap-0.xml. /404 and non-page endpoints
-  // (llms.txt) are excluded automatically.
+  // (llm.txt and llms.txt) are excluded automatically.
   integrations: [sitemap()],
 });
