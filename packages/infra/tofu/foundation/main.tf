@@ -127,15 +127,21 @@ import {
   id       = "${var.cloudflare_zone_id}/${each.key}"
 }
 
+# SOA and NS TTL customizations require Enterprise entitlement. Leave the
+# Cloudflare defaults unconfigured so adoption can run on this account.
 resource "cloudflare_zone_dns_settings" "primary" {
   zone_id             = cloudflare_zone.primary.id
   flatten_all_cnames  = local.config.cloudflare.dns_settings.flatten_all_cnames
   multi_provider      = local.config.cloudflare.dns_settings.multi_provider
   nameservers         = local.config.cloudflare.dns_settings.nameservers
-  ns_ttl              = local.config.cloudflare.dns_settings.ns_ttl
   secondary_overrides = local.config.cloudflare.dns_settings.secondary_overrides
-  soa                 = local.config.cloudflare.dns_settings.soa
   zone_mode           = local.config.cloudflare.dns_settings.zone_mode
+
+  lifecycle {
+    # The provider reads this default into state despite it being optional,
+    # not computed. Do not plan to clear or customize the account's NS TTL.
+    ignore_changes = [ns_ttl]
+  }
 }
 
 resource "cloudflare_nel_setting" "primary" {
