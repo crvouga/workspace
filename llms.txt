@@ -1,16 +1,20 @@
 # crvouga/workspace — shared infrastructure integration guide
 
-> The one file an agent needs to integrate another codebase with the shared infrastructure owned by `crvouga/workspace`: Vault (OpenBao) secrets, the self-hosted Turborepo remote cache, the shared Cloudflare R2 object store, and hosting on the managed Railway fleet — every hosted project is **Dockerized and ships as a prebuilt GHCR image**. Values in this file are generated from `packages/infra/tofu/modules/inventory/inventory.tf.json`, `.github/workflows/ci.yml` and the Vault secret registry; CI fails whenever it drifts from them.
+> The one file an agent needs to integrate another codebase with the shared infrastructure owned by `crvouga/workspace`: Vault (OpenBao) secrets, PostgreSQL access, the self-hosted Turborepo remote cache, the shared Cloudflare R2 object store, and hosting on the managed Railway fleet — every hosted project is **Dockerized and ships as a prebuilt GHCR image**. Values in this file are generated from `packages/infra/tofu/modules/inventory/inventory.tf.json`, `.github/workflows/ci.yml` and the Vault secret registry; CI fails whenever it drifts from them.
 
-Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
+Canonical deployed URL: https://www.chrisvouga.dev/llms.txt
+
+Singular alias: https://www.chrisvouga.dev/llm.txt
+
+Source snapshot (always current `main`): https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
 
 ## Use this file
 
 - Link it from your project's `AGENTS.md` / `CLAUDE.md` so every session can fetch it:
 
   ```md
-  Shared infra (Vault, Turborepo remote cache, R2 object store, hosting):
-  https://raw.githubusercontent.com/crvouga/workspace/main/llms.txt
+  Shared infra (Vault, PostgreSQL, Turborepo remote cache, R2 object store, hosting):
+  https://www.chrisvouga.dev/llms.txt
   ```
 
 - Re-fetch it instead of trusting a cached copy — ports, hostnames and the fleet list change.
@@ -28,20 +32,24 @@ Canonical URL (always current `main`): https://raw.githubusercontent.com/crvouga
 ## Integration checklist
 
 1. Needs secrets (API keys, database URLs)? → [1. Vault](#1-vault-secrets). Every other section depends on it.
-2. Uses Turborepo (`turbo.json` exists)? → [2. Turborepo remote cache](#2-turborepo-remote-cache).
-3. Stores files / blobs? → [3. Object store](#3-object-store-cloudflare-r2-s3-compatible).
-4. Should be publicly hosted at `*.chrisvouga.dev` (and listed on the portfolio)? → [4. Hosting](#4-hosting-on-the-managed-fleet). The project must be Dockerized and publish prebuilt images; you request hosting by opening a GitHub issue on `crvouga/workspace` (§4 Step 1) that carries everything needed to deploy it and list it on the portfolio.
+2. Needs relational data? → [2. PostgreSQL](#2-postgresql). Use only the `DATABASE_URL` contract; the platform database credentials are not an app interface.
+3. Uses Turborepo (`turbo.json` exists)? → [3. Turborepo remote cache](#3-turborepo-remote-cache).
+4. Stores files / blobs? → [4. Object store](#4-object-store-cloudflare-r2-s3-compatible).
+5. Should be publicly hosted at `*.chrisvouga.dev` (and listed on the portfolio)? → [5. Hosting](#5-hosting-on-the-managed-fleet). The project must be Dockerized and publish prebuilt images; you request hosting by opening a GitHub issue on `crvouga/workspace` (§5 Step 1) that carries everything needed to deploy it and list it on the portfolio.
 
 ## Resources at a glance
 
 | Resource | Endpoint | Auth |
 | --- | --- | --- |
 | Vault (OpenBao) | `https://vault.chrisvouga.dev` | `vault login` locally; GitHub OIDC (role `github-actions`) in CI; read token at runtime |
+| PostgreSQL | via `DATABASE_URL` (opaque connection URL) | connection URL from Vault; an app-specific allocation is required |
 | Turborepo cache | `https://turborepo.chrisvouga.dev` | `Authorization: Bearer $TURBO_TOKEN` |
 | Object store | Cloudflare R2 (S3 API) via `S3_ENDPOINT` | SigV4 with `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` |
-| Hosting | Railway project `Workspace` at `*.chrisvouga.dev` | Prebuilt GHCR image published by the shared workflow (§4) |
+| Hosting | Railway project `Workspace` at `*.chrisvouga.dev` | Prebuilt GHCR image published by the shared workflow (§5) |
 
-All credentials live in Vault. Vault is the only thing you authenticate to directly.
+All consumer credentials live in Vault. Vault is the only thing an integrating project authenticates to directly.
+
+This is a consumer guide, not an inventory dump. State backends, provider credentials, the OpenBao storage database, administrative tunnels, and control-plane tokens are intentionally excluded from consumer instructions. They remain OpenTofu-owned and must never be reused by an application.
 
 ---
 
@@ -173,11 +181,69 @@ if (!res.ok) throw new Error(`vault ${res.status}`); // 503 = sealed → retry w
 const secrets = (await res.json()).data.data as Record<string, string>;
 ```
 
-Honor `Retry-After` on 429 and cache the result for the process lifetime. **Apps hosted on the fleet do not need this** — declare `secrets:` in `OpenTofu inventory` (§4) and they arrive as plain env vars.
+Honor `Retry-After` on 429 and cache the result for the process lifetime. **Apps hosted on the fleet do not need this** — declare `secrets:` in `OpenTofu inventory` (§5) and they arrive as plain env vars.
 
 ---
 
-## 2. Turborepo remote cache
+## 2. PostgreSQL
+
+The application database contract is the secret env var `DATABASE_URL` in Vault `secret/personal/{dev,prd}`. Treat the entire connection string as opaque: pass it unchanged to a PostgreSQL driver, do not parse or reconstruct it, and never print it. The URL selects the environment; do not hardcode a hostname, database, role, password, TLS mode, or provider.
+
+### Boundaries
+
+- `DATABASE_URL` is the only application-facing PostgreSQL credential. `DB_CONNECTION_URI`, `NEON_API_KEY`, and the `secret_store` schema belong to the OpenBao control plane. Never read, request, inject, migrate, inspect, or reuse them from an application.
+- Do not create a database, branch, role, schema, extension, replica, or provider project from another repo. Those are infrastructure resources and must be declared in `crvouga/workspace` with OpenTofu.
+- A new app needs an explicitly allocated database/schema before it runs DDL or writes data. Include the requested app id, schema name, extensions, migration command, and whether both `dev` and `prd` are required in the hosting request (§5). If no allocation is recorded in the approved infrastructure change, stop; possession of the shared credential is not authorization to use another app's tables.
+- Keep dev and production separate by loading the matching Vault config. Never copy production data into dev or point a local process at `prd` unless the human explicitly requests it.
+- Use parameterized queries. Put schema changes in deterministic, committed migrations and make the deploy strategy explicit. Never perform destructive or irreversible migrations automatically; use expand/migrate/contract changes and a reviewed backup/rollback plan.
+- Configure a small bounded connection pool, release clients in `finally`, set query/statement timeouts, retry only transient connection failures with bounded backoff, and make write retries idempotent. Do not retry constraint errors or arbitrary transactions.
+
+### Local development
+
+Load the development URL through the same `.vault.yaml` contract as §1:
+
+```bash
+vault run -- sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select 1"'
+vault run -- bun run dev
+vault run -- bun run db:migrate       # only after the app's schema is allocated
+```
+
+The quoting in the `psql` example is intentional: the child shell expands `DATABASE_URL` after `vault run` injects it. A command such as `vault run -- psql "$DATABASE_URL"` expands too early and usually passes an empty value.
+
+Minimal Node/Bun shape (use the project's existing PostgreSQL library if it has one):
+
+```ts
+import { Pool } from 'pg';
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('DATABASE_URL is required');
+
+export const db = new Pool({
+  connectionString, // preserve provider-required TLS/query parameters
+  max: 5,
+  connectionTimeoutMillis: 10_000,
+  statement_timeout: 30_000,
+});
+```
+
+Do not add an unconditional custom `ssl` object: many clients let it override TLS parameters already encoded in the managed URL.
+
+### CI and hosted runtime
+
+- **CI:** request `DATABASE_URL` with the GitHub OIDC Vault step from §1. Expose it only to the migration/test step that needs it; do not write it to `$GITHUB_ENV`, artifacts, caches, summaries, or logs.
+- **Hosted runtime:** list `{ "name": "DATABASE_URL", "source": "vault" }` in the service's OpenTofu inventory `secrets`. The fleet copies the `prd` value into Railway. The app does not fetch Vault directly.
+- **Tests:** prefer an isolated disposable local PostgreSQL instance. Tests must not mutate the shared dev database unless the human explicitly requests an integration test and the app has an isolated schema.
+- **Health checks:** do not make the public liveness path depend on a database query. Check database readiness separately at boot or through a diagnostic endpoint; transient database trouble must not create a restart loop.
+
+Verify without exposing connection details:
+
+```bash
+vault run -- sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "select 1" | grep -qx 1'
+```
+
+---
+
+## 3. Turborepo remote cache
 
 Self-hosted Turborepo remote cache (Turbo's standard HTTP API, Bearer auth). Only applies to projects with a `turbo.json`. Do not use Vercel Remote Cache (`turbo login` / `turbo link`) alongside it.
 
@@ -219,7 +285,7 @@ If the health check fails the cache is down — report it; do not switch provide
 
 ---
 
-## 3. Object store (Cloudflare R2, S3-compatible)
+## 4. Object store (Cloudflare R2, S3-compatible)
 
 Shared buckets, one per Vault config; apps partition them by key prefix.
 
@@ -241,9 +307,12 @@ Shared buckets, one per Vault config; apps partition them by key prefix.
 **Rules**
 
 - **Prefix every key with your app id**: `<app-id>/…` (e.g. `moviefinder/posters/123.webp`). Never write, list, or delete outside your prefix — other apps share the bucket, and `turbo-cache/` belongs to the Turborepo cache. Make the prefix a single constant at the composition root.
+- The current credentials can reach a shared bucket; the prefix is an isolation contract, not an IAM boundary. Validate every caller-supplied key after normalization, reject `..`, leading `/`, empty segments and backslashes, and never accept a complete object key directly from an HTTP request.
 - Read the bucket from `S3_BUCKET`; never hardcode bucket names. dev vs prd is selected purely by the Vault config you run with.
 - Use path-style addressing: `${S3_ENDPOINT}/${S3_BUCKET}/${key}`.
 - Buckets are private. Serve objects through your app (or presigned URLs), never public bucket URLs.
+- Store the authoritative MIME type and size as object metadata; do not trust a download filename or user-provided `Content-Type`. Stream large bodies instead of buffering them, place explicit size limits on uploads, and use multipart upload only when the chosen SDK can abort failed uploads.
+- Treat `PUT` of the same key as replacement. Generate immutable/versioned keys when overwrites would break caches, and delete only keys that your app recorded as owned. R2 listing is paginated; follow continuation tokens until complete.
 - Do not create buckets or R2 tokens; provisioning lives in `crvouga/workspace` (`bun run infra apply`).
 
 **Clients**
@@ -259,12 +328,13 @@ const s3 = new AwsClient({
 });
 const base = `${env.S3_ENDPOINT.replace(/\/$/, '')}/${env.S3_BUCKET}`;
 const key = `myapp/${id}`;
-await s3.fetch(`${base}/${key}`, {
+const objectUrl = `${base}/${key.split('/').map(encodeURIComponent).join('/')}`;
+await s3.fetch(objectUrl, {
   method: 'PUT',
   body: bytes,
   headers: { 'content-type': type },
 });
-const res = await s3.fetch(`${base}/${key}`); // 404 → missing
+const res = await s3.fetch(objectUrl); // 404 → missing
 ```
 
 ```ts
@@ -286,7 +356,7 @@ Recommended shape: hide the SDK behind a small interface — `get(key) → {body
 
 ---
 
-## 4. Hosting on the managed fleet
+## 5. Hosting on the managed fleet
 
 `crvouga/workspace` hosts apps on Railway (project `Workspace`, region `us-west2`) behind `*.chrisvouga.dev` hostnames with TLS and DNS managed by OpenTofu. **Railway never builds your code.** Every hosted project is Dockerized, CI publishes a **prebuilt image** to GHCR, and the fleet deploys that exact image.
 

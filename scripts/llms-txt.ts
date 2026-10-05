@@ -45,6 +45,7 @@ const ROOT = join(import.meta.dirname, '..');
 const TEMPLATE_PATH = 'scripts/llms-txt.template.md';
 const OUTPUT_PATH = 'llms.txt';
 const EXAMPLE_SERVICE_ID = 'my-app';
+const APPLICATION_DATABASE_SECRET = 'DATABASE_URL';
 
 type WorkflowInput = {
   description?: string;
@@ -171,6 +172,17 @@ function values(ctx: Context): Record<string, string> {
   const { path: jwtPath, role } = jwtRole(ctx);
   const token = runtimeToken(ctx);
   const turbo = service(ctx, 'turborepo');
+  const portfolio = service(ctx, 'portfolio');
+  const databaseSecret = need(
+    vault.kv_keys?.find((key) => key.name === APPLICATION_DATABASE_SECRET),
+    `vault.kv_keys entry for ${APPLICATION_DATABASE_SECRET}`
+  );
+  const platformDatabase = need(
+    config.neon?.projects?.find(
+      (project) => project.purpose === 'openbao-storage'
+    ),
+    'neon.projects OpenBao storage entry'
+  );
   const org = need(config.github?.org, 'github.org');
   const dispatchSecret = 'DEPLOY_DISPATCH_TOKEN';
   for (const name of [dispatchSecret, 'CALLER_GITHUB_TOKEN']) {
@@ -182,6 +194,8 @@ function values(ctx: Context): Record<string, string> {
   return {
     infraRepo,
     rawUrl: `https://raw.githubusercontent.com/${infraRepo}/main/${OUTPUT_PATH}`,
+    siteGuideUrl: `https://${need(portfolio.hostname, 'portfolio hostname')}/llms.txt`,
+    siteGuideAliasUrl: `https://${need(portfolio.hostname, 'portfolio hostname')}/llm.txt`,
     zone: config.zone,
     githubOrg: org,
     vaultAddr: vaultAddr(config),
@@ -202,6 +216,8 @@ function values(ctx: Context): Record<string, string> {
     jwtTtl: need(role.ttl, 'jwt role ttl'),
     runtimeTokenPolicy: token.policy,
     runtimeTokenPeriod: token.period,
+    databaseSecret: databaseSecret.name,
+    platformDatabaseSecret: platformDatabase.secret_name,
     turboApi: `https://${need(turbo.hostname, 'turborepo hostname')}`,
     turboHealthPath: need(serviceHealthPath(turbo), 'turborepo health path'),
     objectKeyPrefix: OBJECT_KEY_PREFIX,
@@ -280,6 +296,11 @@ function blocks(ctx: Context): Record<string, string> {
           `\`vault login\` locally; GitHub OIDC (role \`${role.name}\`) in CI; read token at runtime`,
         ],
         [
+          'PostgreSQL',
+          `via ${code(v.databaseSecret!)} (opaque connection URL)`,
+          'connection URL from Vault; an app-specific allocation is required',
+        ],
+        [
           'Turborepo cache',
           code(v.turboApi!),
           '`Authorization: Bearer $TURBO_TOKEN`',
@@ -292,7 +313,7 @@ function blocks(ctx: Context): Record<string, string> {
         [
           'Hosting',
           `Railway project \`${config.railway.project}\` at \`*.${config.zone}\``,
-          'Prebuilt GHCR image published by the shared workflow (§4)',
+          'Prebuilt GHCR image published by the shared workflow (§5)',
         ],
       ]
     ),
