@@ -84,6 +84,8 @@ Import addresses (quote module addresses containing brackets):
 
 Providers without import support (Railway settings) adopt existing configuration through their initial create/update operation; review their desired values before applying. A locally managed tunnel must be migrated to remote ingress without replacing its UUID; verify the Cloudflare provider's plan and connector cutover before applying.
 
+Cloudflare 5.26.0 also cannot import `cloudflare_zone_dns_settings`. Its initial create operation edits the existing zone's singleton DNS settings; review that update rather than adding an unsupported import block. Neon represents an unrestricted IP allowlist with an omitted (`null`) optional attribute because its provider rejects an explicit empty list.
+
 ## Normal operations
 
 `bun run infra`, `infra:bootstrap`, `infra:vault`, `infra:fleet` and `infra:state` forward arguments directly to OpenTofu. Review with `plan`; apply the reviewed saved plan. Stateful resources use `prevent_destroy`; decommissioning requires an explicit reviewed OpenTofu change, never an API deletion script.
@@ -95,6 +97,8 @@ GitHub publisher files are `github_repository_file` resources rendered from [the
 The foundation root is authoritative for every platform repository's configurable GitHub control plane. Every repository has managed metadata and features, default branch, Actions policy and default workflow-token permissions, security scanning, vulnerability alerts and Dependabot security updates. The workspace repository additionally owns its ruleset, collaborators, issue labels, Actions secrets and Actions variables. Git history, pull requests, issues, workflow runs, releases, packages and artifacts are application or collaboration data rather than infrastructure resources.
 
 Repository secret declarations are version controlled, while their values remain in the complete encrypted `vault_inputs.secrets.prd` input. Before the adoption plan, recover every declared existing value into that input; GitHub never exposes secret values after creation. OpenTofu then imports and rotates the repository secrets from the canonical Vault input without committing plaintext.
+
+Repository secret preconditions reject missing or blank values before apply and identify each source key and destination. The failing deployment on 2026-10-05 lacked `DOPPLER_SERVICE_TOKEN`, `GENEBYGENE_CLIENT_ID`, `GENEBYGENE_CLIENT_SECRET` and `PADDLE_API_KEY` in that input; these values were also absent from the accessible production Vault document. Recover them from their original credential source into the complete OpenTofu Vault input before applying foundation. Preserve every other existing field; empty substitutes or partial KV inputs would overwrite live credentials.
 
 The credentials that let OpenTofu reach each provider, the state-encryption passphrase and the initial state-backend credentials are bootstrap trust anchors. They must be supplied from outside the state they unlock. Scoped credentials created after that boundary—including state and object-store tokens—are OpenTofu resources.
 
