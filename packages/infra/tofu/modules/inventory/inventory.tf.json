@@ -937,7 +937,7 @@
             "allowed_ips_protected_branches_only": "no",
             "block_public_connections": "no",
             "block_vpc_connections": "no",
-            "hipaa": "no",
+            "hipaa": null,
             "compute_provisioner": "k8s-neonvm",
             "autoscaling_limit_min_cu": 0.25,
             "autoscaling_limit_max_cu": 2,
