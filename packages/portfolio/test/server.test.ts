@@ -128,9 +128,7 @@ test('Docker container serves the multi-route site on port 80', async () => {
       true
     );
     expect(body.includes('id="proof"')).toBe(true);
-    expect(
-      body.includes('aria-label="GitHub contribution heatmap, last 12 months"')
-    ).toBe(true);
+    expect(body.includes('aria-label="Last 12 months:')).toBe(true);
     expect(body.includes('<rect')).toBe(true);
 
     // The site is multi-route now, so nginx must NOT fall back to the
@@ -159,6 +157,16 @@ test('Docker container serves the multi-route site on port 80', async () => {
     expect(
       (llms.headers.get('content-type') || '').includes('text/plain')
     ).toBe(true);
+    const llmsBody = await llms.text();
+    expect(llmsBody.includes('shared infrastructure integration guide')).toBe(
+      true
+    );
+    expect(llmsBody.includes('## 2. PostgreSQL')).toBe(true);
+    expect(llmsBody.includes('## 4. Object store')).toBe(true);
+
+    const llm = await fetch(`${TEST_URL}/llm.txt`);
+    expect(llm.status).toBe(200);
+    expect(await llm.text()).toBe(llmsBody);
 
     writeLine('✓ Test passed: routes, 404 handling and sitemap all correct');
   } catch (error) {
