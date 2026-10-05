@@ -253,7 +253,14 @@ resource "github_actions_secret" "repository" {
   for_each        = local.repository_secret_sources
   repository      = github_repository.application[each.value.repository].name
   secret_name     = each.value.name
-  plaintext_value = local.vault_repository_secret_values[each.value.source]
+  plaintext_value = try(local.vault_repository_secret_values[each.value.source], "")
+  lifecycle {
+    prevent_destroy = true
+    precondition {
+      condition     = try(length(trimspace(local.vault_repository_secret_values[each.value.source])) > 0, false)
+      error_message = "Recover ${each.value.source} into vault_inputs.secrets.prd before adopting ${each.key}. GitHub cannot return existing secret values; never replace them with empty values."
+    }
+  }
 }
 
 import {
