@@ -27,18 +27,12 @@ bun run check:ci && bun run typecheck
 Runs, in order:
 
 1. `bun install --frozen-lockfile` — lockfile in sync with `package.json`
-2. `check:vault-secrets` — Vault `dev` config
-3. `check:smoke:secrets` — smoke every registered secret
-4. `vault run --config dev -- bun check` — prettier + `turbo run tc lint test build` with Vault `dev` secrets (needed for `@pkgs/portfolio` `PORTFOLIO_GITHUB_TOKEN`)
+2. Attempt a bounded Vault `dev` read; unavailable credentials produce a skip notice.
+3. Run optional secret integration probes; missing, malformed or rejected credentials skip only their dependent checks.
+4. Run `bun check` with local caching — formatting, OpenTofu validation and package checks always run. Portfolio uses its committed snapshot when live credentials are unavailable.
 5. `bun run typecheck` — root `tsc` (includes `packages/workstation`)
 
-`bun check` alone does not inject Vault secrets. Portfolio production builds require
-`PORTFOLIO_GITHUB_TOKEN`, so prefer `bun run check:ci` (or
-`vault run --config dev -- bun check`). CI injects the same key via OIDC before turbo.
-
-> Turbo caches locally (`.turbo/`). CI is always fresh. If a fix seems ignored:
-> `bun run check -- --force` and `bun run typecheck`. Vault session required for
-> secret gates and portfolio build (`vault run --config dev -- …` / logged-in vault).
+CI's independent `secret-integrations` job reports credential issues without blocking `check` or `Required`. Core lint, typecheck, test and build failures remain blocking. Required credentials and smoke checks for the active production deployment still fail that deployment.
 
 **On failure:** fix in the order reported, re-run `bun run check:ci && bun run typecheck`,
 repeat until green. Then go to step 2.

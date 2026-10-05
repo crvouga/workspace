@@ -16,3 +16,4 @@ tofu -chdir=modules/railway-service test
 python3 tests/bootstrap.py
 python3 tests/railway-settings.py
 python3 tests/foundation.py
+python3 tests/github-secrets.py

@@ -30,7 +30,11 @@
           "log_to_cloudflare": "on",
           "max_upload": 100,
           "min_tls_version": "1.0",
-          "minify": { "css": "off", "html": "off", "js": "off" },
+          "minify": {
+            "css": "off",
+            "html": "off",
+            "js": "off"
+          },
           "mobile_redirect": {
             "status": "off",
             "mobile_subdomain": null,
@@ -64,7 +68,9 @@
         "dns_settings": {
           "flatten_all_cnames": false,
           "multi_provider": false,
-          "nameservers": { "type": "cloudflare.standard" },
+          "nameservers": {
+            "type": "cloudflare.standard"
+          },
           "ns_ttl": 86400,
           "secondary_overrides": false,
           "soa": {
@@ -275,7 +281,8 @@
             "secret_scanning": "disabled",
             "secret_scanning_push_protection": "disabled",
             "workflow_permissions": "write",
-            "environments": ["Production", "projects / production"]
+            "environments": ["Production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "connect-four": {
             "description": "An implementation of the classic Connect Four. Play against a computer or play against your friends with online multiplayer",
@@ -305,10 +312,11 @@
               "Production",
               "projects / production",
               "vouga-connect-four"
-            ]
+            ],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "headless-combobox": {
-            "description": "⚡️Zero dependencies 🔌 Framework agnostic 💪 TypeScript 🧠 Headless Combobox",
+            "description": "\u26a1\ufe0fZero dependencies \ud83d\udd0c Framework agnostic \ud83d\udcaa TypeScript \ud83e\udde0 Headless Combobox",
             "homepage": "https://headlesscombobox.chrisvouga.dev",
             "default_branch": "main",
             "topics": [
@@ -327,14 +335,15 @@
             "secret_scanning_push_protection": "disabled",
             "environments": [
               "Production",
-              "Production – headless-autocomplete",
-              "Production – headless-autocomplete-example",
-              "Production – headless-combobox",
-              "Production – headless-combobox-demo-svelte",
-              "Production – headless-combobox-example-react",
-              "Production – headless-combobox-example-svelte",
+              "Production \u2013 headless-autocomplete",
+              "Production \u2013 headless-autocomplete-example",
+              "Production \u2013 headless-combobox",
+              "Production \u2013 headless-combobox-demo-svelte",
+              "Production \u2013 headless-combobox-example-react",
+              "Production \u2013 headless-combobox-example-svelte",
               "projects / production"
-            ]
+            ],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "image-service": {
             "description": null,
@@ -345,7 +354,8 @@
             "dependabot_security_updates": false,
             "secret_scanning": "enabled",
             "secret_scanning_push_protection": "enabled",
-            "environments": ["production", "projects / production"]
+            "environments": ["production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "llm-server": {
             "description": null,
@@ -356,7 +366,8 @@
             "dependabot_security_updates": false,
             "secret_scanning": "enabled",
             "secret_scanning_push_protection": "enabled",
-            "environments": []
+            "environments": [],
+            "actions_secrets": ["DOPPLER_SERVICE_TOKEN"]
           },
           "match-three": {
             "description": "Implementation of a Match Three type game. Swipe around items to match three in a row.",
@@ -386,7 +397,8 @@
               "build_type": "legacy",
               "branch": "gh-pages",
               "path": "/"
-            }
+            },
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "mockingbird": {
             "description": "https://mockingbird.chrisvouga.dev/",
@@ -403,7 +415,14 @@
             "allow_auto_merge": true,
             "allow_update_branch": true,
             "delete_branch_on_merge": true,
-            "environments": []
+            "environments": [],
+            "actions_secrets": [
+              "GENEBYGENE_CLIENT_ID",
+              "GENEBYGENE_CLIENT_SECRET",
+              "JUNCTION_API_KEY",
+              "PADDLE_API_KEY",
+              "STRIPE_SECRET_KEY"
+            ]
           },
           "moviefinder.app-clojurescript": {
             "description": null,
@@ -414,7 +433,8 @@
             "dependabot_security_updates": false,
             "secret_scanning": "enabled",
             "secret_scanning_push_protection": "enabled",
-            "environments": ["production", "projects / production"]
+            "environments": ["production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "moviefinder.app-react": {
             "description": null,
@@ -427,11 +447,12 @@
             "secret_scanning_push_protection": "enabled",
             "environments": [
               "production",
-              "Production – moviefinder-app-react",
-              "Production – moviefinder-app-react-rc4s",
-              "Production – moviefinder.app",
+              "Production \u2013 moviefinder-app-react",
+              "Production \u2013 moviefinder-app-react-rc4s",
+              "Production \u2013 moviefinder.app",
               "projects / production"
-            ]
+            ],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "moviefinder.app-rust": {
             "description": null,
@@ -446,7 +467,8 @@
               "production",
               "projects / production",
               "rust.moviefinder.app (projects / production)"
-            ]
+            ],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "simon-says": {
             "description": "Implementation of the game Simon Says. Test your memory by seeing how long of a button press sequence your can remember.",
@@ -467,7 +489,8 @@
             "secret_scanning": "disabled",
             "secret_scanning_push_protection": "disabled",
             "workflow_permissions": "write",
-            "environments": ["Preview", "Production", "projects / production"]
+            "environments": ["Preview", "Production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "snake": {
             "description": null,
@@ -479,7 +502,8 @@
             "secret_scanning": "disabled",
             "secret_scanning_push_protection": "disabled",
             "workflow_permissions": "write",
-            "environments": ["Production", "projects / production"]
+            "environments": ["Production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "todo-v1": {
             "description": null,
@@ -491,7 +515,8 @@
             "secret_scanning": "disabled",
             "secret_scanning_push_protection": "disabled",
             "workflow_permissions": "write",
-            "environments": ["Production", "projects / production"]
+            "environments": ["Production", "projects / production"],
+            "actions_secrets": ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
           },
           "violets-garden": {
             "description": null,
@@ -867,30 +892,6 @@
           },
           {
             "name": "MOCKINGBIRD_STRIPE_SECRET_KEY",
-            "configs": ["prd"],
-            "used_by": ["github-actions", "mockingbird"],
-            "required": true
-          },
-          {
-            "name": "GENEBYGENE_CLIENT_ID",
-            "configs": ["prd"],
-            "used_by": ["github-actions", "mockingbird"],
-            "required": true
-          },
-          {
-            "name": "DOPPLER_SERVICE_TOKEN",
-            "configs": ["prd"],
-            "used_by": ["github-actions", "llm-server"],
-            "required": true
-          },
-          {
-            "name": "GENEBYGENE_CLIENT_SECRET",
-            "configs": ["prd"],
-            "used_by": ["github-actions", "mockingbird"],
-            "required": true
-          },
-          {
-            "name": "PADDLE_API_KEY",
             "configs": ["prd"],
             "used_by": ["github-actions", "mockingbird"],
             "required": true

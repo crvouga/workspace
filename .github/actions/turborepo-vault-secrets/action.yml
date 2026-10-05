@@ -1,43 +1,48 @@
 name: Turborepo Vault secrets (OIDC)
-description: Authenticate to OpenBao via GitHub OIDC and export turborepo CI secrets from Vault.
+description: Load independent cache and portfolio credential groups from OpenBao.
 inputs:
   vault_config:
-    description: "Vault config path segment (dev or prd)"
+    description: Vault config path segment (dev or prd)
     required: true
+  optional:
+    description: Skip unavailable credential groups for optional integration checks.
+    default: 'false'
 outputs:
   vault_available:
-    description: "true when OIDC auth to Vault succeeded"
+    description: true when at least one credential group loaded successfully
     value: ${{ steps.mark.outputs.vault_available }}
 runs:
   using: composite
   steps:
-    - name: Wait for Vault to be unsealed
+    - id: readiness
+      name: Wait for Vault to be unsealed
       shell: bash
+      env:
+        OPTIONAL: ${{ inputs.optional }}
       run: |
         set -euo pipefail
-        addr="https://vault.chrisvouga.dev"
-        echo "Waiting for Vault at ${addr}..."
-        for i in $(seq 1 180); do
-          code="$(curl -s -o /dev/null -w '%{http_code}' \
-            "${addr}/v1/sys/health?standbyok=true&perfstandbyok=true" || true)"
+        attempts=180
+        if [ "$OPTIONAL" = true ]; then attempts=6; fi
+        for i in $(seq 1 "$attempts"); do
+          code="$(curl --connect-timeout 3 --max-time 5 -s -o /dev/null -w '%{http_code}' \
+            'https://vault.chrisvouga.dev/v1/sys/health?standbyok=true&perfstandbyok=true' || true)"
           case "$code" in
             200|429|472|473)
-              echo "Vault is unsealed (HTTP ${code})"
+              echo 'ready=true' >> "$GITHUB_OUTPUT"
               exit 0
-              ;;
-            503)
-              echo "Vault sealed — retry ${i}/180..."
-              ;;
-            *)
-              echo "Vault not ready (HTTP ${code:-000}) — retry ${i}/180..."
               ;;
           esac
           sleep 5
         done
-        echo "::error::Vault at ${addr} did not become unsealed within 15 minutes"
-        exit 1
-
-    - id: vault_core
+        echo 'ready=false' >> "$GITHUB_OUTPUT"
+        if [ "$OPTIONAL" = true ]; then
+          echo '::warning::SKIP optional Vault integrations: Vault unavailable'
+        else
+          echo '::error::Vault unavailable for the active cache deployment smoke test'
+          exit 1
+        fi
+    - id: turbo
+      if: steps.readiness.outputs.ready == 'true'
       continue-on-error: true
       uses: hashicorp/vault-action@v4
       with:
@@ -49,23 +54,9 @@ runs:
         secrets: |
           secret/data/personal/${{ inputs.vault_config }} TURBO_TOKEN | TURBO_TOKEN ;
           secret/data/personal/${{ inputs.vault_config }} TURBO_API | TURBO_API ;
-          secret/data/personal/${{ inputs.vault_config }} TURBO_TEAM | TURBO_TEAM ;
-          secret/data/personal/${{ inputs.vault_config }} TURBO_CACHE | TURBO_CACHE ;
-          secret/data/personal/${{ inputs.vault_config }} S3_ENDPOINT | S3_ENDPOINT ;
-          secret/data/personal/${{ inputs.vault_config }} S3_REGION | S3_REGION ;
-          secret/data/personal/${{ inputs.vault_config }} S3_ACCESS_KEY_ID | S3_ACCESS_KEY_ID ;
-          secret/data/personal/${{ inputs.vault_config }} S3_SECRET_ACCESS_KEY | S3_SECRET_ACCESS_KEY ;
-          secret/data/personal/${{ inputs.vault_config }} S3_BUCKET | S3_BUCKET ;
-          secret/data/personal/${{ inputs.vault_config }} VAULT_TOKEN | VAULT_TOKEN ;
-          secret/data/personal/${{ inputs.vault_config }} PORTFOLIO_GITHUB_TOKEN | PORTFOLIO_GITHUB_TOKEN
-
-    - name: Wait before Vault retry
-      if: steps.vault_core.outcome == 'failure'
-      shell: bash
-      run: sleep 45
-
-    - id: vault_core_retry
-      if: steps.vault_core.outcome == 'failure'
+          secret/data/personal/${{ inputs.vault_config }} TURBO_TEAM | TURBO_TEAM
+    - id: s3
+      if: steps.readiness.outputs.ready == 'true'
       continue-on-error: true
       uses: hashicorp/vault-action@v4
       with:
@@ -75,25 +66,31 @@ runs:
         role: github-actions
         jwtGithubAudience: https://vault.chrisvouga.dev
         secrets: |
-          secret/data/personal/${{ inputs.vault_config }} TURBO_TOKEN | TURBO_TOKEN ;
-          secret/data/personal/${{ inputs.vault_config }} TURBO_API | TURBO_API ;
-          secret/data/personal/${{ inputs.vault_config }} TURBO_TEAM | TURBO_TEAM ;
-          secret/data/personal/${{ inputs.vault_config }} TURBO_CACHE | TURBO_CACHE ;
           secret/data/personal/${{ inputs.vault_config }} S3_ENDPOINT | S3_ENDPOINT ;
           secret/data/personal/${{ inputs.vault_config }} S3_REGION | S3_REGION ;
           secret/data/personal/${{ inputs.vault_config }} S3_ACCESS_KEY_ID | S3_ACCESS_KEY_ID ;
           secret/data/personal/${{ inputs.vault_config }} S3_SECRET_ACCESS_KEY | S3_SECRET_ACCESS_KEY ;
-          secret/data/personal/${{ inputs.vault_config }} S3_BUCKET | S3_BUCKET ;
-          secret/data/personal/${{ inputs.vault_config }} VAULT_TOKEN | VAULT_TOKEN ;
+          secret/data/personal/${{ inputs.vault_config }} S3_BUCKET | S3_BUCKET
+    - id: portfolio
+      if: steps.readiness.outputs.ready == 'true'
+      continue-on-error: true
+      uses: hashicorp/vault-action@v4
+      with:
+        url: https://vault.chrisvouga.dev
+        method: jwt
+        path: jwt
+        role: github-actions
+        jwtGithubAudience: https://vault.chrisvouga.dev
+        secrets: |
           secret/data/personal/${{ inputs.vault_config }} PORTFOLIO_GITHUB_TOKEN | PORTFOLIO_GITHUB_TOKEN
-
-    - name: Require Vault OIDC
-      if: steps.vault_core.outcome == 'failure' && steps.vault_core_retry.outcome != 'success'
+    - name: Require active cache credentials
+      if: inputs.optional != 'true' && (steps.turbo.outcome != 'success' || steps.s3.outcome != 'success')
       shell: bash
       run: |
-        echo "::error::Failed to load secrets from Vault at https://vault.chrisvouga.dev via OIDC"
+        echo '::error::Required cache or R2 credentials unavailable for the active deployment smoke test'
         exit 1
-
     - id: mark
       shell: bash
-      run: echo "vault_available=true" >> "$GITHUB_OUTPUT"
+      env:
+        AVAILABLE: ${{ steps.turbo.outcome == 'success' || steps.s3.outcome == 'success' || steps.portfolio.outcome == 'success' }}
+      run: echo "vault_available=$AVAILABLE" >> "$GITHUB_OUTPUT"
