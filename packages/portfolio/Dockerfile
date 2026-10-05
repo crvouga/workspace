@@ -11,7 +11,6 @@ COPY --from=oven/bun:1.3.11 /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 
 COPY package.json bun.lock tsconfig.strict.json ./
-COPY llms.txt ./llms.txt
 COPY packages/portfolio/package.json ./packages/portfolio/
 COPY packages/assert/package.json ./packages/assert/
 COPY packages/infra/package.json ./packages/infra/

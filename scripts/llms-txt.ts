@@ -43,7 +43,12 @@ import { TOPIC_TO_IMAGE_SRC } from '../packages/portfolio/src/content/topic.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const TEMPLATE_PATH = 'scripts/llms-txt.template.md';
-const OUTPUT_PATH = 'llms.txt';
+const ROOT_OUTPUT_PATH = 'llms.txt';
+const OUTPUT_PATHS = [
+  ROOT_OUTPUT_PATH,
+  'packages/portfolio/public/llms.txt',
+  'packages/portfolio/public/llm.txt',
+] as const;
 const EXAMPLE_SERVICE_ID = 'my-app';
 const APPLICATION_DATABASE_SECRET = 'DATABASE_URL';
 
@@ -193,7 +198,7 @@ function values(ctx: Context): Record<string, string> {
   }
   return {
     infraRepo,
-    rawUrl: `https://raw.githubusercontent.com/${infraRepo}/main/${OUTPUT_PATH}`,
+    rawUrl: `https://raw.githubusercontent.com/${infraRepo}/main/${ROOT_OUTPUT_PATH}`,
     siteGuideUrl: `https://${need(portfolio.hostname, 'portfolio hostname')}/llms.txt`,
     siteGuideAliasUrl: `https://${need(portfolio.hostname, 'portfolio hostname')}/llm.txt`,
     zone: config.zone,
@@ -484,18 +489,29 @@ export function renderLlmsTxt(): string {
 
 if (import.meta.main) {
   const next = renderLlmsTxt();
-  const path = join(ROOT, OUTPUT_PATH);
-  const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  const outputs = OUTPUT_PATHS.map((outputPath) => {
+    const path = join(ROOT, outputPath);
+    return {
+      outputPath,
+      path,
+      current: existsSync(path) ? readFileSync(path, 'utf8') : null,
+    };
+  });
+  const stale = outputs.filter(({ current }) => current !== next);
   if (process.argv.includes('--check')) {
-    if (current !== next) {
-      console.error(`${OUTPUT_PATH} is out of date — run: bun run llms:sync`);
+    if (stale.length > 0) {
+      console.error(
+        `${stale.map(({ outputPath }) => outputPath).join(', ')} out of date — run: bun run llms:sync`
+      );
       process.exit(1);
     }
-    console.log(`${OUTPUT_PATH} is up to date`);
-  } else if (current === next) {
-    console.log(`${OUTPUT_PATH} unchanged`);
+    console.log(`${OUTPUT_PATHS.length} llms.txt outputs are up to date`);
+  } else if (stale.length === 0) {
+    console.log(`${OUTPUT_PATHS.length} llms.txt outputs unchanged`);
   } else {
-    writeFileSync(path, next);
-    console.log(`wrote ${OUTPUT_PATH}`);
+    for (const { outputPath, path } of stale) {
+      writeFileSync(path, next);
+      console.log(`wrote ${outputPath}`);
+    }
   }
 }

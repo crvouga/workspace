@@ -128,9 +128,7 @@ test('Docker container serves the multi-route site on port 80', async () => {
       true
     );
     expect(body.includes('id="proof"')).toBe(true);
-    expect(
-      body.includes('aria-label="GitHub contribution heatmap, last 12 months"')
-    ).toBe(true);
+    expect(body.includes('aria-label="Last 12 months:')).toBe(true);
     expect(body.includes('<rect')).toBe(true);
 
     // The site is multi-route now, so nginx must NOT fall back to the
