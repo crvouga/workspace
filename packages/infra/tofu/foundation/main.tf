@@ -18,6 +18,7 @@ resource "railway_project" "workspace" {
   lifecycle { prevent_destroy = true }
 }
 
+# Neon treats an omitted IP list as unrestricted; its schema rejects [].
 resource "neon_project" "openbao" {
   name                                = one(local.config.neon.projects).name
   region_id                           = one(local.config.neon.projects).region_id
@@ -27,7 +28,7 @@ resource "neon_project" "openbao" {
   store_password                      = one(local.config.neon.projects).store_password
   default_branch_protected            = one(local.config.neon.projects).default_branch_protected
   enable_logical_replication          = one(local.config.neon.projects).logical_replication
-  allowed_ips                         = one(local.config.neon.projects).allowed_ips
+  allowed_ips                         = length(one(local.config.neon.projects).allowed_ips) == 0 ? null : one(local.config.neon.projects).allowed_ips
   allowed_ips_protected_branches_only = one(local.config.neon.projects).allowed_ips_protected_branches_only
   block_public_connections            = one(local.config.neon.projects).block_public_connections
   block_vpc_connections               = one(local.config.neon.projects).block_vpc_connections
@@ -147,10 +148,8 @@ resource "cloudflare_zone_dnssec" "primary" {
   status  = local.config.cloudflare.dnssec_status
 }
 
-import {
-  to = cloudflare_zone_dns_settings.primary
-  id = var.cloudflare_zone_id
-}
+# Cloudflare 5.26.0 has no importer for zone DNS settings. Its Create method
+# edits the existing zone's singleton settings, adopting them without a new zone.
 
 import {
   to = cloudflare_nel_setting.primary

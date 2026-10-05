@@ -73,28 +73,32 @@ locals {
       }
     }
   ]...)
-  vault_repository_secret_values = jsondecode(var.vault_inputs).secrets.prd
-  docker_secret_repositories = toset([
-    "anime", "connect-four", "headless-combobox", "image-service", "match-three",
-    "moviefinder.app-clojurescript", "moviefinder.app-react", "moviefinder.app-rust",
-    "simon-says", "snake", "todo-v1",
-  ])
-  repository_secret_sources = merge(
-    merge([
-      for repository in local.docker_secret_repositories : {
-        "${repository}:DOCKER_USERNAME" = { repository = repository, name = "DOCKER_USERNAME", source = "DOCKER_USERNAME" }
-        "${repository}:DOCKER_PASSWORD" = { repository = repository, name = "DOCKER_PASSWORD", source = "DOCKER_PASSWORD" }
+  repository_secret_sources = merge([
+    for repository, settings in local.application_repositories : {
+      for name in try(settings.actions_secrets, []) : "${repository}:${name}" => {
+        repository = repository
+        name       = name
       }
-    ]...),
-    {
-      "llm-server:DOPPLER_SERVICE_TOKEN"     = { repository = "llm-server", name = "DOPPLER_SERVICE_TOKEN", source = "DOPPLER_SERVICE_TOKEN" }
-      "mockingbird:GENEBYGENE_CLIENT_ID"     = { repository = "mockingbird", name = "GENEBYGENE_CLIENT_ID", source = "GENEBYGENE_CLIENT_ID" }
-      "mockingbird:GENEBYGENE_CLIENT_SECRET" = { repository = "mockingbird", name = "GENEBYGENE_CLIENT_SECRET", source = "GENEBYGENE_CLIENT_SECRET" }
-      "mockingbird:JUNCTION_API_KEY"         = { repository = "mockingbird", name = "JUNCTION_API_KEY", source = "MOCKINGBIRD_JUNCTION_API_KEY" }
-      "mockingbird:PADDLE_API_KEY"           = { repository = "mockingbird", name = "PADDLE_API_KEY", source = "PADDLE_API_KEY" }
-      "mockingbird:STRIPE_SECRET_KEY"        = { repository = "mockingbird", name = "STRIPE_SECRET_KEY", source = "MOCKINGBIRD_STRIPE_SECRET_KEY" }
-    },
-  )
+    }
+  ]...)
+}
+
+data "github_actions_secrets" "repository" {
+  for_each = toset([for secret in values(local.repository_secret_sources) : secret.repository])
+  name     = each.key
+}
+
+locals {
+  existing_repository_secrets = {
+    for key, secret in local.repository_secret_sources : key => secret
+    if contains([for existing in data.github_actions_secrets.repository[secret.repository].secrets : existing.name], secret.name)
+  }
+  unavailable_repository_secrets = setsubtract(toset(keys(local.repository_secret_sources)), toset(keys(local.existing_repository_secrets)))
+}
+
+output "unavailable_repository_secrets" {
+  description = "Missing GitHub secret names; only their dependent integrations should be skipped."
+  value       = local.unavailable_repository_secrets
 }
 
 resource "github_repository" "application" {
@@ -250,10 +254,16 @@ resource "github_repository_ruleset" "mockingbird_main" {
 }
 
 resource "github_actions_secret" "repository" {
-  for_each        = local.repository_secret_sources
-  repository      = github_repository.application[each.value.repository].name
-  secret_name     = each.value.name
-  plaintext_value = local.vault_repository_secret_values[each.value.source]
+  for_each    = local.existing_repository_secrets
+  repository  = each.value.repository
+  secret_name = each.value.name
+  # GitHub cannot return secret values. This schema-only value is ignored
+  # after import; the import block and metadata listing adopt existing secrets.
+  plaintext_value = ""
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [plaintext_value, remote_updated_at]
+  }
 }
 
 import {
@@ -302,7 +312,7 @@ import {
   id       = "${each.value.repository}:${each.value.environment}"
 }
 import {
-  for_each = local.repository_secret_sources
+  for_each = local.existing_repository_secrets
   to       = github_actions_secret.repository[each.key]
   id       = "${each.value.repository}:${each.value.name}"
 }

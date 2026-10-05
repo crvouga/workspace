@@ -23,7 +23,7 @@ Source snapshot (always current `main`): {{rawUrl}}
 
 ## Ground rules
 
-- **Never invent, print, log, or commit secret values.** If a secret is missing, tell the human the exact key, Vault path and command to set it, then stop and wait.
+- **Never invent, print, log, or commit secret values.** If an optional secret is missing or invalid, report its key and source, skip only its dependent integration or skill check, and continue unrelated work. Required credentials for an active deployment fail that deployment; never claim a skipped check passed.
 - **Never install global tooling yourself** (`vault`, `bao`, `jq`, `gh`). Tell the human the install command.
 - **Never modify the shared services from another repo** (deploy them, rotate tokens, change policies, edit Railway/Cloudflare by hand). Those changes happen in `{{infraRepo}}`; tell the human exactly what is needed.
 - `@pkgs/*` packages in `{{infraRepo}}` are **private workspace packages** — they cannot be installed elsewhere. Use the plain HTTP / S3 / env-var contracts below.
@@ -209,7 +209,7 @@ curl -fsS -H "Authorization: Bearer $TURBO_TOKEN" {{turboApi}}/v8/artifacts/stat
 vault run -- turbo run build   # 2nd run with unchanged inputs → "cache hit, replaying logs"
 ```
 
-If the health check fails the cache is down — report it; do not switch providers or disable caching.
+If cache credentials are missing or rejected, report the skipped remote check and use local caching for independent checks. A required post-deployment cache smoke failure still fails that deployment.
 
 ---
 

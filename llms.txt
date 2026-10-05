@@ -23,7 +23,7 @@ Source snapshot (always current `main`): https://raw.githubusercontent.com/crvou
 
 ## Ground rules
 
-- **Never invent, print, log, or commit secret values.** If a secret is missing, tell the human the exact key, Vault path and command to set it, then stop and wait.
+- **Never invent, print, log, or commit secret values.** If an optional secret is missing or invalid, report its key and source, skip only its dependent integration or skill check, and continue unrelated work. Required credentials for an active deployment fail that deployment; never claim a skipped check passed.
 - **Never install global tooling yourself** (`vault`, `bao`, `jq`, `gh`). Tell the human the install command.
 - **Never modify the shared services from another repo** (deploy them, rotate tokens, change policies, edit Railway/Cloudflare by hand). Those changes happen in `crvouga/workspace`; tell the human exactly what is needed.
 - `@pkgs/*` packages in `crvouga/workspace` are **private workspace packages** — they cannot be installed elsewhere. Use the plain HTTP / S3 / env-var contracts below.
@@ -100,10 +100,6 @@ Reuse these instead of creating duplicates. Adding a key means a human updates t
 | `DOCKER_PASSWORD` | prd | github-actions | yes |
 | `MOCKINGBIRD_JUNCTION_API_KEY` | prd | github-actions, mockingbird | yes |
 | `MOCKINGBIRD_STRIPE_SECRET_KEY` | prd | github-actions, mockingbird | yes |
-| `GENEBYGENE_CLIENT_ID` | prd | github-actions, mockingbird | yes |
-| `DOPPLER_SERVICE_TOKEN` | prd | github-actions, llm-server | yes |
-| `GENEBYGENE_CLIENT_SECRET` | prd | github-actions, mockingbird | yes |
-| `PADDLE_API_KEY` | prd | github-actions, mockingbird | yes |
 | `OPENAI_API_KEY` | dev, prd | ci, opencode |  |
 | `9ROUTER_PASSWORD` | prd | 9router |  |
 | `9ROUTER_JWT_SECRET` | prd | 9router |  |
@@ -281,7 +277,7 @@ curl -fsS -H "Authorization: Bearer $TURBO_TOKEN" https://turborepo.chrisvouga.d
 vault run -- turbo run build   # 2nd run with unchanged inputs → "cache hit, replaying logs"
 ```
 
-If the health check fails the cache is down — report it; do not switch providers or disable caching.
+If cache credentials are missing or rejected, report the skipped remote check and use local caching for independent checks. A required post-deployment cache smoke failure still fails that deployment.
 
 ---
 

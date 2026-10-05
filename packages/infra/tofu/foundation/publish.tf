@@ -1,4 +1,64 @@
 moved {
+  from = github_repository_file.publish["crvouga/anime"]
+  to   = github_repository_file.publish["anime"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/connect-four"]
+  to   = github_repository_file.publish["connect-four"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/headless-combobox"]
+  to   = github_repository_file.publish["headless-combobox"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/image-service"]
+  to   = github_repository_file.publish["image-service"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/llm-server"]
+  to   = github_repository_file.publish["llm-server"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/match-three"]
+  to   = github_repository_file.publish["match-three"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/moviefinder.app-clojurescript"]
+  to   = github_repository_file.publish["moviefinder.app-clojurescript"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/moviefinder.app-react"]
+  to   = github_repository_file.publish["moviefinder.app-react"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/moviefinder.app-rust"]
+  to   = github_repository_file.publish["moviefinder.app-rust"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/simon-says"]
+  to   = github_repository_file.publish["simon-says"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/snake"]
+  to   = github_repository_file.publish["snake"]
+}
+
+moved {
+  from = github_repository_file.publish["crvouga/todo-v1"]
+  to   = github_repository_file.publish["todo-v1"]
+}
+
+moved {
   from = github_repository_file.publish["crvouga/mockingbird"]
   to   = github_repository_file.publish["mockingbird"]
 }
