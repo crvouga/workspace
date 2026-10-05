@@ -59,6 +59,10 @@ run "complete_adoption_plan" {
     error_message = "An unrestricted Neon project must omit the optional allowlist, rather than supply an invalid empty list."
   }
   assert {
+    condition     = neon_project.openbao.hipaa == null
+    error_message = "The non-HIPAA organization must omit HIPAA settings; even an explicit false is rejected on project updates."
+  }
+  assert {
     condition     = length(github_repository_file.publish) == 14
     error_message = "Foundation adoption must preserve a publisher for every application repository."
   }

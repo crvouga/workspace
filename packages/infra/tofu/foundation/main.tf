@@ -19,6 +19,7 @@ resource "railway_project" "workspace" {
 }
 
 # Neon treats an omitted IP list as unrestricted; its schema rejects [].
+# Leave HIPAA null on this organization: even hipaa=false is rejected by its API.
 resource "neon_project" "openbao" {
   name                                = one(local.config.neon.projects).name
   region_id                           = one(local.config.neon.projects).region_id
