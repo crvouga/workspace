@@ -112,6 +112,18 @@ const hasGallery = galleryIndex !== null && galleryFor(project).length > 0;
     flex-direction: column;
     overflow: hidden;
   }
+  @media (min-width: 800px) {
+    .project:not(.compact) {
+      flex-direction: row;
+    }
+    .project:not(.compact) .cover-box {
+      flex: 0 0 42%;
+      aspect-ratio: auto;
+      min-height: 220px;
+      border-bottom: 0;
+      border-right: 1px solid var(--paper-border);
+    }
+  }
   /* Fixed aspect keeps every row aligned regardless of the source ratio.
      The contents are absolutely positioned so the box's height comes only
      from `aspect-ratio` — in flow, a tall screenshot's natural height wins
@@ -155,9 +167,11 @@ const hasGallery = galleryIndex !== null && galleryFor(project).length > 0;
     flex: 1;
   }
   h3 {
-    font-family: var(--font-mono);
-    font-size: var(--text-md);
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 3vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
     overflow-wrap: anywhere;
   }
   h3 a {

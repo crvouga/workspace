@@ -49,7 +49,7 @@ const LEVEL_CLASSES = ['c0', 'c1', 'c2', 'c3', 'c4'];
           <p class="panel-total">
             <strong>{count(range.totalContributions)}</strong>
             {range.totalContributions === 1 ? 'contribution' : 'contributions'}
-            <span class="panel-window">{`${range.from} → ${range.to}`}</span>
+            <span class="panel-window">{`${range.from} – ${range.to}`}</span>
           </p>
           <ContributionHeatmap range={range} />
           <p class="panel-meta">
