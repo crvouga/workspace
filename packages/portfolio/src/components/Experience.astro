@@ -20,19 +20,6 @@ const section = CONTENT.GET_SECTION('work');
           const gallery = workGalleryFor(job);
           return (
             <article class="job">
-              {
-                job.imageSrc[0] !== undefined && (
-                  <img
-                    class="plate"
-                    src={job.imageSrc[0]}
-                    alt={job.imageAlt}
-                    loading="lazy"
-                    decoding="async"
-                    width="1400"
-                    height="788"
-                  />
-                )
-              }
               <div class="body">
                 <div class="head">
                   <h3>
@@ -47,6 +34,19 @@ const section = CONTENT.GET_SECTION('work');
                   <span class="years">{workDateRange(job)}</span>
                 </div>
                 <p class="role">{job.jobTitle}</p>
+                {
+                  job.imageSrc[0] !== undefined && (
+                    <img
+                      class="plate"
+                      src={job.imageSrc[0]}
+                      alt={job.imageAlt}
+                      loading="lazy"
+                      decoding="async"
+                      width="1400"
+                      height="788"
+                    />
+                  )
+                }
                 <ul class="highlights">
                   {job.highlights.map((highlight) => (
                     <li set:html={highlight} />

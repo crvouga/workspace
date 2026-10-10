@@ -13,7 +13,7 @@ import IconDownload from './icons/IconDownload.astro';
 const email = CONTENT.EMAIL_ADDRESS;
 ---
 
-<div class="sticky-cta" data-sticky-cta>
+<div class="sticky-cta" data-sticky-cta data-hidden>
   <a class="btn btn-contained" href={`mailto:${email}`}>
     <IconEmail /><span class="btn-label">{CONTENT.HERO.ctaPrimary.label}</span>
   </a>
@@ -59,15 +59,20 @@ const email = CONTENT.EMAIL_ADDRESS;
   document.addEventListener('DOMContentLoaded', () => {
     const bar = document.querySelector('[data-sticky-cta]');
     const contact = document.getElementById('contact');
-    if (!bar || !contact || !('IntersectionObserver' in window)) return;
+    const reach = document.querySelector('.reach');
+    const targets = [contact, reach].filter(Boolean);
+    if (!bar || targets.length === 0 || !('IntersectionObserver' in window)) return;
+    const visible = new Set();
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          bar.toggleAttribute('data-hidden', entry.isIntersecting);
+          if (entry.isIntersecting) visible.add(entry.target);
+          else visible.delete(entry.target);
         });
+        bar.toggleAttribute('data-hidden', visible.size > 0);
       },
-      { rootMargin: '0px 0px -25% 0px' }
+      { rootMargin: '0px 0px -10% 0px' }
     );
-    observer.observe(contact);
+    targets.forEach((target) => observer.observe(target));
   });
 </script>
