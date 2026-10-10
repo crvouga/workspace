@@ -74,7 +74,7 @@ in pkgs.testers.runNixOSTest {
     machine.succeed("systemctl show -p RuntimeWatchdogUSec | grep '30s'")
     machine.succeed("su -s /bin/sh slot-1 -c 'echo disposable >/nix/ci-cache/slot-1/probe'")
     machine.fail("su -s /bin/sh slot-2 -c 'cat /nix/ci-cache/slot-1/probe'")
-    machine.succeed("sshd -T | grep 'passwordauthentication no'")
+    machine.succeed("sshd -G -T -f /etc/ssh/sshd_config | grep -i '^passwordauthentication no$'")
     machine.succeed("test $(id -u slot-1) != $(id -u slot-2)")
     machine.succeed("test $(stat -c %a /run/fleet/tokens/slot-1) = 600")
     machine.succeed("fleet-drain 30")
