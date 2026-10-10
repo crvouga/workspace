@@ -1,0 +1,4 @@
+# Replace with the shared fleet age public recipient before encrypting secrets.
+creation_rules:
+  - path_regex: secrets/.*\.(yaml|yml|json)$
+    age: age1TODO_REPLACE_WITH_FLEET_PUBLIC_RECIPIENT

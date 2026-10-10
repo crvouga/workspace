@@ -1,4 +1,4 @@
-# Single workflow for the whole monorepo pipeline — no reusable sibling workflows.
+# Production monorepo pipeline; runner-check.yml is a separate opt-in project onboarding entrypoint.
 #
 #   push (main) / production dispatch .... vault-state → vault? → check → publish? → deploy
 #   workflow_dispatch ...... manual check / publish / vault rebuild / fleet redeploy
@@ -153,6 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       check: ${{ steps.flags.outputs.check }}
+      runner_fleet: ${{ steps.filter.outputs.runner_fleet }}
       vault: ${{ steps.flags.outputs.vault }}
       publish: ${{ steps.flags.outputs.publish }}
       deploy: ${{ steps.flags.outputs.deploy }}
@@ -181,6 +182,10 @@ jobs:
               - '.prettierignore'
               - '.github/workflows/ci.yml'
               - '.github/actions/**'
+            runner_fleet:
+              - 'packages/self-hosted-ci/**'
+              - '.github/workflows/runner-check.yml'
+              - '.github/workflows/ci.yml'
             vault:
               - 'packages/vault-service/**'
             portfolio:
@@ -474,10 +479,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  runner-fleet:
+    needs: [changes]
+    if: needs.changes.outputs.runner_fleet == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Portable checks and Linux system, ISO, mocked VM
+        working-directory: packages/self-hosted-ci
+        run: |
+          nix develop --command bash scripts/check.sh
+          nix flake check --no-write-lock-file --system x86_64-linux -L
+
   # Single required status check for the `main` ruleset (scripts/pr-ready).
   # Path-filtered jobs may be skipped; anything else must succeed.
   Required:
-    needs: [changes, check, portfolio-health-check, commitlint, pr-title]
+    needs: [changes, check, portfolio-health-check, commitlint, pr-title, runner-fleet]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5

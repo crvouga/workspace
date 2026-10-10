@@ -142,6 +142,10 @@
         "typescript": "catalog:",
       },
     },
+    "packages/self-hosted-ci": {
+      "name": "@pkgs/self-hosted-ci",
+      "version": "0.0.0",
+    },
     "packages/turborepo-remote-cache": {
       "name": "@pkgs/turborepo-remote-cache",
       "version": "1.0.0",
@@ -594,6 +598,8 @@
     "@pkgs/secret-store": ["@pkgs/secret-store@workspace:packages/secret-store"],
 
     "@pkgs/secret-string": ["@pkgs/secret-string@workspace:packages/secret-string"],
+
+    "@pkgs/self-hosted-ci": ["@pkgs/self-hosted-ci@workspace:packages/self-hosted-ci"],
 
     "@pkgs/turborepo-remote-cache": ["@pkgs/turborepo-remote-cache@workspace:packages/turborepo-remote-cache"],
 
