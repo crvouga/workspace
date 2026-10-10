@@ -1,0 +1,13 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    }
+  }
+}
