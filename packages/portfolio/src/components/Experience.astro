@@ -12,7 +12,6 @@ const section = CONTENT.GET_SECTION('work');
 <section id="work">
   <div class="container">
     <div class="section-heading">
-      <span class="number">{section.number}</span>
       <h2>{section.title}</h2>
     </div>
     <div class="jobs">
@@ -20,11 +19,7 @@ const section = CONTENT.GET_SECTION('work');
         CONTENT.WORK.map((job, index) => {
           const gallery = workGalleryFor(job);
           return (
-            <article class="card job">
-              {/* No inline screenshot: the cards carry different amounts of
-                  text, so any image column either stretched to match its
-                  neighbour's prose or left dead space beside it. The gallery
-                  button below still reaches the same media. */}
+            <article class="job">
               <div class="body">
                 <div class="head">
                   <h3>
@@ -39,6 +34,19 @@ const section = CONTENT.GET_SECTION('work');
                   <span class="years">{workDateRange(job)}</span>
                 </div>
                 <p class="role">{job.jobTitle}</p>
+                {
+                  job.imageSrc[0] !== undefined && (
+                    <img
+                      class="plate"
+                      src={job.imageSrc[0]}
+                      alt={job.imageAlt}
+                      loading="lazy"
+                      decoding="async"
+                      width="1400"
+                      height="788"
+                    />
+                  )
+                }
                 <ul class="highlights">
                   {job.highlights.map((highlight) => (
                     <li set:html={highlight} />
@@ -79,6 +87,11 @@ const section = CONTENT.GET_SECTION('work');
   }
   .job {
     display: block;
+  }
+  .plate {
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
   }
   .body {
     padding: var(--space-5);

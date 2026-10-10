@@ -37,7 +37,7 @@ const CONTENT_HEIGHT_PX = Math.round(
 /** Sub-pixel rounding differences are not overflow. */
 const EPSILON_PX = 0.5;
 
-/** The site's own Inter build, so the PDF matches the page it is linked from. */
+/** Print face for the one-page fit. The site no longer uses this family. */
 const INTER_FONT = path.join(
   process.cwd(),
   'public',

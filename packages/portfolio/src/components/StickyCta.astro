@@ -13,7 +13,7 @@ import IconDownload from './icons/IconDownload.astro';
 const email = CONTENT.EMAIL_ADDRESS;
 ---
 
-<div class="sticky-cta" data-sticky-cta>
+<div class="sticky-cta" data-sticky-cta data-hidden>
   <a class="btn btn-contained" href={`mailto:${email}`}>
     <IconEmail /><span class="btn-label">{CONTENT.HERO.ctaPrimary.label}</span>
   </a>
@@ -37,8 +37,7 @@ const email = CONTENT.EMAIL_ADDRESS;
       gap: var(--space-3);
       padding: var(--space-3) var(--space-5);
       padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
-      background: rgba(10, 10, 11, 0.92);
-      backdrop-filter: blur(10px);
+      background: var(--bg);
       border-top: 1px solid var(--paper-border);
       transition:
         transform var(--motion-med) var(--motion-ease),
@@ -60,15 +59,20 @@ const email = CONTENT.EMAIL_ADDRESS;
   document.addEventListener('DOMContentLoaded', () => {
     const bar = document.querySelector('[data-sticky-cta]');
     const contact = document.getElementById('contact');
-    if (!bar || !contact || !('IntersectionObserver' in window)) return;
+    const reach = document.querySelector('.reach');
+    const targets = [contact, reach].filter(Boolean);
+    if (!bar || targets.length === 0 || !('IntersectionObserver' in window)) return;
+    const visible = new Set();
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          bar.toggleAttribute('data-hidden', entry.isIntersecting);
+          if (entry.isIntersecting) visible.add(entry.target);
+          else visible.delete(entry.target);
         });
+        bar.toggleAttribute('data-hidden', visible.size > 0);
       },
-      { rootMargin: '0px 0px -25% 0px' }
+      { rootMargin: '0px 0px -10% 0px' }
     );
-    observer.observe(contact);
+    targets.forEach((target) => observer.observe(target));
   });
 </script>

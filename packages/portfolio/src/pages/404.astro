@@ -1,39 +1,63 @@
 ---
 import Page from '../layouts/Page.astro';
 import { seoForNotFound } from '../lib/seo';
+import { VISIBLE_PROJECTS } from '../lib/projects-view';
 
 const seo = seoForNotFound();
+const lead = VISIBLE_PROJECTS[0];
+const cover = lead?.imageSrc[0];
 ---
 
 <Page seo={seo}>
-  <section class="container notfound">
-    <p class="code">404</p>
-    <h1>That page does not exist.</h1>
-    <p class="sub">It may have moved, or the link may be wrong. Try one of these:</p>
-    <ul class="links">
-      <li><a href="/">Home</a></li>
-      <li><a href="/projects/">All projects</a></li>
-    </ul>
+  <section class="miss">
+    {
+      cover !== undefined && lead !== undefined && (
+        <img src={cover} alt={lead.imageAlt} width="1400" height="788" />
+      )
+    }
+    <div class="copy">
+      <h1>That page does not exist.</h1>
+      <p class="sub">It may have moved, or the link may be wrong. Try one of these:</p>
+      <ul class="links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/projects/">All projects</a></li>
+        {lead !== undefined && (
+          <li><a href="/">{lead.title}</a></li>
+        )}
+      </ul>
+    </div>
   </section>
 </Page>
 
 <style>
-  .notfound {
-    padding-block: var(--space-9);
+  .miss {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100svh - 8rem);
+    padding-block: 0;
+  }
+  .miss img {
+    width: 100%;
+    height: 46svh;
+    object-fit: cover;
+  }
+  .copy {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: var(--space-4);
-  }
-  .code {
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--accent);
+    padding: var(--space-6) var(--space-5);
+    border-top: 2px solid var(--accent);
   }
   h1 {
-    font-size: clamp(28px, 5vw, 44px);
-    letter-spacing: -0.02em;
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 5vw, 4.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
   }
   .sub {
+    max-width: 42ch;
     color: var(--text-muted);
   }
   .links {
@@ -43,16 +67,29 @@ const seo = seoForNotFound();
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-5);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
   }
   .links a {
     display: inline-flex;
     align-items: center;
     min-height: var(--tap);
     color: var(--accent);
+    font-weight: 700;
   }
   .links a:hover {
     color: var(--accent-hover);
+  }
+  @media (min-width: 900px) {
+    .miss {
+      grid-template-columns: 1.35fr 0.65fr;
+    }
+    .miss img {
+      height: 100%;
+      min-height: calc(100svh - 8rem);
+    }
+    .copy {
+      border-top: 0;
+      border-left: 2px solid var(--accent);
+      padding: var(--space-7);
+    }
   }
 </style>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Category standard — first viewport</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1440px; height: 900px; overflow: hidden; background: #121417; color: #f4f1ea; }
+  .page { width: 1440px; height: 900px; padding: 28px 48px; font-family: Inter, sans-serif; }
+  nav { display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: 14px; color: #a8b0b8; }
+  h1 { font-size: 72px; letter-spacing: -0.04em; margin-top: 72px; }
+  .sub { margin-top: 16px; max-width: 46ch; color: #c5ccd3; font-size: 20px; line-height: 1.4; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-top: 48px; }
+  .card { background: #1c2128; border: 1px solid #2c3440; border-radius: 12px; overflow: hidden; }
+  .card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .card p { padding: 14px 16px 18px; font-size: 18px; }
+  .cta { margin-top: 28px; display: inline-block; background: #3d7eff; color: white; padding: 12px 18px; border-radius: 8px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <nav><span>CV</span><span>Work · Projects · Contact</span></nav>
+    <h1>Chris Vouga</h1>
+    <p class="sub">Senior software engineer in Phoenix. I own production systems end-to-end. Available for senior or staff roles.</p>
+    <a class="cta">Email</a>
+    <div class="row">
+      <article class="card"><img src="../../../public/gamezilla-app-screenshot.optimized.webp" alt=""><p>gamezilla.app</p></article>
+      <article class="card"><img src="../../../public/geviti-app-screenshot.optimized.webp" alt=""><p>Geviti</p></article>
+      <article class="card"><img src="../../../public/triangulator.optimized.webp" alt=""><p>Triangulator</p></article>
+    </div>
+  </div>
+</body>
+</html>

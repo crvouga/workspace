@@ -1,36 +1,41 @@
 /* Design tokens — ported from src/ui/theme.ts before its deletion. */
 
 @font-face {
-  font-family: 'Inter Variable';
-  src: url('/fonts/inter-variable.woff2') format('woff2-variations');
-  font-weight: 100 900;
+  font-family: 'Bricolage Grotesque';
+  src: url('/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  font-weight: 200 800;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'JetBrains Mono Variable';
-  src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2-variations');
-  font-weight: 100 800;
+  font-family: 'Atkinson Hyperlegible';
+  src: url('/fonts/atkinson-hyperlegible-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  src: url('/fonts/atkinson-hyperlegible-700.woff2') format('woff2');
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
-  --font-sans:
-    'Inter Variable', -apple-system, 'system-ui', 'Segoe UI', Roboto, Helvetica,
-    Arial, sans-serif;
-  --font-mono:
-    'JetBrains Mono Variable', 'SF Mono', 'Menlo', 'Consolas',
-    'Liberation Mono', monospace;
+  --font-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-sans: 'Atkinson Hyperlegible', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-mono: var(--font-sans);
 
   --bg: #0a0a0b;
   --paper: #101013;
   --paper-border: #1f1f25;
   --paper-border-hover: #2e2e36;
   --text: #f2f4f8;
-  --text-muted: #a3abba;
-  --text-subtle: #727a88;
+  --text-muted: #b7c6dc;
+  --text-subtle: #8ea0b8;
 
   --accent: #7fb3ff;
   --accent-strong: #4c8de8;
@@ -65,10 +70,10 @@
   --text-xl: 24px;
   --text-2xl: 28px;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-pill: 999px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-pill: 0px;
   --motion-fast: 150ms;
   --motion-med: 220ms;
   --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -88,6 +93,7 @@ html {
   scroll-padding-top: 96px;
   background: var(--bg);
   color-scheme: dark;
+  scrollbar-color: var(--accent-deep) var(--bg);
 }
 
 body {
@@ -97,7 +103,13 @@ body {
   line-height: 1.6;
   color: var(--text);
   background: var(--bg);
+  caret-color: var(--accent);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 /* Clearance for the phone-only action bar (components/StickyCta.astro) so it
@@ -219,22 +231,22 @@ section {
 }
 
 .section-heading .number {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--accent);
+  display: none;
 }
 
 .section-heading h2 {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-family: var(--font-sans);
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 .card {
-  background: var(--paper);
-  border: 1px solid var(--paper-border);
-  border-radius: var(--radius-lg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--paper-border);
+  border-radius: 0;
   transition: border-color var(--motion-fast) var(--motion-ease);
 }
 
@@ -247,11 +259,11 @@ section {
   align-items: center;
   gap: var(--space-2);
   min-height: var(--tap);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 700;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   border: 1px solid var(--paper-border);
   color: var(--text);
   background: transparent;
@@ -289,12 +301,12 @@ section {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--text-muted);
   padding: 3px 9px;
   border: 1px solid var(--paper-border);
-  border-radius: var(--radius-pill);
+  border-radius: 0;
 }
 
 .chip img {
@@ -311,7 +323,7 @@ section {
   padding: 0;
   background: none;
   border: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: var(--accent);
   cursor: pointer;
