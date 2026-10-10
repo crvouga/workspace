@@ -36,8 +36,12 @@ in pkgs.testers.runNixOSTest {
         printf 'mock-registration' > "$7"
         chmod 0600 "$7"
       '';
+      # writeShellScriptBin is /bin/sh. compgen is bash-only, and a missing
+      # command here was ignored, so a busy slot still looked drained.
       drainProvider = pkgs.writeShellScriptBin "runner-control" ''
-        if compgen -G '/run/fleet/*/busy' >/dev/null; then exit 1; fi
+        for busy in /run/fleet/*/busy; do
+          [ -e "$busy" ] && exit 1
+        done
         exit 0
       '';
     };
