@@ -4,7 +4,10 @@
   system.stateVersion = "26.05";
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  networking.hostName = "ci-bootstrap";
+  # No static hostname. hostnamed prefers /etc/hostname, and that file is
+  # read-only on NixOS, so a transient name would never be applied.
+  networking.hostName = "";
+  networking.dhcpcd.setHostname = false;
   networking.useDHCP = true;
   networking.firewall = { enable = true; allowedTCPPorts = [ 22 ]; };
   time.timeZone = "UTC";
@@ -50,7 +53,7 @@
         cat "$nic/address"
       done | sort | head -n1 | tr -d ':')
       [ -n "$mac" ] || { echo 'No permanent physical NIC MAC'; exit 1; }
-      hostnamectl set-hostname "ci-$mac"
+      hostnamectl --transient --no-ask-password set-hostname "ci-$mac"
       install -d -m 0755 /run/fleet
       printf 'ACTIONS_RUNNER_INPUT_NAME=ci-%s\n' "$mac" > /run/fleet/identity
     '';

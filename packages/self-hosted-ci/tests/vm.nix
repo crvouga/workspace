@@ -54,21 +54,23 @@ in pkgs.testers.runNixOSTest {
     virtualisation = { memorySize = 3072; cores = 2; writableStore = true; };
   };
   nodes.client = { pkgs, ... }: { environment.systemPackages = [ pkgs.netcat-openbsd ]; };
-  testScript = ''
+  # The guest hostname is the NIC MAC, so the other node is reached by address.
+  testScript = { nodes, ... }: ''
     start_all()
     machine.wait_for_unit("multi-user.target")
     machine.wait_for_unit("github-runner-slot-1.service")
     machine.wait_for_unit("github-runner-slot-2.service")
-    machine.succeed("hostname | grep '^ci-'")
+    machine.succeed("hostname | grep -Eq '^ci-[0-9a-f]{12}$'")
+    machine.succeed("grep -Eq '^ACTIONS_RUNNER_INPUT_NAME=ci-[0-9a-f]{12}$' /run/fleet/identity")
     machine.succeed("test -d /nix/ci-cache/slot-1 && test -d /nix/ci-cache/slot-2")
     machine.succeed("grep -qx nixLd=true /etc/ci-fleet-vm-test && test -e /run/current-system/sw/share/nix-ld/lib/ld.so")
     machine.succeed("grep -qx watchdog=30s /etc/ci-fleet-vm-test")
     machine.succeed("grep -qx firewall=true /etc/ci-fleet-vm-test && grep -qx sshPorts=22 /etc/ci-fleet-vm-test")
     client.wait_for_unit("multi-user.target")
-    client.succeed("nc -z -w 5 machine 22")
+    client.succeed("nc -z -w 5 ${nodes.machine.networking.primaryIPAddress} 22")
     machine.succeed("${pkgs.python3}/bin/python3 -m http.server 8765 --bind 0.0.0.0 >/tmp/firewall-probe.log 2>&1 &")
     machine.wait_for_open_port(8765)
-    client.fail("nc -z -w 2 machine 8765")
+    client.fail("nc -z -w 2 ${nodes.machine.networking.primaryIPAddress} 8765")
     machine.succeed("systemctl show -p RuntimeWatchdogUSec | grep '30s'")
     machine.succeed("su -s /bin/sh slot-1 -c 'echo disposable >/nix/ci-cache/slot-1/probe'")
     machine.fail("su -s /bin/sh slot-2 -c 'cat /nix/ci-cache/slot-1/probe'")
